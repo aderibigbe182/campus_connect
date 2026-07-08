@@ -3,7 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import '../../../core/services/storage_service.dart';
-import '../../../screens/edit_profile_screen.dart'; 
+import '../../../screens/edit_profile_screen.dart';
+import '../../settings/privacy_page.dart';
+import '../../settings/notifications_page.dart';
+import '../../settings/storage_page.dart';
+import '../../settings/invite_friend_page.dart';
+import '../../settings/help_feedback_page.dart';
+import '../../../repositories/Logout_repository.dart';
+import '../../../screens/auth/login_screen.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -15,16 +22,147 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   Map<String, dynamic>? userData;
   bool isLoading = true;
+  bool isLoggingOut = false;
 
   static const baseUrl =
       'https://campus-connect-backend-6pwg.onrender.com';
+  Future<void> checkSession() async {
+  final valid =
+      await logoutRepository.isSessionValid();
+
+  if (!mounted) return;
+
+  if (!valid) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          "Your session has expired. Please login again.",
+        ),
+      ),
+    );
+
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const LoginScreen(),
+      ),
+      (route) => false,
+    );
+  }
+}
+
+  final LogoutRepository logoutRepository =
+      LogoutRepository.instance;
+Future<bool> showLogoutDialog() async {
+  final result = await showDialog<bool>(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) {
+      return AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius:
+              BorderRadius.circular(20),
+        ),
+
+        title: const Row(
+          children: [
+
+            Icon(
+              Icons.logout_rounded,
+              color: Colors.red,
+            ),
+
+            SizedBox(width: 10),
+
+            Text("Logout"),
+
+          ],
+        ),
+
+        content: const Text(
+          "Are you sure you want to logout of your Campus Connect account?\n\nYou'll need to login again to continue using the app.",
+        ),
+
+        actions: [
+
+          TextButton(
+            onPressed: () {
+              Navigator.pop(
+                context,
+                false,
+              );
+            },
+            child: const Text(
+              "Cancel",
+            ),
+          ),
+
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            icon: const Icon(Icons.logout),
+            label: const Text("Logout"),
+            onPressed: () {
+              Navigator.pop(
+                context,
+                true,
+              );
+            },
+          ),
+
+        ],
+      );
+    },
+  );
+
+  return result ?? false;
+}
+  Future<void> logout() async {
+  final confirm = await showLogoutDialog();
+
+  if (!confirm) return;
+
+  setState(() {
+    isLoggingOut = true;
+  });
+
+  final success =
+      await logoutRepository.logout();
+
+  if (!mounted) return;
+
+  setState(() {
+    isLoggingOut = false;
+  });
+
+  if (success) {
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const LoginScreen(),
+      ),
+      (route) => false,
+    );
+  } else {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(
+      const SnackBar(
+        content: Text(
+          "Logout failed. Please try again.",
+        ),
+      ),
+    );
+  }
+}
 
   @override
-  void initState() {
-    super.initState();
-    loadUser();
-  }
-
+void initState() {
+  super.initState();
+  loadUser();
+  checkSession();
+}
   Future<void> loadUser() async {
     final token = await StorageService.getToken();
 
@@ -45,6 +183,10 @@ class _ProfilePageState extends State<ProfilePage> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
 
+        print("FULL USER DATA = ${jsonEncode(data)}");
+        print("PROFILE PICTURE URL = ${data['profile_picture']}");
+        print("FULL RESPONSE = $data");
+
         if (!mounted) return;
 
         setState(() {
@@ -60,7 +202,6 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  // ✅ NEW NAVIGATION WITH REFRESH
   void openEditProfile() {
     Navigator.push(
       context,
@@ -69,7 +210,7 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
     ).then((value) {
       if (value == true) {
-        loadUser(); // refresh profile after edit
+        loadUser();
       }
     });
   }
@@ -78,129 +219,244 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget build(BuildContext context) {
     if (isLoading) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
       );
     }
 
     if (userData == null) {
       return const Scaffold(
-        body: Center(child: Text("User not logged in")),
+        body: Center(
+          child: Text("User not logged in"),
+        ),
       );
     }
 
     return Scaffold(
       backgroundColor: const Color(0xFFF2F2F7),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              const SizedBox(height: 20),
+      body: Stack(
+        children: [
+          SafeArea(
+            child: RefreshIndicator(
+              onRefresh: loadUser,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Column(
+                  children: [
+                    // SEARCH + QR
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 15,
+                      ),
+                      child: Row(
+                        mainAxisAlignment:
+                            MainAxisAlignment.spaceBetween,
+                        children: const [
+                          Icon(
+                            Icons.search,
+                            size: 30,
+                          ),
+                          Icon(
+                            Icons.qr_code,
+                            size: 30,
+                          ),
+                        ],
+                      ),
+                    ),
 
-              // SEARCH + QR
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 15),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: const [
-                    Icon(Icons.search, size: 30),
-                    Icon(Icons.qr_code, size: 30),
+                    const SizedBox(height: 20),
+
+                    // STATUS
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 25,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(25),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Colors.black12,
+                            blurRadius: 4,
+                          ),
+                        ],
+                      ),
+                      child: Text(
+                        userData!['is_online'] == true
+                            ? "Available"
+                            : "Offline",
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // PROFILE IMAGE
+                    CircleAvatar(
+                      radius: 55,
+                      backgroundImage: NetworkImage(
+                        userData!['profile_picture'] ?? '',
+                      ),
+                      onBackgroundImageError: (error, stackTrace) {
+                        print("IMAGE ERROR: $error");
+                      },
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // PROFILE CARDS
+                    _profileCard(
+                      "Name",
+                      userData!['full_name'] ?? '',
+                    ),
+
+                    _profileCard(
+                      "Email",
+                      userData!['email'] ?? '',
+                    ),
+
+                    _profileCard(
+                      "School",
+                      userData!['university'] ?? '',
+                    ),
+
+                    _profileCard(
+                      "Department",
+                      userData!['department'] ?? 'Not Set',
+                    ),
+
+                    _profileCard(
+                      "Level",
+                      userData!['level'] ?? 'Not Set',
+                    ),
+
+                    _profileCard(
+                      "Interests",
+                      userData!['interests'] ?? 'Not Set',
+                    ),
+
+                    _profileCard(
+                      "Bio",
+                      userData!['bio'] ?? 'Not Set',
+                    ),
+
+                    const SizedBox(height: 30),
+
+                    // SETTINGS
+                    _settingTile(
+                      Icons.lock,
+                      "Privacy",
+                      const PrivacyPage(),
+                    ),
+
+                    _settingTile(
+                      Icons.notifications,
+                      "Notifications",
+                      const NotificationsPage(),
+                    ),
+
+                    _settingTile(
+                      Icons.storage,
+                      "Storage & Data",
+                      const StoragePage(),
+                    ),
+
+                    _settingTile(
+                      Icons.help_outline,
+                      "Help & Feedback",
+                      const HelpFeedbackPage(),
+                    ),
+
+                    _settingTile(
+                      Icons.person_add,
+                      "Invite a Friend",
+                      const InviteFriendPage(),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // EDIT PROFILE BUTTON
+                    ElevatedButton.icon(
+                      onPressed: openEditProfile,
+                      icon: const Icon(Icons.edit),
+                      label: const Text(
+                        "Edit Profile",
+                      ),
+                    ),
+
+                    const SizedBox(height: 30),
+
+                    // LOGOUT BUTTON
+                    Padding(
+                      padding: const EdgeInsets.only(
+                        left: 20,
+                        right: 20,
+                        bottom: 30,
+                      ),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton.icon(
+                          onPressed: logout,
+                          icon: const Icon(
+                            Icons.logout_rounded,
+                            color: Colors.red,
+                          ),
+                          label: const Text(
+                            "Logout",
+                            style: TextStyle(
+                              color: Colors.red,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 10,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
+            ),
+          ),
 
-              const SizedBox(height: 20),
+          if (isLoggingOut)
+            Container(
+              color: Colors.black45,
+              child: const Center(
+                child: Card(
+                  elevation: 8,
+                  child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(),
 
-              // STATUS
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 25,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(25),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Colors.black12,
-                      blurRadius: 4,
-                    )
-                  ],
-                ),
-                child: Text(
-                  userData!['is_online'] == true
-                      ? "Available"
-                      : "Offline",
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
+                        SizedBox(height: 18),
+
+                        Text(
+                          "Logging out...",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-
-              const SizedBox(height: 20),
-
-              // PROFILE IMAGE
-              CircleAvatar(
-                radius: 55,
-                backgroundColor: Colors.deepPurple,
-                backgroundImage: userData!['profile_picture'] != null
-                    ? NetworkImage(userData!['profile_picture'])
-                    : null,
-                child: userData!['profile_picture'] == null
-                    ? const Icon(
-                        Icons.person,
-                        size: 55,
-                        color: Colors.white,
-                      )
-                    : null,
-              ),
-
-              const SizedBox(height: 15),
-
-              Chip(
-                label: Text(
-                  userData!['is_online'] == true
-                      ? 'Available'
-                      : 'Offline',
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              // PROFILE CARDS
-              _profileCard("Name", userData!['full_name'] ?? ''),
-              _profileCard("Email", userData!['email'] ?? ''),
-              _profileCard("School", userData!['university'] ?? ''),
-              _profileCard(
-                  "Department", userData!['department'] ?? 'Not Set'),
-              _profileCard("Level", userData!['level'] ?? 'Not Set'),
-              _profileCard("Interests", userData!['interests'] ?? 'Not Set'),
-
-              const SizedBox(height: 30),
-
-              // SETTINGS
-              _settingTile(Icons.lock, "Privacy"),
-              _settingTile(Icons.notifications, "Notifications"),
-              _settingTile(Icons.storage, "Storage & Data"),
-
-              const SizedBox(height: 20),
-
-              _settingTile(Icons.help_outline, "Help & Feedback"),
-              _settingTile(Icons.group_add, "Invite a Friend"),
-
-              const SizedBox(height: 20),
-
-              // EDIT PROFILE BUTTON (UPDATED)
-              ElevatedButton.icon(
-                onPressed: openEditProfile,
-                icon: const Icon(Icons.edit),
-                label: const Text("Edit Profile"),
-              ),
-
-              const SizedBox(height: 20),
-            ],
-          ),
-        ),
+            ),
+        ],
       ),
     );
   }
@@ -208,13 +464,21 @@ class _ProfilePageState extends State<ProfilePage> {
   // =========================
   // PROFILE CARD
   // =========================
-  Widget _profileCard(String title, String value) {
+  Widget _profileCard(
+    String title,
+    String value,
+  ) {
     return Card(
-      margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+      margin: const EdgeInsets.symmetric(
+        vertical: 6,
+        horizontal: 12,
+      ),
       child: ListTile(
         title: Text(
           "$title:",
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
         ),
         subtitle: Text(value),
       ),
@@ -224,14 +488,50 @@ class _ProfilePageState extends State<ProfilePage> {
   // =========================
   // SETTINGS TILE
   // =========================
-  Widget _settingTile(IconData icon, String title) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+  Widget _settingTile(
+    IconData icon,
+    String title,
+    Widget page,
+  ) {
+    return Container(
+      margin: const EdgeInsets.symmetric(
+        horizontal: 12,
+        vertical: 4,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 2,
+          ),
+        ],
+      ),
       child: ListTile(
-        leading: Icon(icon),
-        title: Text(title),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 18),
-        onTap: () {},
+        leading: Icon(
+          icon,
+          color: Colors.blue,
+        ),
+        title: Text(
+          title,
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        trailing: const Icon(
+          Icons.arrow_forward_ios,
+          size: 18,
+          color: Colors.blue,
+        ),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => page,
+            ),
+          );
+        },
       ),
     );
   }

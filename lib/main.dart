@@ -146,7 +146,9 @@ class _StartScreenState
 
     if (FirebaseAuth.instance
             .currentUser ==
-        null) return;
+        null) {
+      return;
+    }
 
     // ONLINE
     if (state ==

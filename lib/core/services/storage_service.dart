@@ -4,9 +4,7 @@ import 'package:http_parser/http_parser.dart';
 import 'package:mime/mime.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class ApiConstants {
-  static const baseUrl = 'https://campus-connect-backend-6pwg.onrender.com';
-}
+import '../constants/api_constants.dart';
 
 class StorageService {
 
@@ -48,7 +46,7 @@ class StorageService {
       final mimeSplit = mimeType.split('/');
 
       request.files.add(
-        await http.MultipartFile.fromBytes(
+        http.MultipartFile.fromBytes(
           'file',
           fileBytes,
           filename: fileName,

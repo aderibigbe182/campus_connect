@@ -3,7 +3,7 @@ import '../screens/onboarding/onboarding_screen.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/register_screen.dart';
 import '../screens/home/home_screen.dart';
-import '../screens/chat/chat_screen.dart';
+import '../screens/chat/conversation_screen.dart';
 import '../screens/chat/chat_list_screen.dart';
 import '../screens/chat/requests_screen.dart';
 import '../screens/search/search_screen.dart';
@@ -43,8 +43,8 @@ class AppRoutes {
     chats: (context) =>
         const ChatListScreen(),
     chat: (context) =>
-        const ChatScreen(
-          chatId: 'demo_chat',
+        const ConversationScreen(
+          conversationId: 0,
         ),
     search: (context) =>
         const SearchScreen(),
