@@ -8,6 +8,7 @@ import '../widgets/chat_tile.dart';
 import '../widgets/empty_chat_state.dart';
 import '../widgets/chat_refresh_indicator.dart';
 import '../widgets/floating_new_chat_button.dart';
+import '../widgets/chat_connection_banner.dart';
 
 class ChatHomeScreen extends StatefulWidget {
   const ChatHomeScreen({super.key});
@@ -23,6 +24,7 @@ class _ChatHomeScreenState
   final ChatService service = ChatService();
 
   late Future<List<ChatModel>> chats;
+  bool isConnected = true;
 
   @override
   void initState() {
@@ -59,6 +61,11 @@ Future<void> _refreshChats() async {
     ChatFilterTabs(
       onChanged: (index) {},
     ),
+    ChatConnectionBanner(
+  isConnected: isConnected,
+),
+
+const SizedBox(height: 10),
 
     const SizedBox(height: 10),
 
