@@ -29,7 +29,13 @@ class _ChatHomeScreenState
     super.initState();
     chats = service.getChats();
   }
+Future<void> _refreshChats() async {
+  setState(() {
+    chats = service.getChats();
+  });
 
+  await chats;
+}
   @override
   Widget build(BuildContext context) {
     return Scaffold(
