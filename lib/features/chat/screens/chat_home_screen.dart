@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-
+import '../widgets/chat_list_shimmer.dart';
 import '../models/chat_model.dart';
 import '../services/chat_service.dart';
 import '../widgets/chat_app_bar.dart';
@@ -45,10 +45,7 @@ class _ChatHomeScreenState
               builder: (context, snapshot) {
 
                 if (!snapshot.hasData) {
-                  return const Center(
-                    child:
-                        CircularProgressIndicator(),
-                  );
+                 return const ChatListShimmer();
                 }
 
                 final data = snapshot.data!;
