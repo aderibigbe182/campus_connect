@@ -6,6 +6,7 @@ import '../widgets/chat_app_bar.dart';
 import '../widgets/chat_search_bar.dart';
 import '../widgets/chat_tile.dart';
 import '../widgets/empty_chat_state.dart';
+import '../widgets/chat_refresh_indicator.dart';
 import '../widgets/floating_new_chat_button.dart';
 
 class ChatHomeScreen extends StatefulWidget {
@@ -78,18 +79,18 @@ class _ChatHomeScreenState
                 final data = snapshot.data!;
                 if (data.isEmpty) {
   return const EmptyChatState();
-}
+                  return ChatRefreshIndicator(
+  onRefresh: _refreshChats,
+  child: ListView.builder(
+    itemCount: data.length,
+    itemBuilder: (context, index) {
+      return ChatTile(
+        chat: data[index],
+        onTap: () {},
+      );
+    },
+  ),
 
-                return ListView.builder(
-                  itemCount: data.length,
-                  itemBuilder: (context, index) {
-
-                    return ChatTile(
-                      chat: data[index],
-                      onTap: () {},
-                    );
-                  },
-                );
               },
             ),
           ),
