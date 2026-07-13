@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/chat_model.dart';
-import '../services/chat_service.dart';
+import '../../../features/chat/ services/chat_service.dart';   
 import '../widgets/chat_app_bar.dart';
 import '../widgets/chat_connection_banner.dart';
 import '../widgets/chat_fab_badge.dart';
@@ -100,16 +100,14 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
               builder: (context, snapshot) {
                 if (snapshot.connectionState ==
                     ConnectionState.waiting) {
-                  return const Center(
-                    child: CircularProgressIndicator(),
-                  );
+                 return const ChatListShimmer();
                 }
 
                 if (snapshot.hasError) {
                   return ChatErrorState(
                     onRetry: () {
                       setState(() {
-                        _chatsFuture = _chatService.getChats();
+                        chats = service.getChats();
                       });
                     },
                   );
@@ -122,13 +120,9 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
                 }
 
                 return RefreshIndicator(
-                onRefresh: () async {
-                  setState(() {
-                    _chatsFuture = _chatService.getChats();
-                  });
-              
-                  await _chatsFuture;
-                },
+                  onRefresh: () async {
+                    await _refreshChats();
+                  },
                 child: ListView.builder(
                   itemCount: chatsData.length,
                   itemBuilder: (context, index) {

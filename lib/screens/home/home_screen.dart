@@ -1,10 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../main/pages/stories_page.dart';
-import '../main/pages/calls_page.dart';
-import '../main/pages/groups_page.dart';
-import '../main/pages/chats_page.dart';
-import '../main/pages/profile_page.dart';
 
 import '../../core/services/presence_service.dart';
 
@@ -20,13 +15,15 @@ class _HomeScreenState extends State<HomeScreen>
 
   int currentIndex = 3;
 
-  final pages = const [
-    StoriesPage(),
-    CallsPage(),
-    GroupsPage(),
-    ChatsPage(),
-    ProfilePage(),
+  late final List<Widget> pages = [
+    const Center(child: Text("Stories")),
+    const Center(child: Text("Calls")),
+    const Center(child: Text("Groups")),
+    const Center(child: Text("Chats")),
+    const Center(child: Text("Me")),
   ];
+
+
 
   // =========================
   // INIT STATE
