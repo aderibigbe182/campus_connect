@@ -9,6 +9,7 @@ import '../widgets/empty_chat_state.dart';
 import '../widgets/chat_refresh_indicator.dart';
 import '../widgets/floating_new_chat_button.dart';
 import '../widgets/chat_connection_banner.dart';
+import '../widgets/chat_sync_status.dart';
 
 class ChatHomeScreen extends StatefulWidget {
   const ChatHomeScreen({super.key});
@@ -25,6 +26,7 @@ class _ChatHomeScreenState
 
   late Future<List<ChatModel>> chats;
   bool isConnected = true;
+  bool syncing = false;
 
   @override
   void initState() {
@@ -33,8 +35,18 @@ class _ChatHomeScreenState
   }
 Future<void> _refreshChats() async {
   setState(() {
+    syncing = true;
     chats = service.getChats();
   });
+
+  await chats;
+
+  if (mounted) {
+    setState(() {
+      syncing = false;
+    });
+  }
+}
 
   await chats;
 }
@@ -61,8 +73,12 @@ Future<void> _refreshChats() async {
     ChatFilterTabs(
       onChanged: (index) {},
     ),
-    ChatConnectionBanner(
+ChatConnectionBanner(
   isConnected: isConnected,
+),
+
+ChatSyncStatus(
+  syncing: syncing,
 ),
 
 const SizedBox(height: 10),
