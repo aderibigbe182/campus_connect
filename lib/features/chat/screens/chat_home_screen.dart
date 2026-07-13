@@ -35,7 +35,29 @@ class _ChatHomeScreenState
         children: [
           const SizedBox(height: 10),
 
-          const ChatSearchBar(),
+          body: Column(
+  children: [
+
+    ChatSearchBar(
+      onTap: () {},
+    ),
+
+    const SizedBox(height: 6),
+
+    ChatFilterTabs(
+      onChanged: (index) {},
+    ),
+
+    const SizedBox(height: 10),
+
+    Expanded(
+      child: FutureBuilder<List<ChatModel>>(
+        // existing code...
+      ),
+    ),
+
+  ],
+),
 
           const SizedBox(height: 10),
 
