@@ -6,6 +6,7 @@ import '../widgets/chat_app_bar.dart';
 import '../widgets/chat_search_bar.dart';
 import '../widgets/chat_tile.dart';
 import '../widgets/empty_chat_state.dart';
+import '../widgets/floating_new_chat_button.dart';
 
 class ChatHomeScreen extends StatefulWidget {
   const ChatHomeScreen({super.key});
@@ -32,6 +33,9 @@ class _ChatHomeScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: const ChatAppBar(),
+      floatingActionButton: FloatingNewChatButton(
+  onPressed: () {},
+),
       body: Column(
         children: [
           const SizedBox(height: 10),
