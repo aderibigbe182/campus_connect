@@ -5,6 +5,7 @@ import '../services/chat_service.dart';
 import '../widgets/chat_app_bar.dart';
 import '../widgets/chat_search_bar.dart';
 import '../widgets/chat_tile.dart';
+import '../widgets/empty_chat_state.dart';
 
 class ChatHomeScreen extends StatefulWidget {
   const ChatHomeScreen({super.key});
@@ -71,6 +72,9 @@ class _ChatHomeScreenState
                 }
 
                 final data = snapshot.data!;
+                if (data.isEmpty) {
+  return const EmptyChatState();
+}
 
                 return ListView.builder(
                   itemCount: data.length,
