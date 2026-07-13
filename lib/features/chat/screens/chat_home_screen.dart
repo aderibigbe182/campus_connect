@@ -10,6 +10,7 @@ import '../widgets/chat_refresh_indicator.dart';
 import '../widgets/floating_new_chat_button.dart';
 import '../widgets/chat_connection_banner.dart';
 import '../widgets/chat_sync_status.dart';
+import '../widgets/chat_fab_badge.dart';
 
 class ChatHomeScreen extends StatefulWidget {
   const ChatHomeScreen({super.key});
@@ -27,6 +28,7 @@ class _ChatHomeScreenState
   late Future<List<ChatModel>> chats;
   bool isConnected = true;
   bool syncing = false;
+  int unreadCount = 0;
 
   @override
   void initState() {
@@ -44,17 +46,20 @@ Future<void> _refreshChats() async {
   if (mounted) {
     setState(() {
       syncing = false;
+      // Temporary value.
+  // Will come from backend in Phase 9.
+  unreadCount = 4;
     });
   }
 }
-
   await chats;
 }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: const ChatAppBar(),
-      floatingActionButton: FloatingNewChatButton(
+      floatingActionButton: ChatFabBadge(
+  unreadCount: unreadCount,
   onPressed: () {},
 ),
       body: Column(
