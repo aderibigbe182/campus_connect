@@ -10,6 +10,8 @@ import '../widgets/chat_search_bar.dart';
 import '../widgets/chat_sync_banner.dart';
 import '../widgets/chat_sync_status.dart';
 import '../widgets/chat_tile.dart';
+import '../widgets/chat_empty_state.dart';
+import '../widgets/chat_error_state.dart';
 
 class ChatHomeScreen extends StatefulWidget {
   const ChatHomeScreen({super.key});
@@ -104,24 +106,30 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
                 }
 
                 if (snapshot.hasError) {
-                  return const Center(
-                    child: Text(
-                      "Failed to load chats",
-                    ),
+                  return ChatErrorState(
+                    onRetry: () {
+                      setState(() {
+                        _chatsFuture = _chatService.getChats();
+                      });
+                    },
                   );
                 }
 
                 final chatsData = snapshot.data ?? [];
 
                 if (chatsData.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      "No chats yet",
-                    ),
-                  );
+                 return const ChatEmptyState();
                 }
 
-                return ListView.builder(
+                return RefreshIndicator(
+                onRefresh: () async {
+                  setState(() {
+                    _chatsFuture = _chatService.getChats();
+                  });
+              
+                  await _chatsFuture;
+                },
+                child: ListView.builder(
                   itemCount: chatsData.length,
                   itemBuilder: (context, index) {
                     return ChatTile(
@@ -129,9 +137,10 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
                       onTap: () {},
                     );
                   },
-                );
-              },
-            ),
+                ),
+             );
+          },
+        ),
           ),
         ],
       ),
