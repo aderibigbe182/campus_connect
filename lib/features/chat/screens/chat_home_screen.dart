@@ -13,6 +13,7 @@ import '../widgets/chat_sync_status.dart';
 import '../widgets/chat_fab_badge.dart';
 import '../widgets/chat_filter_chips.dart';
 import '../widgets/chat_sync_banner.dart';
+import '../widgets/chat_floating_button.dart';
 
 class ChatHomeScreen extends StatefulWidget {
   const ChatHomeScreen({super.key});
@@ -60,6 +61,9 @@ Future<void> _refreshChats() async {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: const ChatAppBar(),
+      floatingActionButton: ChatFloatingButton(
+  onPressed: () {},
+),
       floatingActionButton: ChatFabBadge(
   unreadCount: unreadCount,
   onPressed: () {},
