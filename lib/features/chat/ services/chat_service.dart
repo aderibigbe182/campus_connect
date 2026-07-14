@@ -24,8 +24,18 @@ class ChatService {
 
     final body = jsonDecode(response.body);
 
-    return (body["chats"] as List)
-        .map((e) => ChatModel.fromJson(e))
-        .toList();
+if (body is List) {
+  return body
+      .map((e) => ChatModel.fromJson(e))
+      .toList();
+}
+
+if (body["chats"] != null) {
+  return (body["chats"] as List)
+      .map((e) => ChatModel.fromJson(e))
+      .toList();
+}
+
+return [];
   }
 }
