@@ -12,6 +12,7 @@ import '../widgets/chat_connection_banner.dart';
 import '../widgets/chat_sync_status.dart';
 import '../widgets/chat_fab_badge.dart';
 import '../widgets/chat_filter_chips.dart';
+import '../widgets/chat_sync_banner.dart';
 
 class ChatHomeScreen extends StatefulWidget {
   const ChatHomeScreen({super.key});
@@ -75,9 +76,10 @@ Future<void> _refreshChats() async {
     ),
 
     const SizedBox(height: 8),
-
 const ChatFilterChips(),
-
+    ChatSyncBanner(
+  syncing: syncing,
+),
 const SizedBox(height: 10),
 
     ChatFilterTabs(
@@ -126,10 +128,9 @@ const SizedBox(height: 10),
       return ChatTile(
         chat: data[index],
         onTap: () {},
-      );
-    },
-  ),
-
+                    );
+                  },
+                ),
               },
             ),
           ),
