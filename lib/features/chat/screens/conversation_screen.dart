@@ -66,9 +66,9 @@ class _ConversationScreenState
             const Size.fromHeight(70),
         child: ConversationAppBar(
           recipientName: widget.recipientName,
-          profilePicture:
-              widget.profilePicture,
+          profilePicture: widget.profilePicture,
           isOnline: widget.isOnline,
+          lastSeen: "Last seen recently",
         ),
       ),
 
