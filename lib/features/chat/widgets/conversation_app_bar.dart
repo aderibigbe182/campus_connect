@@ -35,6 +35,18 @@ class ConversationAppBar extends StatelessWidget {
 
             Hero(
               tag: "avatar_$recipientName",
+              flightShuttleBuilder: (
+                flightContext,
+                animation,
+                direction,
+                fromContext,
+                toContext,
+              ) {
+                return ScaleTransition(
+                  scale: animation,
+                  child: toContext.widget,
+                );
+              },
               child: CircleAvatar(
                 radius: 22,
                 backgroundImage: profilePicture != null
@@ -66,31 +78,35 @@ class ConversationAppBar extends StatelessWidget {
                   ),
 
                   const SizedBox(height: 2),
-
-                  Row(
-                    children: [
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: isOnline
-                              ? Colors.green
-                              : Colors.grey,
-                          shape: BoxShape.circle,
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 250),
+                    child: Row(
+                      key: ValueKey(isOnline),
+                      children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 250),
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: isOnline
+                                ? Colors.green
+                                : Colors.grey,
+                            shape: BoxShape.circle,
+                          ),
                         ),
-                      ),
-
-                      const SizedBox(width: 6),
-
-                       Text(
-                        isOnline
-                            ? "Online"
-                            : (lastSeen ?? "Offline"),
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: Colors.grey.shade600,
+                  
+                        const SizedBox(width: 6),
+                  
+                        Text(
+                          isOnline
+                              ? "Online"
+                              : (lastSeen ?? "Offline"),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: Colors.grey.shade600,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ],
               ),
