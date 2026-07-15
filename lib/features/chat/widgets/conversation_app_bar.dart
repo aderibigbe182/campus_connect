@@ -4,12 +4,14 @@ class ConversationAppBar extends StatelessWidget {
   final String recipientName;
   final String? profilePicture;
   final bool isOnline;
+  final String? lastSeen;
 
   const ConversationAppBar({
     super.key,
     required this.recipientName,
     this.profilePicture,
     required this.isOnline,
+    this.lastSeen,
   });
 
   @override
@@ -80,12 +82,13 @@ class ConversationAppBar extends StatelessWidget {
 
                       const SizedBox(width: 6),
 
-                      Text(
+                       Text(
                         isOnline
                             ? "Online"
-                            : "Offline",
-                        style: theme
-                            .textTheme.bodySmall,
+                            : (lastSeen ?? "Offline"),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: Colors.grey.shade600,
+                        ),
                       ),
                     ],
                   ),
