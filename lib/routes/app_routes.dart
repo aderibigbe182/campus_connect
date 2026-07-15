@@ -1,34 +1,25 @@
 import 'package:flutter/material.dart';
-import '../screens/onboarding/onboarding_screen.dart';
+
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/register_screen.dart';
 import '../screens/home/home_screen.dart';
+import '../screens/onboarding/onboarding_screen.dart';
 import '../screens/profiles/profile_screen.dart';
 
 class AppRoutes {
+  AppRoutes._();
 
-  static const String onboarding = '/onboarding';
-  static const String login = '/login';
-  static const String register = '/register';
-  static const String home = '/home';
-  static const String chats = '/chats';
-  static const String chat = '/chat';
-  static const String search = '/search';
-  static const String requests = '/requests';
-  static const String profile = '/profile';
-  static const String calls = '/calls';
-  static const String groups = '/groups';
-  static const String groupChat = '/group-chat';
-  static Map<String, WidgetBuilder> routes = {
-    onboarding: (context) =>
-        const OnboardingScreen(),
-    login: (context) =>
-        const LoginScreen(),
-    register: (context) =>
-        const RegisterScreen(),
-    home: (context) =>
-        const HomeScreen(),
-    profile: (context) =>
-        const ProfileScreen(),
+  static const onboarding = '/onboarding';
+  static const login = '/login';
+  static const register = '/register';
+  static const home = '/home';
+  static const profile = '/profile';
+
+  static final Map<String, WidgetBuilder> routes = {
+    onboarding: (_) => const OnboardingScreen(),
+    login: (_) => const LoginScreen(),
+    register: (_) => const RegisterScreen(),
+    home: (_) => const HomeScreen(),
+    profile: (_) => const ProfileScreen(),
   };
 }

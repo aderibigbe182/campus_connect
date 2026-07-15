@@ -1,4 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+
 
 class CallModel {
 
@@ -10,7 +10,6 @@ class CallModel {
   final String type;
   final String status;
   final int duration;
-  final Timestamp timestamp;
 
   CallModel({
     required this.id,
@@ -21,7 +20,6 @@ class CallModel {
     required this.type,
     required this.status,
     required this.duration,
-    required this.timestamp,
   });
 
   factory CallModel.fromMap(Map<String, dynamic> map, String docId) {
@@ -35,7 +33,6 @@ class CallModel {
       type: map['type'] ?? '',
       status: map['status'] ?? '',
       duration: map['duration'] ?? 0,
-      timestamp: map['timestamp'],
     );
   }
 }

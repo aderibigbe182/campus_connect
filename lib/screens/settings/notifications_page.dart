@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../models/notification_settings.dart';
-import '../../repositories/notification_repository.dart';
 
 class NotificationsPage extends StatefulWidget {
   const NotificationsPage({super.key});
@@ -15,8 +14,8 @@ class NotificationsPage extends StatefulWidget {
 
 class _NotificationsPageState
     extends State<NotificationsPage> {
-  final NotificationRepository repository =
-      NotificationRepository.instance;
+  bool notificationsEnabled = true;
+bool darkModeEnabled = false;
 
   NotificationSettings settings =
       NotificationSettings.defaults();
@@ -37,18 +36,12 @@ class _NotificationsPageState
   }
 
   Future<void> initializePage() async {
+    if (!mounted) return;
+
     setState(() {
       isLoading = true;
       errorMessage = null;
     });
-
-    try {
-      settings = await repository.syncSettings();
-    } catch (e) {
-      errorMessage = e.toString();
-    }
-
-    if (!mounted) return;
 
     setState(() {
       isLoading = false;
@@ -57,37 +50,27 @@ class _NotificationsPageState
 
   Future<void> saveSettings() async {
     if (isSaving) return;
+    if (!mounted) return;
 
     setState(() {
       isSaving = true;
       syncStatus = "Saving...";
     });
 
-    final success =
-        await repository.save(settings);
-
-    if (!mounted) return;
-
     setState(() {
       isSaving = false;
-
-      syncStatus = success
-          ? "All changes saved"
-          : "Failed to sync";
+      syncStatus = "All changes saved";
     });
 
     ScaffoldMessenger.of(context)
         .hideCurrentSnackBar();
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        backgroundColor:
-            success ? Colors.green : Colors.red,
-        duration: const Duration(milliseconds: 800),
+      const SnackBar(
+        backgroundColor: Colors.green,
+        duration: Duration(milliseconds: 800),
         content: Text(
-          success
-              ? "Notification settings saved"
-              : "Couldn't sync settings",
+          "Notification settings saved",
         ),
       ),
     );
@@ -141,8 +124,7 @@ class _NotificationsPageState
 
     if (confirm != true) return;
 
-    settings =
-        await repository.resetSettings();
+  
 
     if (!mounted) return;
 

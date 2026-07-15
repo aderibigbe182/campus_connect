@@ -9,7 +9,6 @@ import '../../settings/notifications_page.dart';
 import '../../settings/storage_page.dart';
 import '../../settings/invite_friend_page.dart';
 import '../../settings/help_feedback_page.dart';
-import '../../../repositories/Logout_repository.dart';
 import '../../../screens/auth/login_screen.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -26,10 +25,33 @@ class _ProfilePageState extends State<ProfilePage> {
 
   static const baseUrl =
       'https://campus-connect-backend-6pwg.onrender.com';
-  Future<void> checkSession() async {
-  final valid =
-      await logoutRepository.isSessionValid();
 
+  Future<bool> performLogout() async {
+    try {
+      await StorageService.deleteToken();
+      return true;
+    } catch (e) {
+      print("Logout failed: $e");
+      return false;
+    }
+  }
+
+  Future<void> checkSession() async {
+    final token = await StorageService.getToken();
+
+    if (token == null) {
+      return;
+    }
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/auth/check-session'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    final valid = response.statusCode == 200;
   if (!mounted) return;
 
   if (!valid) {
@@ -51,8 +73,6 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 }
 
-  final LogoutRepository logoutRepository =
-      LogoutRepository.instance;
 Future<bool> showLogoutDialog() async {
   final result = await showDialog<bool>(
     context: context,
@@ -128,10 +148,9 @@ Future<bool> showLogoutDialog() async {
     isLoggingOut = true;
   });
 
-  final success =
-      await logoutRepository.logout();
-
   if (!mounted) return;
+
+  final success = await performLogout();
 
   setState(() {
     isLoggingOut = false;

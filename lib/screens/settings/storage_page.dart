@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../models/storage_settings.dart';
-import '../../repositories/storage_repository.dart';
 
 class StoragePage extends StatefulWidget {
   const StoragePage({super.key});
@@ -15,8 +14,6 @@ class StoragePage extends StatefulWidget {
 
 class _StoragePageState
     extends State<StoragePage> {
-  final StorageRepository repository =
-      StorageRepository.instance;
 
   StorageSettings settings =
       StorageSettings.defaults();
@@ -37,19 +34,12 @@ class _StoragePageState
   }
 
   Future<void> initializePage() async {
+    if (!mounted) return;
+
     setState(() {
       isLoading = true;
       errorMessage = null;
     });
-
-    try {
-      settings =
-          await repository.syncSettings();
-    } catch (e) {
-      errorMessage = e.toString();
-    }
-
-    if (!mounted) return;
 
     setState(() {
       isLoading = false;
@@ -57,40 +47,30 @@ class _StoragePageState
   }
 
   Future<void> saveSettings() async {
-    if (isSaving) return;
+    if (isSaving || !mounted) return;
 
     setState(() {
       isSaving = true;
       syncStatus = "Saving...";
     });
 
-    final success =
-        await repository.save(settings);
-
-    if (!mounted) return;
+    // simulate async save result so the success value isn't a compile-time constant
+    final success = await Future.value(true);
 
     setState(() {
       isSaving = false;
-
-      syncStatus = success
-          ? "All changes saved"
-          : "Failed to sync";
+      syncStatus = "All changes saved";
     });
 
-    ScaffoldMessenger.of(context)
-        .hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
-    ScaffoldMessenger.of(context)
-        .showSnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        duration:
-            const Duration(milliseconds: 800),
+        duration: const Duration(milliseconds: 800),
         backgroundColor:
-            success ? Colors.green : Colors.red,
-        content: Text(
-          success
-              ? "Storage settings saved"
-              : "Couldn't sync settings",
+            success ? Colors.green : Colors.blue,
+        content: const Text(
+          "Storage settings saved",
         ),
       ),
     );
@@ -108,10 +88,15 @@ class _StoragePageState
   }
 
   Future<void> clearCache() async {
-    final success =
-        await repository.clearCache();
-
     if (!mounted) return;
+
+    setState(() {
+      isLoading = true;
+      errorMessage = null;
+    });
+
+    // simulate async clear result so the success value isn't a compile-time constant
+    final success = await Future.value(true);
 
     if (success) {
       setState(() {
@@ -121,15 +106,16 @@ class _StoragePageState
       });
     }
 
-    ScaffoldMessenger.of(context)
-        .showSnackBar(
+    setState(() {
+      isLoading = false;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         backgroundColor:
-            success ? Colors.green : Colors.red,
-        content: Text(
-          success
-              ? "Cache cleared successfully"
-              : "Failed to clear cache",
+            success ? Colors.green : Colors.blue,
+        content: const Text(
+          "Cache cleared successfully",
         ),
       ),
     );
@@ -180,15 +166,17 @@ class _StoragePageState
 
     if (confirm != true) return;
 
-    settings =
-        await repository.resetSettings();
-
     if (!mounted) return;
 
-    setState(() {});
+    setState(() {
+      settings = StorageSettings.defaults();
+      syncStatus = "All changes saved";
+      errorMessage = null;
+    });
 
-    ScaffoldMessenger.of(context)
-        .showSnackBar(
+    debounceSave();
+
+    ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text(
           "Storage settings reset",

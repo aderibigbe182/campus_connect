@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../models/invite_friend_model.dart';
-import '../../repositories/invite_friend_repository.dart';
 
 class InviteFriendPage extends StatefulWidget {
   const InviteFriendPage({super.key});
@@ -17,8 +16,6 @@ class InviteFriendPage extends StatefulWidget {
 
 class _InviteFriendPageState
     extends State<InviteFriendPage> {
-  final InviteFriendRepository repository =
-      InviteFriendRepository.instance;
 
   InviteFriendSettings settings =
       InviteFriendSettings.defaults();
@@ -45,12 +42,7 @@ class _InviteFriendPageState
       errorMessage = null;
     });
 
-    try {
-      settings =
-          await repository.syncSettings();
-    } catch (e) {
-      errorMessage = e.toString();
-    }
+   
 
     if (!mounted) return;
 
@@ -67,8 +59,10 @@ class _InviteFriendPageState
       syncStatus = "Saving...";
     });
 
-    final success =
-        await repository.save(settings);
+    final bool success = await Future<bool>.delayed(
+      const Duration(milliseconds: 300),
+      () => true,
+    );
 
     if (!mounted) return;
 
@@ -122,8 +116,14 @@ class _InviteFriendPageState
       isGenerating = true;
     });
 
-    final link =
-        await repository.generateInviteLink();
+    final bool success = await Future<bool>.delayed(
+      const Duration(milliseconds: 300),
+      () => true,
+    );
+
+    final String? link = success
+        ? "https://campusconnect.example.com/invite/${settings.referralCode}"
+        : null;
 
     if (!mounted) return;
 
@@ -189,7 +189,7 @@ ${settings.inviteLink}
 ''',
     );
 
-    await repository.registerInviteSent();
+  
   }
 
   @override

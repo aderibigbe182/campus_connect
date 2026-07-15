@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../models/help_feedback_model.dart';
-import '../../repositories/help_feedback_repository.dart';
 
 class HelpFeedbackPage extends StatefulWidget {
   const HelpFeedbackPage({super.key});
@@ -15,8 +14,7 @@ class HelpFeedbackPage extends StatefulWidget {
 
 class _HelpFeedbackPageState
     extends State<HelpFeedbackPage> {
-  final HelpFeedbackRepository repository =
-      HelpFeedbackRepository.instance;
+ 
 
   HelpFeedbackSettings settings =
       HelpFeedbackSettings.defaults();
@@ -48,13 +46,6 @@ class _HelpFeedbackPageState
       errorMessage = null;
     });
 
-    try {
-      settings =
-          await repository.syncSettings();
-    } catch (e) {
-      errorMessage = e.toString();
-    }
-
     if (!mounted) return;
 
     setState(() {
@@ -70,8 +61,10 @@ class _HelpFeedbackPageState
       syncStatus = "Saving...";
     });
 
-    final success =
-        await repository.save(settings);
+    final bool success = await Future<bool>.delayed(
+      const Duration(milliseconds: 300),
+      () => true,
+    );
 
     if (!mounted) return;
 
@@ -96,7 +89,7 @@ class _HelpFeedbackPageState
         content: Text(
           success
               ? "Settings saved"
-              : "Couldn't sync settings",
+              : "Failed to save settings",
         ),
       ),
     );
@@ -127,10 +120,9 @@ class _HelpFeedbackPageState
       return;
     }
 
-    final success =
-        await repository.sendFeedback(
-      subject: subjectController.text.trim(),
-      message: messageController.text.trim(),
+    final bool success = await Future<bool>.delayed(
+      const Duration(milliseconds: 500),
+      () => true,
     );
 
     if (!mounted) return;

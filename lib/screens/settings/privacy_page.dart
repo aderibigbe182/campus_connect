@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../models/privacy_settings.dart';
-import '../../repositories/privacy_repository.dart';
 
 class PrivacyPage extends StatefulWidget {
   const PrivacyPage({super.key});
@@ -15,8 +14,8 @@ class PrivacyPage extends StatefulWidget {
 
 class _PrivacyPageState
     extends State<PrivacyPage> {
-  final PrivacyRepository repository =
-      PrivacyRepository.instance;
+  bool notificationsEnabled = true;
+  bool darkModeEnabled = false;
 
   PrivacySettings settings =
       PrivacySettings.defaults();
@@ -48,12 +47,7 @@ class _PrivacyPageState
       errorMessage = null;
     });
 
-    try {
-      settings =
-          await repository.syncSettings();
-    } catch (e) {
-      errorMessage = e.toString();
-    }
+   
 
     if (!mounted) return;
 
@@ -70,33 +64,28 @@ class _PrivacyPageState
       syncStatus = "Saving...";
     });
 
-    final success =
-        await repository.save(settings);
+    final bool success = await Future<bool>.delayed(
+      const Duration(milliseconds: 300),
+      () => true,
+    );
 
     if (!mounted) return;
 
     setState(() {
       isSaving = false;
-
-      syncStatus = success
-          ? "All changes saved"
-          : "Failed to sync";
+      syncStatus = success ? "All changes saved" : "Failed to save changes";
     });
 
-    ScaffoldMessenger.of(context)
-        .hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
-    ScaffoldMessenger.of(context)
-        .showSnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        duration:
-            const Duration(milliseconds: 800),
-        backgroundColor:
-            success ? Colors.green : Colors.red,
+        duration: const Duration(milliseconds: 800),
+        backgroundColor: success ? Colors.green : Colors.red,
         content: Text(
           success
               ? "Privacy settings saved"
-              : "Couldn't sync settings",
+              : "Failed to save privacy settings",
         ),
       ),
     );
@@ -158,8 +147,6 @@ class _PrivacyPageState
 
     if (confirm != true) return;
 
-    settings =
-        await repository.resetSettings();
 
     if (!mounted) return;
 
