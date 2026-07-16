@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 
-
 import '../../core/services/presence_service.dart';
+
+import '../main/profile_page.dart';
+import '../stories/stories_page.dart';
+import '../calls/calls_page.dart';
+import '../groups/groups_page.dart';
+import '../chats/chats_page.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
