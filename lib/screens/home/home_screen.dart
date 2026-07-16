@@ -3,10 +3,6 @@ import 'package:flutter/material.dart';
 import '../../core/services/presence_service.dart';
 
 import '../main/profile_page.dart';
-import '../stories/stories_page.dart';
-import '../calls/calls_page.dart';
-import '../groups/groups_page.dart';
-import '../chats/chats_page.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -21,10 +17,10 @@ class _HomeScreenState extends State<HomeScreen>
   int currentIndex = 3;
 
   late final List<Widget> pages = [
-  const StoriesPage(),
-  const CallsPage(),
-  const GroupsPage(),
-  const ChatsPage(),
+  const Center(child: Text("Stories")),
+  const Center(child: Text("Calls")),
+  const Center(child: Text("Groups")),
+  const Center(child: Text("Chats")),
   const ProfilePage(),
 ];
 
