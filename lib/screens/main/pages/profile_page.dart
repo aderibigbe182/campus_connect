@@ -10,6 +10,7 @@ import '../../settings/storage_page.dart';
 import '../../settings/invite_friend_page.dart';
 import '../../settings/help_feedback_page.dart';
 import '../../../screens/auth/login_screen.dart';
+import '/widgets/avatar_widget.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -320,14 +321,12 @@ void initState() {
                     const SizedBox(height: 20),
 
                     // PROFILE IMAGE
-                    CircleAvatar(
+                    // PROFILE IMAGE
+                    AvatarWidget(
                       radius: 55,
-                      backgroundImage: NetworkImage(
-                        userData!['profile_picture'] ?? '',
-                      ),
-                      onBackgroundImageError: (error, stackTrace) {
-                        print("IMAGE ERROR: $error");
-                      },
+                      imageUrl: userData!['profile_picture'],
+                      fullName: userData!['full_name'],
+                      isOnline: userData!['is_online'] == true,
                     ),
 
                     const SizedBox(height: 20),
