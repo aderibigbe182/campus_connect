@@ -21,12 +21,12 @@ class _HomeScreenState extends State<HomeScreen>
   int currentIndex = 3;
 
   late final List<Widget> pages = [
-    const Center(child: Text("Stories")),
-    const Center(child: Text("Calls")),
-    const Center(child: Text("Groups")),
-    const Center(child: Text("Chats")),
-    const Center(child: Text("Me")),
-  ];
+  const StoriesPage(),
+  const CallsPage(),
+  const GroupsPage(),
+  const ChatsPage(),
+  const ProfilePage(),
+];
 
 
 
