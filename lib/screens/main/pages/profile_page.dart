@@ -180,7 +180,7 @@ Future<bool> showLogoutDialog() async {
 void initState() {
   super.initState();
   loadUser();
-   // TEMPORARILY DISABLED
+  // TEMPORARILY DISABLED
   // We currently validate the session using
   // /api/auth/me instead of /check-session.
   //
