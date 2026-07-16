@@ -21,21 +21,69 @@ class AvatarWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Widget avatar = CircleAvatar(
-      radius: radius,
-      backgroundColor: Colors.grey.shade300,
-      backgroundImage:
-          _hasValidImage(imageUrl) ? NetworkImage(imageUrl!) : null,
-      child: !_hasValidImage(imageUrl)
-          ? Text(
-              _initials(fullName),
-              style: TextStyle(
-                fontSize: radius * 0.55,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
+  radius: radius,
+  backgroundColor: Colors.blue.shade200,
+  child: ClipOval(
+    child: SizedBox(
+      width: radius * 2,
+      height: radius * 2,
+      child: _hasValidImage(imageUrl)
+          ? Image.network(
+              imageUrl!,
+              fit: BoxFit.cover,
+
+              // Loading animation
+              loadingBuilder:
+                  (context, child, loadingProgress) {
+                if (loadingProgress == null) {
+                  return AnimatedOpacity(
+                    opacity: 1,
+                    duration: const Duration(
+                      milliseconds: 250,
+                    ),
+                    child: child,
+                  );
+                }
+
+                return const Center(
+                  child: SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                    ),
+                  ),
+                );
+              },
+
+              // Image failed
+              errorBuilder:
+                  (context, error, stackTrace) {
+                return Center(
+                  child: Text(
+                    _initials(fullName),
+                    style: TextStyle(
+                      fontSize: radius * 0.55,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                );
+              },
             )
-          : null,
-    );
+          : Center(
+              child: Text(
+                _initials(fullName),
+                style: TextStyle(
+                  fontSize: radius * 0.55,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+    ),
+  ),
+);
 
     if (showStoryRing) {
       avatar = Container(
@@ -51,7 +99,9 @@ class AvatarWidget extends StatelessWidget {
       );
     }
 
-    return GestureDetector(
+    return Semantics(
+  label: fullName ?? "Profile picture",
+  child: GestureDetector(
       onTap: onTap,
       child: Stack(
         clipBehavior: Clip.none,
@@ -75,7 +125,8 @@ class AvatarWidget extends StatelessWidget {
                 ),
               ),
             ),
-        ],
+          ],
+        ),
       ),
     );
   }
