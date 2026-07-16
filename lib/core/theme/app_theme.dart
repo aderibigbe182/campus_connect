@@ -33,6 +33,27 @@ class AppTheme {
       cardColor: AppColors.card,
 
       dividerColor: AppColors.border,
+      textTheme: const TextTheme(
+  bodyLarge: TextStyle(
+    color: AppColors.textPrimary,
+  ),
+  bodyMedium: TextStyle(
+    color: AppColors.textPrimary,
+  ),
+  bodySmall: TextStyle(
+    color: AppColors.textSecondary,
+  ),
+  titleLarge: TextStyle(
+    color: AppColors.textPrimary,
+    fontWeight: FontWeight.bold,
+  ),
+  titleMedium: TextStyle(
+    color: AppColors.textPrimary,
+  ),
+  titleSmall: TextStyle(
+    color: AppColors.textPrimary,
+  ),
+),
 
       floatingActionButtonTheme:
           const FloatingActionButtonThemeData(
@@ -59,6 +80,17 @@ class AppTheme {
           horizontal: 18,
           vertical: 16,
         ),
+        hintStyle: const TextStyle(
+  color: AppColors.textSecondary,
+),
+
+labelStyle: const TextStyle(
+  color: AppColors.textPrimary,
+),
+
+floatingLabelStyle: const TextStyle(
+  color: AppColors.primary,
+),
 
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
@@ -114,6 +146,27 @@ class AppTheme {
       cardColor: AppColors.darkCard,
 
       dividerColor: AppColors.darkBorder,
+      textTheme: const TextTheme(
+  bodyLarge: TextStyle(
+    color: AppColors.darkTextPrimary,
+  ),
+  bodyMedium: TextStyle(
+    color: AppColors.darkTextPrimary,
+  ),
+  bodySmall: TextStyle(
+    color: AppColors.darkTextSecondary,
+  ),
+  titleLarge: TextStyle(
+    color: AppColors.darkTextPrimary,
+    fontWeight: FontWeight.bold,
+  ),
+  titleMedium: TextStyle(
+    color: AppColors.darkTextPrimary,
+  ),
+  titleSmall: TextStyle(
+    color: AppColors.darkTextPrimary,
+  ),
+),
 
       floatingActionButtonTheme:
           const FloatingActionButtonThemeData(
@@ -143,6 +196,17 @@ class AppTheme {
           horizontal: 18,
           vertical: 16,
         ),
+        hintStyle: const TextStyle(
+  color: AppColors.darkTextSecondary,
+),
+
+labelStyle: const TextStyle(
+  color: AppColors.darkTextPrimary,
+),
+
+floatingLabelStyle: const TextStyle(
+  color: AppColors.primary,
+),
 
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),

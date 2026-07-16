@@ -180,7 +180,11 @@ Future<bool> showLogoutDialog() async {
 void initState() {
   super.initState();
   loadUser();
-  checkSession();
+   // TEMPORARILY DISABLED
+  // We currently validate the session using
+  // /api/auth/me instead of /check-session.
+  //
+  // checkSession();
 }
   Future<void> loadUser() async {
     final token = await StorageService.getToken();
@@ -532,12 +536,14 @@ void initState() {
           icon,
           color: Colors.blue,
         ),
-        title: Text(
-          title,
-          style: const TextStyle(
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+       title: Text(
+  title,
+  style: const TextStyle(
+    color: Colors.black,
+    fontWeight: FontWeight.w600,
+    fontSize: 16,
+  ),
+),
         trailing: const Icon(
           Icons.arrow_forward_ios,
           size: 18,

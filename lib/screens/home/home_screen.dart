@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/services/presence_service.dart';
 
-import '../main/profile_page.dart';
+import '/screens/main/pages/profile_page.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
