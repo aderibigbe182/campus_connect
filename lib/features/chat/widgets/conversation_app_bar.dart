@@ -5,7 +5,80 @@ class ConversationAppBar extends StatelessWidget {
   final String? profilePicture;
   final bool isOnline;
   final String? lastSeen;
+void _startVoiceCall(BuildContext context) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(
+      content: Text(
+        "Voice calling will be available in Phase 12.",
+      ),
+    ),
+  );
+}
 
+void _startVideoCall(BuildContext context) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(
+      content: Text(
+        "Video calling will be available in Phase 12.",
+      ),
+    ),
+  );
+}
+
+void _handleMenuAction(
+  BuildContext context,
+  String value,
+) {
+  switch (value) {
+    case "view_profile":
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("View Profile"),
+        ),
+      );
+      break;
+
+    case "search":
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Search Conversation"),
+        ),
+      );
+      break;
+
+    case "media":
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Shared Media"),
+        ),
+      );
+      break;
+
+    case "mute":
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Mute Conversation"),
+        ),
+      );
+      break;
+
+    case "block":
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Block User"),
+        ),
+      );
+      break;
+
+    case "report":
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Report User"),
+        ),
+      );
+      break;
+  }
+}
   const ConversationAppBar({
     super.key,
     required this.recipientName,
@@ -113,17 +186,22 @@ class ConversationAppBar extends StatelessWidget {
             ),
 
             IconButton(
-              onPressed: () {},
+              onPressed: () => _startVoiceCall(context),
               icon: const Icon(Icons.call_outlined),
             ),
 
             IconButton(
-              onPressed: () {},
+              onPressed: () => _startVideoCall(context),
               icon: const Icon(Icons.videocam_outlined),
             ),
 
             PopupMenuButton<String>(
-              onSelected: (_) {},
+              onSelected: (value) {
+                _handleMenuAction(
+                  context,
+                  value,
+                );
+              },
               itemBuilder: (_) => const [
                 PopupMenuItem(
                   value: "view_profile",
