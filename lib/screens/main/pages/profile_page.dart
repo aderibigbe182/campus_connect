@@ -298,7 +298,7 @@ void initState() {
                         vertical: 8,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: Colors.black,
                         borderRadius: BorderRadius.circular(25),
                         boxShadow: const [
                           BoxShadow(
