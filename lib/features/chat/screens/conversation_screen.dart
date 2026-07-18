@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import '../widgets/conversation_app_bar.dart';
 import '../widgets/message_input_bar.dart';
 import '../widgets/conversation_shimmer.dart';
+import '/features/chat/services/conversation_service.dart';
+import '/features/chat/models/message_model.dart';
+
 
 class ConversationScreen extends StatefulWidget {
   final int conversationId;
@@ -31,22 +34,36 @@ class _ConversationScreenState
       ScrollController();
 
   bool _isLoading = true;
+  List<MessageModel> messages = [];
 
-  @override
-  void initState() {
-    super.initState();
-
-    Future.delayed(
-      const Duration(milliseconds: 800),
-      () {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-          });
-        }
-      },
+ @override
+void initState() {
+  super.initState();
+  loadMessages();
+}
+Future<void> loadMessages() async {
+  try {
+    final result =
+        await ConversationService.getMessages(
+      widget.conversationId,
     );
+
+    if (!mounted) return;
+
+    setState(() {
+      messages = result;
+      _isLoading = false;
+    });
+  } catch (e) {
+    if (!mounted) return;
+
+    setState(() {
+      _isLoading = false;
+    });
   }
+}
+
+    
 
   @override
   void dispose() {
@@ -87,10 +104,20 @@ class _ConversationScreenState
                         top: 12,
                         bottom: 12,
                       ),
-                      itemCount: 0,
+                      itemCount: messages.length,
                       itemBuilder:
                           (context, index) {
-                        return const SizedBox();
+                        final message = messages[index];
+
+return Padding(
+  padding: const EdgeInsets.symmetric(
+    horizontal: 16,
+    vertical: 4,
+  ),
+  child: Text(
+    message.message,
+  ),
+);
                       },
                     ),
             ),
