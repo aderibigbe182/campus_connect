@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 
-import '../../constants/api_constants.dart';
+import '/core/constants/api_constants.dart';
 import '../../models/story/models.dart';
 import 'storage_service.dart';
 

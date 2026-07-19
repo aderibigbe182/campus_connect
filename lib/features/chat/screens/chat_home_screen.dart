@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/chat_model.dart';
-import '../../../features/chat/ services/chat_service.dart';   
+import '../services/chat_service.dart';   
 import '../widgets/chat_app_bar.dart';
 import '../widgets/chat_connection_banner.dart';
 import '../widgets/chat_fab_badge.dart';

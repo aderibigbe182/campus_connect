@@ -5,6 +5,15 @@ import '../widgets/message_input_bar.dart';
 import '../widgets/conversation_shimmer.dart';
 import '/features/chat/services/conversation_service.dart';
 import '/features/chat/models/message_model.dart';
+import '/features/chat/widgets/sender_message_bubble.dart';
+import '../widgets/receiver_message_bubble.dart';
+import '/features/chat/widgets/date_separator.dart';
+import '/core/utils/chat_date_utils.dart';
+import '/features/chat/widgets/typing_indicator.dart';
+import '/features/chat/widgets/empty_conversation.dart';
+
+
+
 
 
 class ConversationScreen extends StatefulWidget {
@@ -34,12 +43,23 @@ class _ConversationScreenState
       ScrollController();
 
   bool _isLoading = true;
+  bool _isTyping = false;
   List<MessageModel> messages = [];
+  final int currentUserId = 1;
 
  @override
 void initState() {
   super.initState();
   loadMessages();
+}
+void _scrollToBottom() {
+  if (!_scrollController.hasClients) return;
+
+  _scrollController.animateTo(
+    0,
+    duration: const Duration(milliseconds: 300),
+    curve: Curves.easeOut,
+  );
 }
 Future<void> loadMessages() async {
   try {
@@ -54,6 +74,9 @@ Future<void> loadMessages() async {
       messages = result;
       _isLoading = false;
     });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+  _scrollToBottom();
+});
   } catch (e) {
     if (!mounted) return;
 
@@ -95,37 +118,62 @@ Future<void> loadMessages() async {
             Expanded(
               child: _isLoading
                   ? const ConversationShimmer()
-                  : ListView.builder(
-                      controller:
-                          _scrollController,
-                      reverse: true,
-                      padding:
-                          const EdgeInsets.only(
-                        top: 12,
-                        bottom: 12,
+                  : messages.isEmpty
+                      ? const EmptyConversation()
+                      : ListView.builder(
+                          controller: _scrollController,
+                          reverse: true,
+                          padding: const EdgeInsets.only(
+                            top: 12,
+                            bottom: 12,
+                          ),
+                          itemCount: messages.length,
+                          itemBuilder: (context, index) {
+                            final message = messages[index];
+
+                            final isMe =
+                                message.senderId == currentUserId;
+
+                            final bool showDateSeparator =
+                                index == messages.length - 1 ||
+                                ChatDateUtils.format(message.createdAt) !=
+                                    ChatDateUtils.format(
+                                      messages[index + 1].createdAt,
+                                    );
+
+                            return Column(
+                              children: [
+                                if (showDateSeparator)
+                                  DateSeparator(
+                                    label: ChatDateUtils.format(
+                                      message.createdAt,
+                                    ),
+                                  ),
+
+                                isMe
+                                    ? SenderMessageBubble(
+                                        message: message.message,
+                                        createdAt: message.createdAt,
+                                        delivered: message.delivered,
+                                        seen: message.seen,
+                                      )
+                                    : ReceiverMessageBubble(
+                                        message: message.message,
+                                        createdAt: message.createdAt,
+                                      ),
+                              ],
+                            );
+                          },
+                        ),
                       ),
-                      itemCount: messages.length,
-                      itemBuilder:
-                          (context, index) {
-                        final message = messages[index];
-
-return Padding(
-  padding: const EdgeInsets.symmetric(
-    horizontal: 16,
-    vertical: 4,
-  ),
-  child: Text(
-    message.message,
-  ),
-);
-                      },
-                    ),
-            ),
-
+            if (_isTyping)
+            TypingIndicator(
+            username: widget.recipientName,
+                  ),
             const MessageInputBar(),
-          ],
-        ),
-      ),
-    );
-  }
-}
+                                ],
+                              ),
+                            ),
+                          );
+                        }
+                      }

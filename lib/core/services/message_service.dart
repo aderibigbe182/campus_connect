@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 
 import '../constants/api_constants.dart';
 import 'storage_service.dart';
-import '../../models/message_model.dart';
+import '/features/chat/models/message_model.dart';
 
 class MessageService {
 
