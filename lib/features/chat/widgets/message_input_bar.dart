@@ -1,6 +1,7 @@
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:async';
 
 class MessageInputBar extends StatefulWidget {
   final Future<void> Function(String message)? onSend;
@@ -23,6 +24,9 @@ class _MessageInputBarState
   final FocusNode _focusNode = FocusNode();
 
   bool _showEmoji = false;
+  bool _isRecording = false;
+  Duration _recordDuration = Duration.zero;
+  Timer? _timer;
   bool get _hasText => _controller.text.trim().isNotEmpty;
 @override
 void initState() {
@@ -32,11 +36,65 @@ void initState() {
     setState(() {});
   });
 }
+void _startRecording() {
+  HapticFeedback.mediumImpact();
 
+  setState(() {
+    _isRecording = true;
+    _recordDuration = Duration.zero;
+  });
+
+  _timer?.cancel();
+
+  _timer = Timer.periodic(
+    const Duration(seconds: 1),
+    (_) {
+      setState(() {
+        _recordDuration +=
+            const Duration(seconds: 1);
+      });
+    },
+  );
+}
+void _stopRecording() {
+  _timer?.cancel();
+
+  HapticFeedback.lightImpact();
+
+  final duration = _recordDuration;
+
+  setState(() {
+    _isRecording = false;
+  });
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(
+        "Voice message recorded (${_formatRecordingTime()})",
+      ),
+    ),
+  );
+
+  // Later we'll upload the audio here.
+}
+String _formatRecordingTime() {
+  final minutes =
+      _recordDuration.inMinutes
+          .toString()
+          .padLeft(2, "0");
+
+  final seconds =
+      (_recordDuration.inSeconds % 60)
+          .toString()
+          .padLeft(2, "0");
+
+  return "$minutes:$seconds";
+}
   @override
   void dispose() {
     _controller.dispose();
     _focusNode.dispose();
+    _timer?.cancel();
     super.dispose();
   }
 
@@ -68,6 +126,48 @@ void initState() {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (_isRecording)
+              Container(
+                margin: const EdgeInsets.only(
+                  bottom: 8,
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius:
+                      BorderRadius.circular(18),
+                ),
+                child: Row(
+                  children: [
+
+                    const Icon(
+                      Icons.fiber_manual_record,
+                      color: Colors.red,
+                      size: 14,
+                    ),
+
+                    const SizedBox(width: 10),
+
+                    Text(
+                      _formatRecordingTime(),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+
+                    const SizedBox(width: 20),
+
+                    const Expanded(
+                      child: Text(
+                        "← Slide to cancel",
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             Container(
               padding: const EdgeInsets.symmetric(
                 horizontal: 12,
@@ -101,6 +201,8 @@ void initState() {
                       focusNode: _focusNode,
                       textCapitalization:
                         TextCapitalization.sentences,
+                        minLines: 1,
+                        maxLines: 5,
                       onTap: () {
                         if (_showEmoji) {
                           setState(() {
@@ -112,6 +214,10 @@ void initState() {
                         hintText:
                             "Type a message...",
                         filled: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 18,
+                          vertical: 12,
+                        ),
                         border:
                             OutlineInputBorder(
                           borderRadius:
@@ -131,40 +237,43 @@ void initState() {
                       Icons.attach_file,
                     ),
                   ),
+                  AnimatedSwitcher(
+  duration: const Duration(milliseconds: 200),
+  child: _hasText
+      ? IconButton(
+          key: const ValueKey("send"),
+          onPressed: () async {
+            HapticFeedback.lightImpact();
 
-                 AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 200),
-                    child: _hasText
-                        ? IconButton(
-                            key: const ValueKey("send"),
-                            onPressed: () async {
-                              HapticFeedback.lightImpact();
+            final text = _controller.text.trim();
 
-                              final text = _controller.text.trim();
+            if (text.isEmpty) return;
 
-                              if (text.isEmpty) return;
+            if (widget.onSend != null) {
+              await widget.onSend!(text);
+            }
 
-                              if (widget.onSend != null) {
-                                await widget.onSend!(text);
-                              }
-
-                              _controller.clear();
-                            },
-                            icon: const Icon(
-                              Icons.send,
-                              color: Colors.blue,
-                            ),
-                          )
-                        : IconButton(
-                            key: const ValueKey("mic"),
-                            onPressed: () {
-                              HapticFeedback.lightImpact();
-
-                              // TODO: Start voice recording
-                            },
-                            icon: const Icon(Icons.mic),
-                          ),
-                  ),
+            _controller.clear();
+          },
+          icon: const Icon(
+            Icons.send,
+            color: Colors.blue,
+          ),
+        )
+      : GestureDetector(
+          key: const ValueKey("mic"),
+          onLongPressStart: (_) {
+            _startRecording();
+          },
+          onLongPressEnd: (_) {
+            _stopRecording();
+          },
+          child: const Padding(
+            padding: EdgeInsets.all(8),
+            child: Icon(Icons.mic),
+          ),
+        ),
+),
                 ],
               ),
             ),
