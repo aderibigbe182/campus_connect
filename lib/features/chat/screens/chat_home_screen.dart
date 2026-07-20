@@ -126,8 +126,10 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> {
                 child: ListView.builder(
                   itemCount: chatsData.length,
                   itemBuilder: (context, index) {
+                    final chat = chatsData[index];
+
                     return ChatTile(
-                      chat: chatsData[index],
+                      chat: chat,
                       onTap: () {},
                     );
                   },

@@ -45,25 +45,20 @@ class ChatTile extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       onLongPress: onLongPress,
-
       child: Padding(
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.lg,
           vertical: AppSpacing.md,
         ),
-
         child: Row(
           children: [
-
             Stack(
               children: [
-
                 AvatarWidget(
-                  imageUrl: avatarUrl,
-                  name: name,
-                  radius: 28,
-                ),
-
+                    imageUrl: avatarUrl,
+                    initials: name,
+                    radius: 28,
+                    ),
                 if (isOnline)
                   const Positioned(
                     right: 0,
@@ -77,28 +72,21 @@ class ChatTile extends StatelessWidget {
 
             Expanded(
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
-
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-
                   Row(
                     children: [
-
                       Expanded(
                         child: Text(
                           name,
                           maxLines: 1,
-                          overflow:
-                              TextOverflow.ellipsis,
+                          overflow: TextOverflow.ellipsis,
                           style: AppTextStyles.titleMedium,
                         ),
                       ),
-
                       if (isVerified)
                         const Padding(
-                          padding:
-                              EdgeInsets.only(left: 4),
+                          padding: EdgeInsets.only(left: 4),
                           child: Icon(
                             Icons.verified,
                             color: AppColors.primary,
@@ -113,11 +101,9 @@ class ChatTile extends StatelessWidget {
                   Text(
                     lastMessage,
                     maxLines: 1,
-                    overflow:
-                        TextOverflow.ellipsis,
+                    overflow: TextOverflow.ellipsis,
                     style: AppTextStyles.bodyMedium.copyWith(
-                      color:
-                          AppColors.textSecondary,
+                      color: AppColors.textSecondary,
                     ),
                   ),
                 ],
@@ -127,11 +113,8 @@ class ChatTile extends StatelessWidget {
             const SizedBox(width: AppSpacing.md),
 
             Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.end,
-
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-
                 Text(
                   time,
                   style: AppTextStyles.bodySmall,

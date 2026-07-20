@@ -45,6 +45,8 @@ class AppColors {
 
   static const Color border = Color(0xFFE5E7EB);
   static const Color darkBorder = Color(0xFF334155);
+  // Used throughout the app for dividers
+  static const Color divider = border;
 
   // =========================
   // STATUS

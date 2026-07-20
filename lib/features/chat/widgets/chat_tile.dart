@@ -62,8 +62,7 @@ class ChatTile extends StatelessWidget {
 
             Expanded(
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     chat.fullName,
@@ -81,8 +80,7 @@ class ChatTile extends StatelessWidget {
                         child: Text(
                           chat.lastMessage ?? "",
                           maxLines: 1,
-                          overflow:
-                              TextOverflow.ellipsis,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontSize: 14,
                             color: Colors.grey,
@@ -96,8 +94,7 @@ class ChatTile extends StatelessWidget {
             ),
 
             Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.end,
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
                   chat.lastMessageTime ?? "",
