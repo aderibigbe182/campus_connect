@@ -11,6 +11,7 @@ import '/features/chat/widgets/date_separator.dart';
 import '/core/utils/chat_date_utils.dart';
 import '/features/chat/widgets/typing_indicator.dart';
 import '/features/chat/widgets/empty_conversation.dart';
+import '../services/send_message_service.dart';
 
 
 
@@ -85,10 +86,17 @@ Future<void> loadMessages() async {
     });
   }
 }
+Future<void> sendMessage(String text) async {
+  final success = await SendMessageService.sendMessage(
+    conversationId: widget.conversationId,
+    message: text,
+  );
 
-    
+  if (!success) return;
 
-  @override
+  await loadMessages();
+}
+ @override
   void dispose() {
     _scrollController.dispose();
     super.dispose();
@@ -170,7 +178,9 @@ Future<void> loadMessages() async {
             TypingIndicator(
             username: widget.recipientName,
                   ),
-            const MessageInputBar(),
+            MessageInputBar(
+              onSend: sendMessage,
+            ),
                                 ],
                               ),
                             ),
