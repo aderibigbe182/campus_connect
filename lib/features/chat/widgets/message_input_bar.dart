@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
 
+import 'package:image_picker/image_picker.dart';
+import '../widgets/attachment_sheet.dart';
+
+
 class MessageInputBar extends StatefulWidget {
   final Future<void> Function(String message)? onSend;
 
@@ -15,19 +19,43 @@ class MessageInputBar extends StatefulWidget {
   State<MessageInputBar> createState() =>
       _MessageInputBarState();
 }
-
 class _MessageInputBarState
     extends State<MessageInputBar> {
   final TextEditingController _controller =
       TextEditingController();
 
   final FocusNode _focusNode = FocusNode();
+  final ImagePicker _picker = ImagePicker();
 
   bool _showEmoji = false;
   bool _isRecording = false;
   Duration _recordDuration = Duration.zero;
   Timer? _timer;
   bool get _hasText => _controller.text.trim().isNotEmpty;
+  Future<void> _pickFromGallery() async {
+  final file = await _picker.pickImage(
+    source: ImageSource.gallery,
+    imageQuality: 85,
+  );
+
+  if (file == null) return;
+
+  debugPrint(file.path);
+
+  // Backend upload comes later.
+}
+Future<void> _pickFromCamera() async {
+  final file = await _picker.pickImage(
+    source: ImageSource.camera,
+    imageQuality: 85,
+  );
+
+  if (file == null) return;
+
+  debugPrint(file.path);
+
+  // Backend upload comes later.
+}
 @override
 void initState() {
   super.initState();
@@ -109,6 +137,43 @@ String _formatRecordingTime() {
       _showEmoji = !_showEmoji;
     });
   }
+  void _showAttachmentSheet() {
+  showModalBottomSheet(
+    context: context,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(
+        top: Radius.circular(24),
+      ),
+    ),
+    builder: (_) {
+      return AttachmentSheet(
+        onGallery: _pickFromGallery,
+        onCamera: _pickFromCamera,
+        onDocument: () {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Documents coming soon"),
+            ),
+          );
+        },
+        onLocation: () {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Location sharing coming soon"),
+            ),
+          );
+        },
+        onContact: () {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Contact sharing coming soon"),
+            ),
+          );
+        },
+      );
+    },
+  );
+}
 
   @override
   Widget build(BuildContext context) {
@@ -232,11 +297,9 @@ String _formatRecordingTime() {
                   ),
 
                   IconButton(
-                    onPressed: () {},
-                    icon: const Icon(
-                      Icons.attach_file,
-                    ),
-                  ),
+  onPressed: _showAttachmentSheet,
+  icon: const Icon(Icons.attach_file),
+),
                   AnimatedSwitcher(
   duration: const Duration(milliseconds: 200),
   child: _hasText

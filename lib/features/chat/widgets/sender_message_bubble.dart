@@ -5,6 +5,7 @@ class SenderMessageBubble extends StatelessWidget {
   final DateTime createdAt;
   final bool delivered;
   final bool seen;
+  final bool sending;
 
   const SenderMessageBubble({
     super.key,
@@ -12,6 +13,7 @@ class SenderMessageBubble extends StatelessWidget {
     required this.createdAt,
     required this.delivered,
     required this.seen,
+    this.sending = false,
   });
 
 String _formatTime(DateTime dateTime) {
@@ -28,6 +30,39 @@ String _formatTime(DateTime dateTime) {
       dateTime.hour >= 12 ? "PM" : "AM";
 
   return "$hour:$minute $period";
+}
+Widget _buildStatusIcon() {
+  if (sending) {
+    return const SizedBox(
+      width: 12,
+      height: 12,
+      child: CircularProgressIndicator(
+        strokeWidth: 1.5,
+      ),
+    );
+  }
+
+  if (seen) {
+    return const Icon(
+      Icons.done_all,
+      size: 16,
+      color: Colors.blue,
+    );
+  }
+
+  if (delivered) {
+    return const Icon(
+      Icons.done_all,
+      size: 16,
+      color: Colors.grey,
+    );
+  }
+
+  return const Icon(
+    Icons.done,
+    size: 16,
+    color: Colors.grey,
+  );
 }
   @override
   Widget build(BuildContext context) {
@@ -70,17 +105,7 @@ String _formatTime(DateTime dateTime) {
     ),
 
     const SizedBox(height: 4),
-
-    Text(
-      _formatTime(createdAt),
-      style: TextStyle(
-        fontSize: 11,
-        color: Theme.of(context)
-            .colorScheme
-            .onPrimary
-            .withOpacity(.75),
-      ),
-    ),
+    
   ],
 ),
       ),
