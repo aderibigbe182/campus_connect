@@ -254,6 +254,7 @@ String _formatRecordingTime() {
             }
 
             _controller.clear();
+            
           },
           icon: const Icon(
             Icons.send,

@@ -13,10 +13,6 @@ import '/features/chat/widgets/typing_indicator.dart';
 import '/features/chat/widgets/empty_conversation.dart';
 import '../services/send_message_service.dart';
 
-
-
-
-
 class ConversationScreen extends StatefulWidget {
   final int conversationId;
   final int recipientId;
@@ -62,6 +58,52 @@ void _scrollToBottom() {
     curve: Curves.easeOut,
   );
 }
+void _addLocalMessage(String text) {
+  final temp = MessageModel(
+    id: -DateTime.now().millisecondsSinceEpoch,
+    senderId: currentUserId,
+    message: text,
+    createdAt: DateTime.now(),
+    delivered: false,
+    seen: false,
+    sending: true,
+  );
+
+  setState(() {
+    messages.insert(0, temp);
+  });
+
+  _scrollToBottom();
+}
+Future.delayed(
+  const Duration(seconds: 1),
+  () {
+    if (!mounted) return;
+
+    setState(() {
+      final msg = messages.first;
+
+      messages[0] = msg.copyWith(
+        sending: false,
+        delivered: true,
+      );
+    });
+  },
+);
+Future.delayed(
+  const Duration(seconds: 3),
+  () {
+    if (!mounted) return;
+
+    setState(() {
+      final msg = messages.first;
+
+      messages[0] = msg.copyWith(
+        seen: true,
+      );
+    });
+  },
+);
 Future<void> loadMessages() async {
   try {
     final result =
@@ -179,8 +221,12 @@ Future<void> sendMessage(String text) async {
             username: widget.recipientName,
                   ),
             MessageInputBar(
-              onSend: sendMessage,
-            ),
+  onSend: (text) async {
+    _addLocalMessage(text);
+
+    // backend comes next
+  },
+)
                                 ],
                               ),
                             ),

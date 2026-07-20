@@ -10,6 +10,7 @@ class MessageModel {
   final bool isDeleted;
   final String? fileUrl;
   final DateTime createdAt;
+  final bool sending;
 
   MessageModel({
     required this.id,
@@ -23,6 +24,7 @@ class MessageModel {
     required this.isDeleted,
     this.fileUrl,
     required this.createdAt,
+    this.sending = false,
   });
 
   factory MessageModel.fromJson(Map<String, dynamic> json) {
