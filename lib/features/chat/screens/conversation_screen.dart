@@ -12,6 +12,8 @@ import '/core/utils/chat_date_utils.dart';
 import '/features/chat/widgets/typing_indicator.dart';
 import '/features/chat/widgets/empty_conversation.dart';
 import '../services/send_message_service.dart';
+import '../models/local_image_message.dart';
+import '../widgets/image_message_bubble.dart';
 
 class ConversationScreen extends StatefulWidget {
   final int conversationId;
