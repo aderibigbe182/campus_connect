@@ -9,10 +9,12 @@ import '../widgets/attachment_sheet.dart';
 
 class MessageInputBar extends StatefulWidget {
   final Future<void> Function(String message)? onSend;
+  final void Function(File image)? onImageSelected;
 
   const MessageInputBar({
     super.key,
     this.onSend,
+     this.onImageSelected,
   });
 
   @override
