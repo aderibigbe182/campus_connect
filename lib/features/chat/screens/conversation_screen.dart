@@ -32,6 +32,7 @@ class ConversationScreen extends StatefulWidget {
   @override
   State<ConversationScreen> createState() =>
       _ConversationScreenState();
+  final List<LocalImageMessage> imageMessages = [];
 }
 
 class _ConversationScreenState
