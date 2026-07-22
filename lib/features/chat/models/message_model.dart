@@ -1,8 +1,9 @@
+import 'reply_message_model.dart';
 class MessageModel {
   final int id;
   final int conversationId;
   final int senderId;
-  final String message;
+  String message;
   final String messageType;
   final bool seen;
   final bool delivered;
@@ -11,6 +12,9 @@ class MessageModel {
   final String? fileUrl;
   final DateTime createdAt;
   final bool sending;
+  bool edited;
+  ReplyMessageModel? replyTo;
+
 
   MessageModel({
     required this.id,
@@ -25,6 +29,8 @@ class MessageModel {
     this.fileUrl,
     required this.createdAt,
     this.sending = false,
+    this.edited = false,
+    this.replyTo,
   });
 
   factory MessageModel.fromJson(Map<String, dynamic> json) {

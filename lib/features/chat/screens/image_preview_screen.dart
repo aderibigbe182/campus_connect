@@ -67,6 +67,11 @@ class _ImagePreviewScreenState
           ),
         ),
       ),
+      @override
+        void dispose() {
+          _controller.dispose();
+          super.dispose();
+        }
       body: SafeArea(
         child: Column(
           children: [
@@ -76,6 +81,23 @@ class _ImagePreviewScreenState
                 child: Hero(
                   tag: widget.imageFile.path,
                   child: InteractiveViewer(
+                      clipBehavior: Clip.none,
+                      boundaryMargin:
+                      GestureDetector(
+  onDoubleTap: () {
+    if (_controller.value != Matrix4.identity()) {
+      _controller.value = Matrix4.identity();
+    } else {
+      _controller.value =
+          Matrix4.identity()
+            ..scale(2.5);
+    }
+  },
+  child: InteractiveViewer(
+    transformationController: _controller,
+                          const EdgeInsets.all(60),
+                      minScale: 1,
+                      maxScale: 5,
                     child: Image.file(
                       widget.imageFile,
                       fit: BoxFit.contain,

@@ -8,15 +8,22 @@ import '../widgets/attachment_sheet.dart';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'selected_media_preview.dart';
+import '../models/reply_message_model.dart';
+import 'reply_preview.dart';
 
 
 class MessageInputBar extends StatefulWidget {
-  final Future<void> Function(String message)? onSend;
+  final Future<void> Function(
+  String message,
+  ReplyMessageModel? reply,
+)?onSend;
   const MessageInputBar({
     super.key,
     this.onSend,
-     this.onImageSelected,
-     this.onFileSelected,
+    this.onImageSelected,
+    this.onFileSelected,
+    this.replyingTo,
+    this.onCancelReply,
   });
 
   @override
@@ -33,6 +40,8 @@ class _MessageInputBarState
   final FocusNode _focusNode = FocusNode();
   final ImagePicker _picker = ImagePicker();
   File? _selectedImage;
+  final ReplyMessageModel? replyingTo;
+  final VoidCallback? onCancelReply;
 
   bool _showEmoji = false;
   bool _isRecording = false;
@@ -261,6 +270,13 @@ String _formatRecordingTime() {
                     });
                   },
                 ),
+                if (widget.replyingTo != null)
+  ReplyPreview(
+    reply: widget.replyingTo!,
+    onCancel:
+        widget.onCancelReply ??
+        () {},
+  ),
             if (_isRecording)
               Container(
                 margin: const EdgeInsets.only(
@@ -389,7 +405,10 @@ String _formatRecordingTime() {
           }
 
             if (widget.onSend != null) {
-              await widget.onSend!(text);
+              await widget.onSend!(
+  text,
+  widget.replyingTo,
+);
             }
 
             _controller.clear();

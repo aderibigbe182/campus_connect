@@ -15,6 +15,9 @@ import '../services/send_message_service.dart';
 import '../models/local_image_message.dart';
 import '../widgets/image_message_bubble.dart';
 import '../models/local_file_message.dart';
+import '../models/forward_chat_model.dart';
+import 'forward_message_screen.dart';
+import '../models/reply_message_model.dart';
 
 class ConversationScreen extends StatefulWidget {
   final int conversationId;
@@ -47,6 +50,7 @@ class _ConversationScreenState
   bool _isTyping = false;
   List<MessageModel> messages = [];
   final int currentUserId = 1;
+  ReplyMessageModel? _replyingTo;
 
 
  @override
@@ -62,6 +66,22 @@ void _scrollToBottom() {
     duration: const Duration(milliseconds: 300),
     curve: Curves.easeOut,
   );
+}
+void _cancelReply() {
+  setState(() {
+    _replyingTo = null;
+  });
+}
+void _startReply(MessageModel message) {
+  setState(() {
+    _replyingTo = ReplyMessageModel(
+      messageId: message.id,
+      sender: message.senderId == currentUserId
+          ? "You"
+          : widget.recipientName,
+      message: message.message,
+    );
+  });
 }
 void _addLocalMessage(String text) {
   final temp = MessageModel(
@@ -133,6 +153,163 @@ Future<void> loadMessages() async {
     });
   }
 }
+Future<void> _forwardMessage(MessageModel message) async {
+  final chat =
+      await Navigator.push<ForwardChatModel>(
+    context,
+    MaterialPageRoute(
+      builder: (_) => ForwardMessageScreen(
+        chats: _forwardChats,
+      ),
+    ),
+  );
+
+  if (chat == null) return;
+
+  if (!mounted) return;
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(
+        'Message forwarded to ${chat.name}',
+      ),
+    ),
+  );
+}
+Future<void> _editMessage(int index) async {
+  final controller = TextEditingController(
+    text: messages[index].message,
+  );
+
+  final updated = await showDialog<String>(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: const Text("Edit message"),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLines: 4,
+        ),
+        actions: [
+
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            child: const Text("Cancel"),
+          ),
+
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(
+                context,
+                controller.text.trim(),
+              );
+            },
+            child: const Text("Save"),
+          ),
+        ],
+      );
+    },
+  );
+
+  if (updated == null || updated.isEmpty) return;
+
+  setState(() {
+    messages[index].message = updated;
+    messages[index].edited = true;
+  });
+
+  if (!mounted) return;
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(
+      content: Text("Message edited"),
+      duration: Duration(seconds: 1),
+    ),
+  );
+}
+final List<ForwardChatModel> _forwardChats = [
+  const ForwardChatModel(
+    id: 2,
+    name: "David Johnson",
+  ),
+  const ForwardChatModel(
+    id: 3,
+    name: "Mary Williams",
+  ),
+  const ForwardChatModel(
+    id: 4,
+    name: "Campus Group",
+  ),
+];
+Future<void> _sendMessage(
+  String text,
+  ReplyMessageModel? reply,
+) async {
+  final message = MessageModel(
+    id: DateTime.now().millisecondsSinceEpoch,
+    senderId: currentUserId,
+    message: text,
+    createdAt: DateTime.now(),
+    delivered: true,
+    seen: false,
+    edited: false,
+    replyTo: reply,
+  );
+
+  setState(() {
+    messages.insert(0, message);
+    _replyingTo = null;
+  });
+
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    _scrollToBottom();
+  });
+}
+Future<void> _deleteMessage(int index) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: const Text("Delete message"),
+        content: const Text(
+          "Are you sure you want to delete this message?",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context, false);
+            },
+            child: const Text("Cancel"),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(context, true);
+            },
+            child: const Text("Delete"),
+          ),
+        ],
+      );
+    },
+  );
+
+  if (confirmed != true) return;
+
+  setState(() {
+    messages.removeAt(index);
+  });
+
+  if (!mounted) return;
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(
+      content: Text("Message deleted"),
+      duration: Duration(seconds: 1),
+    ),
+  );
+}
 Future<void> sendMessage(String text) async {
   final success = await SendMessageService.sendMessage(
     conversationId: widget.conversationId,
@@ -194,16 +371,26 @@ Future<void> sendMessage(String text) async {
                                     message.senderId == currentUserId;
 
                                 return isMe
-                                    ? SenderMessageBubble(
+                                    ?SenderMessageBubble(
                                         message: message.message,
                                         createdAt: message.createdAt,
                                         delivered: message.delivered,
                                         seen: message.seen,
-                                      )
+                                        edited: message.edited,
+                                        replyTo: message.replyTo,
+                                        onReply: () => _startReply(message),
+                                        onEdit: () => _editMessage(index),
+                                        onDelete: () => _deleteMessage(index),
+                                        onForward: () => _forwardMessage(message),
+                                      ), 
+                                  
                                     : ReceiverMessageBubble(
-                                        message: message.message,
-                                        createdAt: message.createdAt,
-                                      );
+                                          message: message.message,
+                                          createdAt: message.createdAt,
+                                          replyTo: message.replyTo,
+                                          onReply: () => _startReply(message),
+                                          onForward: () => _forwardMessage(message),
+                                        );
                               },
                             ),
                           ],
@@ -213,11 +400,10 @@ Future<void> sendMessage(String text) async {
             username: widget.recipientName,
                   ),
                         MessageInputBar(
-                        onSend: (message) async {
-                          _addLocalMessage(message);
-
-                          await sendMessage(message);
-                        },
+                          replyingTo: _replyingTo,
+                          onCancelReply: _cancelReply,
+                        onSend:  _sendMessage,
+                        )
 
                         onImageSelected: (image) {
                           setState(() {

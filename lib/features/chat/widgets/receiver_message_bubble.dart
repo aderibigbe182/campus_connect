@@ -1,13 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '../widgets/message_action_sheet.dart';
 
 class ReceiverMessageBubble extends StatelessWidget {
   final String message;
   final DateTime createdAt;
+  final VoidCallback? onDelete;
+  final VoidCallback? onForward;
+  final VoidCallback? onReply;
 
   const ReceiverMessageBubble({
     super.key,
     required this.message,
     required this.createdAt,
+    this.onDelete,
+    this.onForward,
+    this.onReply,
   });
 String _formatTime(DateTime dateTime) {
   final hour = dateTime.hour > 12
@@ -51,6 +59,47 @@ Widget build(BuildContext context) {
           bottomRight: Radius.circular(18),
         ),
       ),
+      GestureDetector(
+  onLongPress: () {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) {
+        return MessageActionSheet(
+          onCopy: () async {
+  Navigator.pop(context);
+
+  await Clipboard.setData(
+    ClipboardData(text: message),
+  );
+
+  if (!context.mounted) return;
+
+  ScaffoldMessenger.of(context).showSnackBar(
+  SnackBar(
+    behavior: SnackBarBehavior.floating,
+    duration: const Duration(milliseconds: 900),
+    content: const Text("Copied"),
+  ),
+);
+},
+          onReply: () {
+  Navigator.pop(context);
+  onReply?.call();
+},
+          onForward: () {
+  Navigator.pop(context);
+  onForward?.call();
+},
+          onEdit: null,
+          onDelete: () {
+  Navigator.pop(context);
+
+  onDelete?.call();
+},
+        );
+      },
+    );
+  },
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.end,
         mainAxisSize: MainAxisSize.min,
