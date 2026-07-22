@@ -14,6 +14,7 @@ import '/features/chat/widgets/empty_conversation.dart';
 import '../services/send_message_service.dart';
 import '../models/local_image_message.dart';
 import '../widgets/image_message_bubble.dart';
+import '../models/local_file_message.dart';
 
 class ConversationScreen extends StatefulWidget {
   final int conversationId;
@@ -34,18 +35,19 @@ class ConversationScreen extends StatefulWidget {
   @override
   State<ConversationScreen> createState() =>
       _ConversationScreenState();
-  final List<LocalImageMessage> imageMessages = [];
 }
 
 class _ConversationScreenState
     extends State<ConversationScreen> {
   final ScrollController _scrollController =
       ScrollController();
-
+  final List<LocalImageMessage> imageMessages = [];
+  final List<LocalFileMessage> fileMessages = [];
   bool _isLoading = true;
   bool _isTyping = false;
   List<MessageModel> messages = [];
   final int currentUserId = 1;
+
 
  @override
 void initState() {
@@ -173,37 +175,25 @@ Future<void> sendMessage(String text) async {
                   ? const ConversationShimmer()
                   : messages.isEmpty
                       ? const EmptyConversation()
-                      : ListView.builder(
+                      : ListView(
                           controller: _scrollController,
                           reverse: true,
-                          padding: const EdgeInsets.only(
-                            top: 12,
-                            bottom: 12,
-                          ),
-                          itemCount: messages.length,
-                          itemBuilder: (context, index) {
-                            final message = messages[index];
+                          children: [
 
-                            final isMe =
-                                message.senderId == currentUserId;
+                            ...imageMessages.map(
+                              (image) => ImageMessageBubble(
+                                image: image.image,
+                                isMe: image.isMe,
+                                createdAt: image.createdAt,
+                              ),
+                            ),
 
-                            final bool showDateSeparator =
-                                index == messages.length - 1 ||
-                                ChatDateUtils.format(message.createdAt) !=
-                                    ChatDateUtils.format(
-                                      messages[index + 1].createdAt,
-                                    );
+                            ...messages.map(
+                              (message) {
+                                final isMe =
+                                    message.senderId == currentUserId;
 
-                            return Column(
-                              children: [
-                                if (showDateSeparator)
-                                  DateSeparator(
-                                    label: ChatDateUtils.format(
-                                      message.createdAt,
-                                    ),
-                                  ),
-
-                                isMe
+                                return isMe
                                     ? SenderMessageBubble(
                                         message: message.message,
                                         createdAt: message.createdAt,
@@ -213,26 +203,42 @@ Future<void> sendMessage(String text) async {
                                     : ReceiverMessageBubble(
                                         message: message.message,
                                         createdAt: message.createdAt,
-                                      ),
-                              ],
-                            );
-                          },
-                        ),
-                      ),
+                                      );
+                              },
+                            ),
+                          ],
+                        )
             if (_isTyping)
             TypingIndicator(
             username: widget.recipientName,
                   ),
-            MessageInputBar(
-  onSend: (text) async {
-    _addLocalMessage(text);
+                        MessageInputBar(
+                        onSend: (message) async {
+                          _addLocalMessage(message);
 
-    // backend comes next
-  },
-)
-                                ],
+                          await sendMessage(message);
+                        },
+
+                        onImageSelected: (image) {
+                          setState(() {
+                            imageMessages.insert(
+                              0,
+                              LocalImageMessage(
+                                image: image,
+                                isMe: true,
+                                createdAt: DateTime.now(),
                               ),
-                            ),
-                          );
-                        }
-                      }
+                            );
+                          });
+
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            _scrollToBottom();
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+          }

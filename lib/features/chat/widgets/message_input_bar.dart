@@ -5,16 +5,18 @@ import 'dart:async';
 
 import 'package:image_picker/image_picker.dart';
 import '../widgets/attachment_sheet.dart';
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
+import 'selected_media_preview.dart';
 
 
 class MessageInputBar extends StatefulWidget {
   final Future<void> Function(String message)? onSend;
-  final void Function(File image)? onImageSelected;
-
   const MessageInputBar({
     super.key,
     this.onSend,
      this.onImageSelected,
+     this.onFileSelected,
   });
 
   @override
@@ -25,16 +27,30 @@ class _MessageInputBarState
     extends State<MessageInputBar> {
   final TextEditingController _controller =
       TextEditingController();
-
+  final void Function(File image)? onImageSelected;
+  final void Function(LocalFileMessage file)?
+    onFileSelected;
   final FocusNode _focusNode = FocusNode();
   final ImagePicker _picker = ImagePicker();
+  File? _selectedImage;
 
   bool _showEmoji = false;
   bool _isRecording = false;
   Duration _recordDuration = Duration.zero;
   Timer? _timer;
   bool get _hasText => _controller.text.trim().isNotEmpty;
-  Future<void> _pickFromGallery() async {
+Future<void> _pickFromGallery() async {
+  if (_selectedImage != null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          "Remove the current image first.",
+        ),
+      ),
+    );
+    return;
+  }
+
   final file = await _picker.pickImage(
     source: ImageSource.gallery,
     imageQuality: 85,
@@ -42,11 +58,28 @@ class _MessageInputBarState
 
   if (file == null) return;
 
-  debugPrint(file.path);
+  setState(() {
+    _selectedImage = File(file.path);
+  });
+
+  widget.onImageSelected?.call(
+    _selectedImage!,
+  );
 
   // Backend upload comes later.
 }
 Future<void> _pickFromCamera() async {
+  if (_selectedImage != null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          "Remove the current image first.",
+        ),
+      ),
+    );
+    return;
+  }
+
   final file = await _picker.pickImage(
     source: ImageSource.camera,
     imageQuality: 85,
@@ -54,9 +87,35 @@ Future<void> _pickFromCamera() async {
 
   if (file == null) return;
 
-  debugPrint(file.path);
+  setState(() {
+    _selectedImage = File(file.path);
+  });
+
+  widget.onImageSelected?.call(
+    _selectedImage!,
+  );
 
   // Backend upload comes later.
+}
+Future<void> _pickDocument() async {
+  final result =
+      await FilePicker.platform.pickFiles();
+
+  if (result == null) return;
+
+  final file = result.files.single;
+
+  widget.onFileSelected?.call(
+  LocalFileMessage(
+    file: File(file.path!),
+    name: file.name,
+    size: file.size,
+    isMe: true,
+    createdAt: DateTime.now(),
+  ),
+);
+
+  // Upload comes later
 }
 @override
 void initState() {
@@ -129,6 +188,9 @@ String _formatRecordingTime() {
   }
 
   void _toggleEmojiKeyboard() {
+    if (_selectedImage != null) {
+      return;
+    }
     if (_showEmoji) {
       _focusNode.requestFocus();
     } else {
@@ -151,10 +213,7 @@ String _formatRecordingTime() {
       return AttachmentSheet(
         onGallery: _pickFromGallery,
         onCamera: _pickFromCamera,
-        onDocument: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("Documents coming soon"),
+        onDocument: _pickDocument,
             ),
           );
         },
@@ -193,6 +252,15 @@ String _formatRecordingTime() {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+             if (_selectedImage != null)
+                SelectedMediaPreview(
+                  image: _selectedImage!,
+                  onRemove: () {
+                    setState(() {
+                      _selectedImage = null;
+                    });
+                  },
+                ),
             if (_isRecording)
               Container(
                 margin: const EdgeInsets.only(
@@ -299,7 +367,10 @@ String _formatRecordingTime() {
                   ),
 
                   IconButton(
-  onPressed: _showAttachmentSheet,
+                    onPressed: 
+                    _selectedImage == null
+                            ? _showAttachmentSheet
+                            : null,
   icon: const Icon(Icons.attach_file),
 ),
                   AnimatedSwitcher(
@@ -312,13 +383,19 @@ String _formatRecordingTime() {
 
             final text = _controller.text.trim();
 
-            if (text.isEmpty) return;
+            if (text.isEmpty &&
+              _selectedImage == null) {
+            return;
+          }
 
             if (widget.onSend != null) {
               await widget.onSend!(text);
             }
 
             _controller.clear();
+            setState(() {
+              _selectedImage = null;
+            });
             
           },
           icon: const Icon(

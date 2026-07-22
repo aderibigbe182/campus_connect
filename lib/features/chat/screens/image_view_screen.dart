@@ -1,11 +1,13 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 class ImageViewScreen extends StatelessWidget {
-  final String imageUrl;
+  final File image;
 
   const ImageViewScreen({
     super.key,
-    required this.imageUrl,
+    required this.image,
   });
 
   @override
@@ -14,12 +16,18 @@ class ImageViewScreen extends StatelessWidget {
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.black,
+        elevation: 0,
+        iconTheme: const IconThemeData(
+          color: Colors.white,
+        ),
       ),
       body: Center(
         child: Hero(
-          tag: imageUrl,
+          tag: image.path,
           child: InteractiveViewer(
-            child: Image.network(imageUrl),
+            minScale: 1,
+            maxScale: 5,
+            child: Image.file(image),
           ),
         ),
       ),
