@@ -18,6 +18,7 @@ import '../models/local_file_message.dart';
 import '../models/forward_chat_model.dart';
 import 'forward_message_screen.dart';
 import '../models/reply_message_model.dart';
+import '/core/services/socket_service.dart';
 
 class ConversationScreen extends StatefulWidget {
   final int conversationId;
@@ -51,12 +52,16 @@ class _ConversationScreenState
   List<MessageModel> messages = [];
   final int currentUserId = 1;
   ReplyMessageModel? _replyingTo;
+  final socket = SocketService.instance;
+  Timer? _typingTimer;
+  
 
 
  @override
 void initState() {
   super.initState();
   loadMessages();
+  _connectSocket();
 }
 void _scrollToBottom() {
   if (!_scrollController.hasClients) return;
@@ -129,6 +134,32 @@ Future.delayed(
     });
   },
 );
+Future<void> _connectSocket() async {
+  final token = await StorageService.getToken();
+
+  if (token != null) {
+    socket.connect(token);
+  }
+   socket.joinConversation(
+    widget.conversationId,
+  );
+  socket.listenRoomJoined();
+  socket.listenTyping((_) {
+  if (!mounted) return;
+
+  setState(() {
+    _isTyping = true;
+  });
+});
+
+socket.listenStopTyping((_) {
+  if (!mounted) return;
+
+  setState(() {
+    _isTyping = false;
+  });
+});
+}
 Future<void> loadMessages() async {
   try {
     final result =
@@ -322,6 +353,10 @@ Future<void> sendMessage(String text) async {
 }
  @override
   void dispose() {
+    socket.leaveConversation(
+  widget.conversationId,
+);
+socket.disconnect();
     _scrollController.dispose();
     super.dispose();
   }
@@ -364,46 +399,45 @@ Future<void> sendMessage(String text) async {
                                 createdAt: image.createdAt,
                               ),
                             ),
+                            ...messages.asMap().entries.map((entry) {
+  final index = entry.key;
+  final message = entry.value;
 
-                            ...messages.map(
-                              (message) {
-                                final isMe =
-                                    message.senderId == currentUserId;
+  final isMe =
+      message.senderId == currentUserId;
 
-                                return isMe
-                                    ?SenderMessageBubble(
-                                        message: message.message,
-                                        createdAt: message.createdAt,
-                                        delivered: message.delivered,
-                                        seen: message.seen,
-                                        edited: message.edited,
-                                        replyTo: message.replyTo,
-                                        onReply: () => _startReply(message),
-                                        onEdit: () => _editMessage(index),
-                                        onDelete: () => _deleteMessage(index),
-                                        onForward: () => _forwardMessage(message),
-                                      ), 
-                                  
-                                    : ReceiverMessageBubble(
-                                          message: message.message,
-                                          createdAt: message.createdAt,
-                                          replyTo: message.replyTo,
-                                          onReply: () => _startReply(message),
-                                          onForward: () => _forwardMessage(message),
-                                        );
-                              },
-                            ),
+  return isMe
+      ? SenderMessageBubble(
+          message: message.message,
+          createdAt: message.createdAt,
+          delivered: message.delivered,
+          seen: message.seen,
+          edited: message.edited,
+          replyTo: message.replyTo,
+          onReply: () => _startReply(message),
+          onEdit: () => _editMessage(index),
+          onDelete: () => _deleteMessage(index),
+          onForward: () => _forwardMessage(message),
+        )
+      : ReceiverMessageBubble(
+          message: message.message,
+          createdAt: message.createdAt,
+          replyTo: message.replyTo,
+          onReply: () => _startReply(message),
+          onForward: () => _forwardMessage(message),
+        );
+}).toList(),
                           ],
-                        )
+                        ),
+            ),
             if (_isTyping)
             TypingIndicator(
             username: widget.recipientName,
                   ),
-                        MessageInputBar(
-                          replyingTo: _replyingTo,
-                          onCancelReply: _cancelReply,
-                        onSend:  _sendMessage,
-                        )
+                      MessageInputBar(
+                        replyingTo: _replyingTo,
+                        onCancelReply: _cancelReply,
+                        onSend: _sendMessage,
 
                         onImageSelected: (image) {
                           setState(() {

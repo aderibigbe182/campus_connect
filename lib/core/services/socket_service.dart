@@ -1,312 +1,97 @@
-import 'package:socket_io_client/socket_io_client.dart' as IO;
-
-import 'storage_service.dart';
-import 'package:flutter/foundation.dart';
-import '../constants/api_constants.dart' as api;
+import 'package:socket_io_client/socket_io_client.dart' as io;
 
 class SocketService {
+  static final SocketService instance =
+      SocketService._();
 
   SocketService._();
 
-  static final SocketService instance = SocketService._();
+  io.Socket? socket;
 
-  IO.Socket? _socket;
-
-  IO.Socket? get socket => _socket!;
-
-  bool get isConnected => _socket?.connected ?? false;
-
-  Future<void> connect() async {
-
-    if (_socket != null && _socket!.connected) {
-
-      return;
-
-    }
-
-    final token = await StorageService.getToken();
-
-    _socket = IO.io(
-
-      api.ApiConstants.baseUrl,
-
-      IO.OptionBuilder()
-
-          .setTransports(
-
-            ['websocket'],
-
-          )
-
+  void connect(String token) {
+    socket ??= io.io(
+      'https://campus-connect-backend-6pwg.onrender.com',
+      io.OptionBuilder()
+          .setTransports(['websocket'])
           .disableAutoConnect()
-
-          .setAuth(
-
-            {
-
-              "token": token,
-
-            },
-
-          )
-
-          .enableReconnection()
-
-          .setReconnectionAttempts(
-
-            10,
-
-          )
-
-          .setReconnectionDelay(
-
-            1000,
-
-          )
-
+          .setAuth({
+            "token": token,
+          })
           .build(),
-
     );
 
-    _socket!.connect();
-
-    _socket!.onConnect((_) {
-
-      debugPrint("Socket Connected");
-
-    });
-
-    _socket!.onDisconnect((_) {
-
-      debugPrint("Socket Disconnected");
-
-    });
-
-    _socket!.onConnectError((error) {
-
-      debugPrint("Socket Error: $error");
-
-    });
-
+    socket!.connect();
   }
-
-  // ==========================================
-  // JOIN CONVERSATION
-  // ==========================================
-
-  void joinConversation(
-
-    int conversationId,
-
-  ) {
-
-    if (_socket == null) return;
-
-    _socket!.emit(
-
-      "joinConversation",
-
-      conversationId,
-
-    );
-
-  }
-
-  // ==========================================
-  // LEAVE CONVERSATION
-  // ==========================================
-
-  void leaveConversation(
-
-    int conversationId,
-
-  ) {
-
-    if (_socket == null) return;
-
-    _socket!.emit(
-
-      "leaveConversation",
-
-      conversationId,
-
-    );
-
-  }
-// ==========================================
-// SEND MESSAGE
-// ==========================================
-
-void sendMessage(
-
-  Map<String, dynamic> message,
-
-) {
-
-  _socket?.emit(
-
-    "sendMessage",
-
-    message,
-
-  );
-
-}
-
-// ==========================================
-// LISTEN FOR NEW MESSAGE
-// ==========================================
-
-void onNewMessage(
-
-  Function(dynamic data) callback,
-
-) {
-
-  _socket?.on(
-
-    "newMessage",
-
-    callback,
-
-  );
-
-}
-
-// ==========================================
-// STOP LISTENING
-// ==========================================
-
-void removeNewMessageListener() {
-
-  _socket?.off(
-
-    "newMessage",
-
-  );
-
-}
-// ==========================================
-// MESSAGE DELIVERED
-// ==========================================
-
-void messageDelivered({
-
-  required int conversationId,
-
-  required int messageId,
-
-}) {
-
-  _socket?.emit(
-
-    "messageDelivered",
-
-    {
-
-      "conversationId": conversationId,
-
-      "messageId": messageId,
-
-    },
-
-  );
-
-}
-
-void onMessageDelivered(
-
-  Function(dynamic data) callback,
-
-) {
-
-  _socket?.on(
-
-    "messageDelivered",
-
-    callback,
-
-  );
-
-}
-
-void removeDeliveredListener() {
-
-  _socket?.off(
-
-    "messageDelivered",
-
-  );
-
-}
-// ==========================================
-// MESSAGE SEEN
-// ==========================================
-
-void messageSeen({
-
-  required int conversationId,
-
-  required int messageId,
-
-}) {
-
-  _socket?.emit(
-
-    "messageSeen",
-
-    {
-
-      "conversationId": conversationId,
-
-      "messageId": messageId,
-
-    },
-
-  );
-
-}
-
-void onMessageSeen(
-
-  Function(dynamic data) callback,
-
-) {
-
-  _socket?.on(
-
-    "messageSeen",
-
-    callback,
-
-  );
-
-}
-
-void removeSeenListener() {
-
-  _socket?.off(
-
-    "messageSeen",
-
-  );
-
-}
-// ==========================================
-//  // DISCONNECT
-// ==========================================
 
   void disconnect() {
-
-    _socket?.disconnect();
-
-    _socket?.dispose();
-
-    _socket = null;
-
+    socket?.disconnect();
   }
 
+  bool get connected =>
+      socket?.connected ?? false;
 }
-void dispose() {
-  SocketService.instance.disconnect();
+void joinConversation(int conversationId) {
+  socket?.emit(
+    'join_conversation',
+    {
+      'conversationId': conversationId,
+    },
+  );
+}
+
+void leaveConversation(int conversationId) {
+  socket?.emit(
+    'leave_conversation',
+    {
+      'conversationId': conversationId,
+    },
+  );
+}
+void listenRoomJoined() {
+  socket?.on(
+    'joined_conversation',
+    (data) {
+      print(
+        'Joined room: ${data["conversationId"]}',
+      );
+    },
+  );
+}
+void sendTyping(
+  int conversationId,
+) {
+  socket?.emit(
+    "typing",
+    {
+      "conversationId": conversationId,
+    },
+  );
+}
+
+void sendStopTyping(
+  int conversationId,
+) {
+  socket?.emit(
+    "stop_typing",
+    {
+      "conversationId": conversationId,
+    },
+  );
+}
+void listenTyping(
+  void Function(dynamic data) callback,
+) {
+  socket?.on(
+    "typing",
+    callback,
+  );
+}
+
+void listenStopTyping(
+  void Function(dynamic data) callback,
+) {
+  socket?.on(
+    "stop_typing",
+    callback,
+  );
 }
