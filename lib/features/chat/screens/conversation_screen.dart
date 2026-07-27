@@ -181,6 +181,29 @@ Future<void> _connectSocket() async {
    socket.joinConversation(
     widget.conversationId,
   );
+  socket.listenSeen((data) {
+
+  final id = data["messageId"];
+
+  final index =
+      messages.indexWhere(
+    (m) => m.id == id,
+  );
+
+  if (index == -1) return;
+
+  if (!mounted) return;
+
+  setState(() {
+
+    messages[index] =
+        messages[index].copyWith(
+      seen: true,
+    );
+
+  });
+
+});
   socket.listenPresence((data) {
 
   if (!mounted) return;
@@ -202,6 +225,36 @@ Future<void> _connectSocket() async {
 
 });
   socket.listenRoomJoined();
+  socket.listenMessage((data) {
+  final incoming =
+      MessageModel.fromJson(data);
+
+  final pendingIndex =
+      messages.indexWhere(
+    (m) =>
+        m.sending &&
+        m.senderId ==
+            incoming.senderId &&
+        m.message ==
+            incoming.message,
+  );
+
+  if (!mounted) return;
+
+  setState(() {
+    if (pendingIndex != -1) {
+      messages[pendingIndex] =
+          incoming;
+    } else {
+      messages.insert(
+        0,
+        incoming,
+      );
+    }
+  });
+
+  _scrollToBottom();
+});
   socket.listenTyping((_) {
   if (!mounted) return;
 
@@ -343,18 +396,21 @@ Future<void> _sendMessage(
       DateTime.now()
           .millisecondsSinceEpoch;
 
-  final pendingMessage =
-      MessageModel(
-        id: tempId,
-        senderId: currentUserId,
-        message: text,
-        createdAt: DateTime.now(),
-        delivered: false,
-        seen: false,
-        edited: false,
-        sending: true,
-        replyTo: reply,
-      );
+  final pendingMessage = MessageModel(
+  id: tempId,
+  conversationId: widget.conversationId,
+  senderId: currentUserId,
+  message: text,
+  messageType: "text",
+  seen: false,
+  delivered: false,
+  isEdited: false,
+  isDeleted: false,
+  createdAt: DateTime.now(),
+  sending: true,
+  edited: false,
+  replyTo: reply,
+);
 
   setState(() {
     messages.insert(

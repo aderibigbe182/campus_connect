@@ -9,7 +9,6 @@ class MessageModel {
   final bool delivered;
   final bool isEdited;
   final bool isDeleted;
-  final bool sending;
   final String? fileUrl;
   final DateTime createdAt;
   final bool sending;
@@ -32,7 +31,6 @@ class MessageModel {
     this.sending = false,
     this.edited = false,
     this.replyTo,
-    this.sending = false,
   });
 
   factory MessageModel.fromJson(Map<String, dynamic> json) {
