@@ -95,3 +95,162 @@ void listenStopTyping(
     callback,
   );
 }
+void listenMessage(
+  void Function(dynamic data) callback,
+) {
+  socket?.on(
+    "new_message",
+    callback,
+  );
+}
+void sendMessage({
+  required int conversationId,
+  required int receiverId,
+  required String message,
+  dynamic replyTo,
+}) {
+  socket?.emit(
+    "send_message",
+    {
+      "conversationId": conversationId,
+      "receiverId": receiverId,
+      "message": message,
+      "replyTo": replyTo,
+    },
+  );
+}
+socket.listenMessage((data) {
+
+  final incoming =
+      MessageModel.fromJson(data);
+
+  final pendingIndex =
+      messages.indexWhere(
+    (m) =>
+        m.sending &&
+        m.senderId ==
+            incoming.senderId &&
+        m.message ==
+            incoming.message,
+  );
+
+  setState(() {
+
+    if (pendingIndex != -1) {
+
+      messages[pendingIndex] =
+          incoming;
+
+    } else {
+
+      messages.insert(
+        0,
+        incoming,
+      );
+      _markMessagesSeen();
+socket.socket?.emit(
+  "message_delivered",
+  {
+    "messageId": incoming.id,
+    "conversationId":
+        widget.conversationId,
+  },
+);
+    }
+
+  });
+
+  _scrollToBottom();
+
+});
+void listenDelivered(
+  void Function(dynamic data) callback,
+) {
+  socket?.on(
+    "message_delivered",
+    callback,
+  );
+}
+socket.listenDelivered((data) {
+
+  final id = data["messageId"];
+
+  final index =
+      messages.indexWhere(
+        (m) => m.id == id,
+      );
+
+  if (index == -1) return;
+
+  if (!mounted) return;
+
+  setState(() {
+
+    messages[index] =
+        messages[index].copyWith(
+      delivered: true,
+      sending: false,
+    );
+
+  });
+
+});
+void listenSeen(
+  void Function(dynamic data) callback,
+) {
+  socket?.on(
+    "message_seen",
+    callback,
+  );
+}
+void sendSeen({
+  required int conversationId,
+  required int messageId,
+}) {
+  socket?.emit(
+    "message_seen",
+    {
+      "conversationId": conversationId,
+      "messageId": messageId,
+    },
+  );
+}
+socket.listenSeen((data) {
+
+  final id = data["messageId"];
+
+  final index =
+      messages.indexWhere(
+    (m) => m.id == id,
+  );
+
+  if (index == -1) return;
+
+  if (!mounted) return;
+
+  setState(() {
+
+    messages[index] =
+        messages[index].copyWith(
+      seen: true,
+    );
+
+  });
+
+});
+void listenPresence(
+  void Function(dynamic data) callback,
+) {
+  socket?.on(
+    "presence_changed",
+    callback,
+  );
+}
+void updatePresence(bool online) {
+  socket?.emit(
+    "presence",
+    {
+      "online": online,
+    },
+  );
+}

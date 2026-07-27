@@ -24,6 +24,8 @@ class MessageInputBar extends StatefulWidget {
     this.onFileSelected,
     this.replyingTo,
     this.onCancelReply,
+    this.onTyping,
+    this.onStopTyping,
   });
 
   @override
@@ -42,6 +44,8 @@ class _MessageInputBarState
   File? _selectedImage;
   final ReplyMessageModel? replyingTo;
   final VoidCallback? onCancelReply;
+  final VoidCallback? onTyping;
+  final VoidCallback? onStopTyping;
 
   bool _showEmoji = false;
   bool _isRecording = false;
@@ -132,6 +136,7 @@ void initState() {
 
   _controller.addListener(() {
     setState(() {});
+    widget.onTyping?.call();
   });
 }
 void _startRecording() {
@@ -412,6 +417,7 @@ String _formatRecordingTime() {
             }
 
             _controller.clear();
+            widget.onStopTyping?.call();
             setState(() {
               _selectedImage = null;
             });

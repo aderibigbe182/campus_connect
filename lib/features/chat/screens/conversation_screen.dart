@@ -42,26 +42,52 @@ class ConversationScreen extends StatefulWidget {
 }
 
 class _ConversationScreenState
-    extends State<ConversationScreen> {
+    extends State<ConversationScreen>
+    with WidgetsBindingObserver
+    {
   final ScrollController _scrollController =
       ScrollController();
   final List<LocalImageMessage> imageMessages = [];
   final List<LocalFileMessage> fileMessages = [];
   bool _isLoading = true;
   bool _isTyping = false;
+  late bool _recipientOnline;
+  String? _recipientLastSeen;
   List<MessageModel> messages = [];
   final int currentUserId = 1;
   ReplyMessageModel? _replyingTo;
   final socket = SocketService.instance;
   Timer? _typingTimer;
   
-
-
  @override
 void initState() {
   super.initState();
+  WidgetsBinding.instance.addObserver(this);
+  _recipientOnline =
+    widget.isOnline;
   loadMessages();
   _connectSocket();
+}
+void _onTyping() {
+  socket.sendTyping(
+    widget.conversationId,
+  );
+
+  _typingTimer?.cancel();
+
+  _typingTimer = Timer(
+    const Duration(
+      milliseconds: 1200,
+    ),
+    () {
+      _stopTyping();
+    },
+  );
+}
+void _stopTyping() {
+  socket.sendStopTyping(
+    widget.conversationId,
+  );
 }
 void _scrollToBottom() {
   if (!_scrollController.hasClients) return;
@@ -87,6 +113,17 @@ void _startReply(MessageModel message) {
       message: message.message,
     );
   });
+}
+void _markMessagesSeen() {
+  for (final message in messages) {
+    if (!message.seen &&
+        message.senderId != currentUserId) {
+      socket.sendSeen(
+        conversationId: widget.conversationId,
+        messageId: message.id,
+      );
+    }
+  }
 }
 void _addLocalMessage(String text) {
   final temp = MessageModel(
@@ -114,7 +151,7 @@ Future.delayed(
       final msg = messages.first;
 
       messages[0] = msg.copyWith(
-        sending: false,
+        sending: message.sending,
         delivered: true,
       );
     });
@@ -140,9 +177,30 @@ Future<void> _connectSocket() async {
   if (token != null) {
     socket.connect(token);
   }
+  socket.updatePresence(true);
    socket.joinConversation(
     widget.conversationId,
   );
+  socket.listenPresence((data) {
+
+  if (!mounted) return;
+
+  if (data["userId"] !=
+      widget.recipientId) {
+    return;
+  }
+
+  setState(() {
+
+    _recipientOnline =
+        data["online"];
+
+    _recipientLastSeen =
+        data["lastSeen"];
+
+  });
+
+});
   socket.listenRoomJoined();
   socket.listenTyping((_) {
   if (!mounted) return;
@@ -173,6 +231,7 @@ Future<void> loadMessages() async {
       messages = result;
       _isLoading = false;
     });
+    _markMessagesSeen();
     WidgetsBinding.instance.addPostFrameCallback((_) {
   _scrollToBottom();
 });
@@ -279,25 +338,41 @@ Future<void> _sendMessage(
   String text,
   ReplyMessageModel? reply,
 ) async {
-  final message = MessageModel(
-    id: DateTime.now().millisecondsSinceEpoch,
-    senderId: currentUserId,
-    message: text,
-    createdAt: DateTime.now(),
-    delivered: true,
-    seen: false,
-    edited: false,
-    replyTo: reply,
-  );
+
+  final tempId =
+      DateTime.now()
+          .millisecondsSinceEpoch;
+
+  final pendingMessage =
+      MessageModel(
+        id: tempId,
+        senderId: currentUserId,
+        message: text,
+        createdAt: DateTime.now(),
+        delivered: false,
+        seen: false,
+        edited: false,
+        sending: true,
+        replyTo: reply,
+      );
 
   setState(() {
-    messages.insert(0, message);
+    messages.insert(
+      0,
+      pendingMessage,
+    );
+
     _replyingTo = null;
   });
 
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    _scrollToBottom();
-  });
+  _scrollToBottom();
+
+  socket.sendMessage(
+    conversationId: widget.conversationId,
+    receiverId: widget.recipientId,
+    message: text,
+    replyTo: reply,
+  );
 }
 Future<void> _deleteMessage(int index) async {
   final confirmed = await showDialog<bool>(
@@ -358,9 +433,26 @@ Future<void> sendMessage(String text) async {
 );
 socket.disconnect();
     _scrollController.dispose();
+    _typingTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
+@override
+void didChangeAppLifecycleState(
+  AppLifecycleState state,
+) {
+  if (state ==
+      AppLifecycleState.resumed) {
+    socket.updatePresence(true);
+  }
 
+  if (state ==
+          AppLifecycleState.paused ||
+      state ==
+          AppLifecycleState.detached) {
+    socket.updatePresence(false);
+  }
+}
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -374,8 +466,11 @@ socket.disconnect();
         child: ConversationAppBar(
           recipientName: widget.recipientName,
           profilePicture: widget.profilePicture,
-          isOnline: widget.isOnline,
-          lastSeen: "Last seen recently",
+          isOnline: _recipientOnline,
+          lastSeen: _recipientOnline
+              ? "Online"
+              : (_recipientLastSeen ??
+                  "Last seen recently"),
         ),
       ),
 
@@ -438,6 +533,9 @@ socket.disconnect();
                         replyingTo: _replyingTo,
                         onCancelReply: _cancelReply,
                         onSend: _sendMessage,
+                        onTyping: _onTyping,
+                        onStopTyping: _stopTyping,
+                      
 
                         onImageSelected: (image) {
                           setState(() {
