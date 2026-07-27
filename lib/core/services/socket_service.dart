@@ -148,14 +148,6 @@ socket.listenMessage((data) {
         incoming,
       );
       _markMessagesSeen();
-socket.socket?.emit(
-  "message_delivered",
-  {
-    "messageId": incoming.id,
-    "conversationId":
-        widget.conversationId,
-  },
-);
     }
 
   });
@@ -171,30 +163,6 @@ void listenDelivered(
     callback,
   );
 }
-socket.listenDelivered((data) {
-
-  final id = data["messageId"];
-
-  final index =
-      messages.indexWhere(
-        (m) => m.id == id,
-      );
-
-  if (index == -1) return;
-
-  if (!mounted) return;
-
-  setState(() {
-
-    messages[index] =
-        messages[index].copyWith(
-      delivered: true,
-      sending: false,
-    );
-
-  });
-
-});
 void listenSeen(
   void Function(dynamic data) callback,
 ) {

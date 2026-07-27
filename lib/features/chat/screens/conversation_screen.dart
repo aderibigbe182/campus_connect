@@ -251,6 +251,38 @@ Future<void> _connectSocket() async {
         incoming,
       );
     }
+    socket.socket?.emit(
+  "message_delivered",
+  {
+    "messageId": incoming.id,
+    "conversationId":
+        widget.conversationId,
+  },
+);
+socket.listenDelivered((data) {
+
+  final id = data["messageId"];
+
+  final index =
+      messages.indexWhere(
+        (m) => m.id == id,
+      );
+
+  if (index == -1) return;
+
+  if (!mounted) return;
+
+  setState(() {
+
+    messages[index] =
+        messages[index].copyWith(
+      delivered: true,
+      sending: false,
+    );
+
+  });
+
+});
   });
 
   _scrollToBottom();

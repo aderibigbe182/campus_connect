@@ -48,4 +48,25 @@ class MessageModel {
       createdAt: DateTime.parse(json["created_at"]),
     );
   }
+MessageModel copyWith({
+  bool? delivered,
+  bool? seen,
+  bool? sending,
+  bool? edited,
+}) {
+  return MessageModel(
+    id: id,
+    senderId: senderId,
+    message: message,
+    createdAt: createdAt,
+    delivered:
+        delivered ?? this.delivered,
+    seen: seen ?? this.seen,
+    sending:
+        sending ?? this.sending,
+    edited:
+        edited ?? this.edited,
+    replyTo: replyTo,
+  );
+}
 }
