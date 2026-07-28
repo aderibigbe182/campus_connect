@@ -22,6 +22,9 @@ import '../models/reply_message_model.dart';
 import '/core/services/socket_service.dart';
 import '../widgets/reaction_picker.dart';
 import '../widgets/reaction_users_sheet.dart';
+import 'dart:async';
+import '/core/services/storage_service.dart';
+import '../models/reaction_model.dart';
 
 class ConversationScreen extends StatefulWidget {
   final int conversationId;
@@ -132,8 +135,9 @@ void _showReactionPicker(
           elevation: 0,
           child: Center(
             child: ReactionPicker(
-              HapticFeedback.lightImpact();
               onSelected: (emoji) {
+                HapticFeedback.lightImpact();
+
                 Navigator.pop(context);
 
                 _reactToMessage(
@@ -260,35 +264,6 @@ void _addLocalMessage(String text) {
 
   _scrollToBottom();
 }
-Future.delayed(
-  const Duration(seconds: 1),
-  () {
-    if (!mounted) return;
-
-    setState(() {
-      final msg = messages.first;
-
-      messages[0] = msg.copyWith(
-        sending: message.sending,
-        delivered: true,
-      );
-    });
-  },
-);
-Future.delayed(
-  const Duration(seconds: 3),
-  () {
-    if (!mounted) return;
-
-    setState(() {
-      final msg = messages.first;
-
-      messages[0] = msg.copyWith(
-        seen: true,
-      );
-    });
-  },
-);
 Future<void> _connectSocket() async {
   final token = await StorageService.getToken();
 
@@ -349,14 +324,6 @@ socket.listenReaction((data) {
     (r) => r.userId == userId,
   );
   if (!removed) {
-  reactions.add(
-    ReactionModel(
-      userId: userId,
-      emoji: emoji,
-    ),
-  );
-}
-
   reactions.add(
     ReactionModel(
       userId: userId,
@@ -759,11 +726,11 @@ void didChangeAppLifecycleState(
   final isMe =
       message.senderId == currentUserId;
 
-  return isMe
-    GestureDetector(
+  return GestureDetector(
   onLongPress: () {
     _showReactionPicker(message);
   },
+  child: isMe
       ? SenderMessageBubble(
           message: message.message,
           createdAt: message.createdAt,
@@ -779,11 +746,6 @@ void didChangeAppLifecycleState(
           .map((e) => e.emoji)
           .toList(),
         )
-
-        GestureDetector(
-  onLongPress: () {
-    _showReactionPicker(message);
-  },
       : ReceiverMessageBubble(
           message: message.message,
           createdAt: message.createdAt,
