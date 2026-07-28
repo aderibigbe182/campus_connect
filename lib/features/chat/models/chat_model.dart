@@ -21,6 +21,7 @@ class ChatModel {
     this.messageType,
     this.lastMessageTime,
     required this.unreadCount,
+    required this.unreadCount,
   });
 
   factory ChatModel.fromJson(Map<String, dynamic> json) {

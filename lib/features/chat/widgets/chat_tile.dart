@@ -92,35 +92,35 @@ class ChatTile extends StatelessWidget {
                 ],
               ),
             ),
-
-            Column(
+                      Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
                   chat.lastMessageTime ?? "",
                   style: const TextStyle(
+                    fontSize: 11,
                     color: Colors.grey,
-                    fontSize: 12,
                   ),
                 ),
 
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
 
                 if (chat.unreadCount > 0)
                   Container(
-                    width: 22,
-                    height: 22,
-                    alignment: Alignment.center,
-                    decoration: const BoxDecoration(
-                      color: Color(0xff2563EB),
-                      shape: BoxShape.circle,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.blue,
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      "${chat.unreadCount}",
+                      chat.unreadCount.toString(),
                       style: const TextStyle(
                         color: Colors.white,
-                        fontWeight: FontWeight.bold,
                         fontSize: 11,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),

@@ -12,6 +12,7 @@ class MessageModel {
   final bool isDeleted;
   final String? fileUrl;
   final DateTime createdAt;
+  final List<ReactionModel> reactions;
   final bool sending;
   bool edited;
   ReplyMessageModel? replyTo;
@@ -32,6 +33,7 @@ class MessageModel {
     this.sending = false,
     this.edited = false,
     this.replyTo,
+    this.reactions = const [],
   });
 
   factory MessageModel.fromJson(Map<String, dynamic> json) {
@@ -47,6 +49,13 @@ class MessageModel {
       isDeleted: json["is_deleted"] ?? false,
       fileUrl: json["file_url"],
       createdAt: DateTime.parse(json["created_at"]),
+      reactions:
+    (json["reactions"] as List?)
+        ?.map(
+          (e) => ReactionModel.fromJson(e),
+        )
+        .toList() ??
+    [],
     );
   }
 MessageModel copyWith({
@@ -54,6 +63,7 @@ MessageModel copyWith({
   bool? seen,
   bool? sending,
   bool? edited,
+  List<ReactionModel>? reactions,
 }) {
   return MessageModel(
     id: id,
@@ -68,6 +78,8 @@ MessageModel copyWith({
     edited:
         edited ?? this.edited,
     replyTo: replyTo,
+    reactions:
+    reactions ?? this.reactions,
   );
 }
 }
