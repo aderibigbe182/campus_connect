@@ -1,85 +1,143 @@
-import 'reaction_model.dart';
-import 'reply_message_model.dart';
+enum MessageType {
+  text,
+  image,
+  video,
+  audio,
+  file,
+}
+
+enum MessageStatus {
+  sending,
+  sent,
+ delivered,
+  seen,
+}
+
 class MessageModel {
-  final int id;
-  final int conversationId;
-  final int senderId;
-  String message;
-  final String messageType;
-  final bool seen;
-  final bool delivered;
+  final String id;
+  final String conversationId;
+
+  final String senderId;
+  final String senderName;
+
+  final String text;
+
+  final MessageType messageType;
+
+  final String? imageUrl;
+  final String? fileUrl;
+  final String? thumbnailUrl;
+
+  final String? replyTo;
+
+  final Map<String, String> reactions;
+
+  final MessageStatus status;
+
+  final DateTime timestamp;
+
   final bool isEdited;
   final bool isDeleted;
-  final String? fileUrl;
-  final DateTime createdAt;
-  final List<ReactionModel> reactions;
-  final bool sending;
-  bool edited;
-  ReplyMessageModel? replyTo;
 
-
-  MessageModel({
+  const MessageModel({
     required this.id,
     required this.conversationId,
     required this.senderId,
-    required this.message,
+    required this.senderName,
+    required this.text,
     required this.messageType,
-    required this.seen,
-    required this.delivered,
-    required this.isEdited,
-    required this.isDeleted,
+    this.imageUrl,
     this.fileUrl,
-    required this.createdAt,
-    this.sending = false,
-    this.edited = false,
+    this.thumbnailUrl,
     this.replyTo,
-    this.reactions = const [],
+    this.reactions = const {},
+    this.status = MessageStatus.sent,
+    required this.timestamp,
+    this.isEdited = false,
+    this.isDeleted = false,
   });
+
+  MessageModel copyWith({
+    String? id,
+    String? conversationId,
+    String? senderId,
+    String? senderName,
+    String? text,
+    MessageType? messageType,
+    String? imageUrl,
+    String? fileUrl,
+    String? thumbnailUrl,
+    String? replyTo,
+    Map<String, String>? reactions,
+    MessageStatus? status,
+    DateTime? timestamp,
+    bool? isEdited,
+    bool? isDeleted,
+  }) {
+    return MessageModel(
+      id: id ?? this.id,
+      conversationId: conversationId ?? this.conversationId,
+      senderId: senderId ?? this.senderId,
+      senderName: senderName ?? this.senderName,
+      text: text ?? this.text,
+      messageType: messageType ?? this.messageType,
+      imageUrl: imageUrl ?? this.imageUrl,
+      fileUrl: fileUrl ?? this.fileUrl,
+      thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
+      replyTo: replyTo ?? this.replyTo,
+      reactions: reactions ?? this.reactions,
+      status: status ?? this.status,
+      timestamp: timestamp ?? this.timestamp,
+      isEdited: isEdited ?? this.isEdited,
+      isDeleted: isDeleted ?? this.isDeleted,
+    );
+  }
 
   factory MessageModel.fromJson(Map<String, dynamic> json) {
     return MessageModel(
-      id: json["id"],
-      conversationId: json["conversation_id"],
-      senderId: json["sender_id"],
-      message: json["message"] ?? "",
-      messageType: json["message_type"] ?? "text",
-      seen: json["seen"] ?? false,
-      delivered: json["delivered"] ?? false,
-      isEdited: json["is_edited"] ?? false,
-      isDeleted: json["is_deleted"] ?? false,
-      fileUrl: json["file_url"],
-      createdAt: DateTime.parse(json["created_at"]),
-      reactions:
-    (json["reactions"] as List?)
-        ?.map(
-          (e) => ReactionModel.fromJson(e),
-        )
-        .toList() ??
-    [],
+      id: json["id"] ?? "",
+      conversationId: json["conversationId"] ?? "",
+      senderId: json["senderId"] ?? "",
+      senderName: json["senderName"] ?? "",
+      text: json["text"] ?? "",
+      messageType: MessageType.values.firstWhere(
+        (e) => e.name == json["messageType"],
+        orElse: () => MessageType.text,
+      ),
+      imageUrl: json["imageUrl"],
+      fileUrl: json["fileUrl"],
+      thumbnailUrl: json["thumbnailUrl"],
+      replyTo: json["replyTo"],
+      reactions: Map<String, String>.from(
+        json["reactions"] ?? {},
+      ),
+      status: MessageStatus.values.firstWhere(
+        (e) => e.name == json["status"],
+        orElse: () => MessageStatus.sent,
+      ),
+      timestamp: DateTime.parse(json["timestamp"]),
+      isEdited: json["isEdited"] ?? false,
+      isDeleted: json["isDeleted"] ?? false,
     );
   }
-MessageModel copyWith({
-  bool? delivered,
-  bool? seen,
-  bool? sending,
-  bool? edited,
-  List<ReactionModel>? reactions,
-}) {
-  return MessageModel(
-    id: id,
-    senderId: senderId,
-    message: message,
-    createdAt: createdAt,
-    delivered:
-        delivered ?? this.delivered,
-    seen: seen ?? this.seen,
-    sending:
-        sending ?? this.sending,
-    edited:
-        edited ?? this.edited,
-    replyTo: replyTo,
-    reactions:
-    reactions ?? this.reactions,
-  );
-}
+
+  Map<String, dynamic> toJson() {
+    return {
+      "id": id,
+      "conversationId": conversationId,
+      "senderId": senderId,
+      "senderName": senderName,
+      "text": text,
+      "messageType": messageType.name,
+      "imageUrl": imageUrl,
+      "fileUrl": fileUrl,
+      "thumbnailUrl": thumbnailUrl,
+      "replyTo": replyTo,
+      "reactions": reactions,
+      "status": status.name,
+      "timestamp": timestamp.toIso8601String(),
+      "isEdited": isEdited,
+      "isDeleted": isDeleted,
+    };
+  }
 }
