@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../widgets/message_action_sheet.dart';
 import '../models/reply_message_model.dart';
+import 'message_reactions.dart';
 
 class SenderMessageBubble extends StatelessWidget {
   final String message;
@@ -15,6 +16,7 @@ class SenderMessageBubble extends StatelessWidget {
   final VoidCallback? onForward;
   final VoidCallback? onReply;
   final ReplyMessageModel? replyTo;
+  final List<String> reactions;
 
   const SenderMessageBubble({
     super.key,
@@ -29,6 +31,7 @@ class SenderMessageBubble extends StatelessWidget {
     this.onForward,
     this.onReply,
     this.replyTo,
+    this.reactions = const [],
   });
 
 String _formatTime(DateTime dateTime) {
@@ -209,6 +212,10 @@ Widget _buildStatusIcon() {
       ),
     ),
 
+      MessageReactions(
+        reactions: reactions,
+      ),
+    ],
     const SizedBox(height: 4),
     
   ],

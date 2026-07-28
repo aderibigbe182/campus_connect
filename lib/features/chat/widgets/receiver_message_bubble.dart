@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../widgets/message_action_sheet.dart';
+import 'message_reactions.dart';
 
 class ReceiverMessageBubble extends StatelessWidget {
   final String message;
@@ -8,6 +9,7 @@ class ReceiverMessageBubble extends StatelessWidget {
   final VoidCallback? onDelete;
   final VoidCallback? onForward;
   final VoidCallback? onReply;
+  final List<String> reactions;
 
   const ReceiverMessageBubble({
     super.key,
@@ -16,6 +18,7 @@ class ReceiverMessageBubble extends StatelessWidget {
     this.onDelete,
     this.onForward,
     this.onReply,
+    this.reactions = const [],
   });
 String _formatTime(DateTime dateTime) {
   final hour = dateTime.hour > 12
@@ -59,6 +62,7 @@ Widget build(BuildContext context) {
           bottomRight: Radius.circular(18),
         ),
       ),
+    )
       GestureDetector(
   onLongPress: () {
     showModalBottomSheet(
@@ -112,6 +116,11 @@ Widget build(BuildContext context) {
               height: 1.35,
             ),
           ),
+          
+      MessageReactions(
+        reactions: reactions,
+      ),
+    ],
 
           const SizedBox(height: 4),
 

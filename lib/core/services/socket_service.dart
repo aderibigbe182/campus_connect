@@ -222,3 +222,25 @@ void updatePresence(bool online) {
     },
   );
 }
+void sendReaction({
+  required int conversationId,
+  required int messageId,
+  required String emoji,
+}) {
+  socket?.emit(
+    "message_reaction",
+    {
+      "conversationId": conversationId,
+      "messageId": messageId,
+      "emoji": emoji,
+    },
+  );
+}
+void listenReaction(
+  void Function(dynamic data) callback,
+) {
+  socket?.on(
+    "message_reaction",
+    callback,
+  );
+}

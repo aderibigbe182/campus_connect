@@ -20,6 +20,7 @@ import 'forward_message_screen.dart';
 import '../models/reply_message_model.dart';
 import '/core/services/socket_service.dart';
 import '../widgets/reaction_picker.dart';
+import '../widgets/reaction_users_sheet.dart';
 
 class ConversationScreen extends StatefulWidget {
   final int conversationId;
@@ -85,6 +86,20 @@ void _onTyping() {
     },
   );
 }
+void _showReactionUsers(
+  MessageModel message,
+  String emoji,
+) {
+  showModalBottomSheet(
+    context: context,
+    builder: (_) {
+      return ReactionUsersSheet(
+        emoji: emoji,
+        reactions: message.reactions,
+      );
+    },
+  );
+}
 void _showReactionPicker(
   MessageModel message,
 ) {
@@ -104,13 +119,9 @@ void _showReactionPicker(
             child: ReactionPicker(
               onSelected: (emoji) {
                 Navigator.pop(context);
-
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      "Selected $emoji",
-                    ),
-                  ),
+                _reactToMessage(
+                  message,
+                  emoji,
                 );
               },
             ),
@@ -119,6 +130,47 @@ void _showReactionPicker(
       );
     },
   );
+}
+void _reactToMessage(
+  MessageModel message,
+  String emoji,
+) {
+  final index = messages.indexWhere(
+    (m) => m.id == message.id,
+  );
+
+  if (index == -1) return;
+
+  final updated = List<ReactionModel>.from(
+    messages[index].reactions,
+  );
+
+  final existing = updated.indexWhere(
+    (r) => r.userId == currentUserId,
+  );
+
+  if (existing != -1) {
+    updated.removeAt(existing);
+  }
+
+  updated.add(
+    ReactionModel(
+      userId: currentUserId,
+      emoji: emoji,
+    ),
+  );
+
+  setState(() {
+    messages[index] =
+        messages[index].copyWith(
+      reactions: updated,
+    );
+  });
+  socket.sendReaction(
+  conversationId: widget.conversationId,
+  messageId: message.id,
+  emoji: emoji,
+);
 }
 void _stopTyping() {
   socket.sendStopTyping(
@@ -235,6 +287,49 @@ Future<void> _connectSocket() async {
     messages[index] =
         messages[index].copyWith(
       seen: true,
+    );
+
+  });
+
+});
+socket.listenReaction((data) {
+
+  if (!mounted) return;
+
+  final messageId = data["messageId"];
+  final emoji = data["emoji"];
+  final userId = data["userId"];
+  if (userId == currentUserId) {
+  return;
+}
+
+  final index = messages.indexWhere(
+    (m) => m.id == messageId,
+  );
+
+  if (index == -1) return;
+
+  final reactions =
+      List<ReactionModel>.from(
+    messages[index].reactions,
+  );
+
+  reactions.removeWhere(
+    (r) => r.userId == userId,
+  );
+
+  reactions.add(
+    ReactionModel(
+      userId: userId,
+      emoji: emoji,
+    ),
+  );
+
+  setState(() {
+
+    messages[index] =
+        messages[index].copyWith(
+      reactions: reactions,
     );
 
   });
@@ -641,6 +736,9 @@ void didChangeAppLifecycleState(
           onEdit: () => _editMessage(index),
           onDelete: () => _deleteMessage(index),
           onForward: () => _forwardMessage(message),
+          reactions: message.reactions
+          .map((e) => e.emoji)
+          .toList(),
         )
 
         GestureDetector(
@@ -653,6 +751,9 @@ void didChangeAppLifecycleState(
           replyTo: message.replyTo,
           onReply: () => _startReply(message),
           onForward: () => _forwardMessage(message),
+          reactions: message.reactions
+          .map((e) => e.emoji)
+          .toList(),
         );
 }).toList(),
                           ],
