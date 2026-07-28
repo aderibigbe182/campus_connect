@@ -66,9 +66,11 @@ class ChatTile extends StatelessWidget {
                 children: [
                   Text(
                     chat.fullName,
-                    style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
+                    style: TextStyle(
+                      fontWeight:
+                          chat.unreadCount > 0
+                              ? FontWeight.bold
+                              : FontWeight.w600,
                     ),
                   ),
 
@@ -81,10 +83,12 @@ class ChatTile extends StatelessWidget {
                           chat.lastMessage ?? "",
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey,
-                          ),
+                          style: TextStyle(
+                            fontWeight:
+                                chat.unreadCount > 0
+                                    ? FontWeight.w600
+                                    : FontWeight.normal,
+                          )
                         ),
                       ),
                     ],

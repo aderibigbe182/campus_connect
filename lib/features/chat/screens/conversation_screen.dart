@@ -19,6 +19,7 @@ import '../models/forward_chat_model.dart';
 import 'forward_message_screen.dart';
 import '../models/reply_message_model.dart';
 import '/core/services/socket_service.dart';
+import '../widgets/reaction_picker.dart';
 
 class ConversationScreen extends StatefulWidget {
   final int conversationId;
@@ -81,6 +82,41 @@ void _onTyping() {
     ),
     () {
       _stopTyping();
+    },
+  );
+}
+void _showReactionPicker(
+  MessageModel message,
+) {
+  showDialog(
+    context: context,
+    barrierColor: Colors.black26,
+    builder: (_) {
+      return AnimatedScale(
+        scale: 1,
+        duration: const Duration(
+          milliseconds: 180,
+        ),
+        child: Dialog(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          child: Center(
+            child: ReactionPicker(
+              onSelected: (emoji) {
+                Navigator.pop(context);
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      "Selected $emoji",
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      );
     },
   );
 }
@@ -590,6 +626,10 @@ void didChangeAppLifecycleState(
       message.senderId == currentUserId;
 
   return isMe
+    GestureDetector(
+  onLongPress: () {
+    _showReactionPicker(message);
+  },
       ? SenderMessageBubble(
           message: message.message,
           createdAt: message.createdAt,
@@ -602,6 +642,11 @@ void didChangeAppLifecycleState(
           onDelete: () => _deleteMessage(index),
           onForward: () => _forwardMessage(message),
         )
+
+        GestureDetector(
+  onLongPress: () {
+    _showReactionPicker(message);
+  },
       : ReceiverMessageBubble(
           message: message.message,
           createdAt: message.createdAt,
