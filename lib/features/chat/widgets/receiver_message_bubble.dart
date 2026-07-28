@@ -118,8 +118,16 @@ Widget build(BuildContext context) {
           ),
           
       MessageReactions(
-        reactions: reactions,
-      ),
+  reactions: message.reactions
+      .map((e) => e.emoji)
+      .toList(),
+  onTap: (emoji) {
+    _showReactionUsers(
+      message,
+      emoji,
+    );
+  },
+)
     ],
 
           const SizedBox(height: 4),

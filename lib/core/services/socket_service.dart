@@ -227,12 +227,20 @@ void sendReaction({
   required int messageId,
   required String emoji,
 }) {
+  socket.sendReaction(
+  conversationId: widget.conversationId,
+  messageId: message.id,
+  emoji: emoji,
+  removed: existing != -1 &&
+      oldReaction.emoji == emoji,
+);
   socket?.emit(
     "message_reaction",
     {
       "conversationId": conversationId,
       "messageId": messageId,
       "emoji": emoji,
+      "removed": removed,
     },
   );
 }

@@ -213,8 +213,16 @@ Widget _buildStatusIcon() {
     ),
 
       MessageReactions(
-        reactions: reactions,
-      ),
+  reactions: message.reactions
+      .map((e) => e.emoji)
+      .toList(),
+  onTap: (emoji) {
+    _showReactionUsers(
+      message,
+      emoji,
+    );
+  },
+)
     ],
     const SizedBox(height: 4),
     

@@ -146,19 +146,32 @@ void _reactToMessage(
   );
 
   final existing = updated.indexWhere(
-    (r) => r.userId == currentUserId,
-  );
+  (r) => r.userId == currentUserId,
+);
 
-  if (existing != -1) {
+if (existing != -1) {
+  final oldReaction = updated[existing];
+
+  if (oldReaction.emoji == emoji) {
+    // User tapped the same emoji again.
+    // Remove it completely.
     updated.removeAt(existing);
+  } else {
+    // Replace old reaction.
+    updated[existing] = ReactionModel(
+      userId: currentUserId,
+      emoji: emoji,
+    );
   }
-
+} else {
+  // First reaction.
   updated.add(
     ReactionModel(
       userId: currentUserId,
       emoji: emoji,
     ),
   );
+}
 
   setState(() {
     messages[index] =
@@ -297,6 +310,7 @@ socket.listenReaction((data) {
   if (!mounted) return;
 
   final messageId = data["messageId"];
+  final removed = data["removed"] ?? false;
   final emoji = data["emoji"];
   final userId = data["userId"];
   if (userId == currentUserId) {
@@ -317,6 +331,14 @@ socket.listenReaction((data) {
   reactions.removeWhere(
     (r) => r.userId == userId,
   );
+  if (!removed) {
+  reactions.add(
+    ReactionModel(
+      userId: userId,
+      emoji: emoji,
+    ),
+  );
+}
 
   reactions.add(
     ReactionModel(
