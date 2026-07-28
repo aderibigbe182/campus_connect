@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../widgets/conversation_app_bar.dart';
 import '../widgets/message_input_bar.dart';
@@ -107,18 +108,34 @@ void _showReactionPicker(
     context: context,
     barrierColor: Colors.black26,
     builder: (_) {
-      return AnimatedScale(
-        scale: 1,
-        duration: const Duration(
-          milliseconds: 180,
+      return TweenAnimationBuilder<double>(
+        tween: Tween(
+          begin: .7,
+          end: 1,
         ),
+        duration: const Duration(
+          milliseconds: 200,
+        ),
+        curve: Curves.easeOutBack,
+        builder: (
+          context,
+          value,
+          child,
+        ) {
+          return Transform.scale(
+            scale: value,
+            child: child,
+          );
+        },
         child: Dialog(
           backgroundColor: Colors.transparent,
           elevation: 0,
           child: Center(
             child: ReactionPicker(
+              HapticFeedback.lightImpact();
               onSelected: (emoji) {
                 Navigator.pop(context);
+
                 _reactToMessage(
                   message,
                   emoji,

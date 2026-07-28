@@ -31,19 +31,42 @@ class ReactionPicker extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: reactions.map((emoji) {
-            return InkWell(
+            return AnimatedScale(
+              duration: const Duration(milliseconds: 120),
+              scale: 1,
+              child: InkWell(
               borderRadius: BorderRadius.circular(20),
               onTap: () => onSelected(emoji),
               child: Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 6,
                 ),
+                child: TweenAnimationBuilder<double>(
+                tween: Tween(
+                  begin: 0.8,
+                  end: 1,
+                ),
+                duration: const Duration(
+                  milliseconds: 180,
+                ),
+                curve: Curves.elasticOut,
+                builder: (
+                  context,
+                  scale,
+                  child,
+                ) {
+                  return Transform.scale(
+                    scale: scale,
+                    child: child,
+                  );
+                },
                 child: Text(
                   emoji,
                   style: const TextStyle(
-                    fontSize: 28,
+                    fontSize: 30,
                   ),
                 ),
+              ),
               ),
             );
           }).toList(),
