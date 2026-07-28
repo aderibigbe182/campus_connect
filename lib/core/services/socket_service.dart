@@ -1,23 +1,33 @@
-import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'package:socket_io_client/socket_io_client.dart' as io;
+
+import '../../features/chat/models/reply_message_model.dart';
 
 class SocketService {
   SocketService._();
 
   static final SocketService instance = SocketService._();
 
-  IO.Socket? _socket;
+  io.Socket? _socket;
+
+  io.Socket? get socket => _socket;
 
   bool get isConnected => _socket?.connected ?? false;
 
-  void connect(String userId) {
+  // ===========================================================
+  // CONNECTION
+  // ===========================================================
+
+  void connect(String token) {
     if (_socket != null) return;
 
-    _socket = IO.io(
+    _socket = io.io(
       'https://campus-connect-backend-6pwg.onrender.com',
-      IO.OptionBuilder()
+      io.OptionBuilder()
           .setTransports(['websocket'])
           .disableAutoConnect()
-          .setQuery({'userId': userId})
+          .setExtraHeaders({
+            'Authorization': 'Bearer $token',
+          })
           .build(),
     );
 
@@ -30,121 +40,187 @@ class SocketService {
     _socket!.onDisconnect((_) {
       print('Socket disconnected');
     });
+
+    _socket!.onConnectError((e) {
+      print('Socket connect error: $e');
+    });
+
+    _socket!.onError((e) {
+      print('Socket error: $e');
+    });
   }
 
   void disconnect() {
-    _socket?.disconnect();
     _socket?.dispose();
     _socket = null;
   }
 
-  // ===== Conversations =====
+  // ===========================================================
+  // CONVERSATIONS
+  // ===========================================================
 
-  void joinConversation(String conversationId) {
-    _socket?.emit('joinConversation', {'conversationId': conversationId});
-  }
-
-  void leaveConversation(String conversationId) {
-    _socket?.emit('leaveConversation', {'conversationId': conversationId});
-  }
-
-  // ===== Messages =====
-
-  void sendMessage({
-    required String conversationId,
-    required String senderId,
-    required String receiverId,
-    required String text,
-    String messageType = 'text',
-  }) {
-    _socket?.emit('sendMessage', {
+  void joinConversation(int conversationId) {
+    _socket?.emit('joinConversation', {
       'conversationId': conversationId,
-      'senderId': senderId,
-      'receiverId': receiverId,
-      'text': text,
-      'messageType': messageType,
     });
   }
 
-  void listenMessage(void Function(dynamic data) callback) {
+  void leaveConversation(int conversationId) {
+    _socket?.emit('leaveConversation', {
+      'conversationId': conversationId,
+    });
+  }
+
+  void listenRoomJoined([Function(dynamic)? callback]) {
+    _socket?.on(
+      'roomJoined',
+      callback ??
+          (data) {
+            print('Joined room: $data');
+          },
+    );
+  }
+
+  // ===========================================================
+  // SEND MESSAGE
+  // ===========================================================
+
+  void sendMessage({
+    required int conversationId,
+    required int receiverId,
+    required String message,
+    ReplyMessageModel? replyTo,
+  }) {
+    _socket?.emit(
+      'sendMessage',
+      {
+        'conversationId': conversationId,
+        'receiverId': receiverId,
+        'message': message,
+        'replyTo': replyTo == null
+            ? null
+            : {
+                'messageId': replyTo.messageId,
+                'sender': replyTo.sender,
+                'message': replyTo.message,
+              },
+      },
+    );
+  }
+
+  void listenMessage(Function(dynamic) callback) {
     _socket?.on('newMessage', callback);
   }
 
-  // ===== Delivered =====
+  // ===========================================================
+  // DELIVERED
+  // ===========================================================
 
-  void sendDelivered(String messageId) {
-    _socket?.emit('messageDelivered', {'messageId': messageId});
+  void sendDelivered({
+    required int conversationId,
+    required int messageId,
+  }) {
+    _socket?.emit(
+      'message_delivered',
+      {
+        'conversationId': conversationId,
+        'messageId': messageId,
+      },
+    );
   }
 
-  void listenDelivered(void Function(dynamic data) callback) {
-    _socket?.on('messageDelivered', callback);
+  void listenDelivered(Function(dynamic) callback) {
+    _socket?.on('message_delivered', callback);
   }
 
-  // ===== Seen =====
+  // ===========================================================
+  // SEEN
+  // ===========================================================
 
-  void sendSeen(String messageId) {
-    _socket?.emit('messageSeen', {'messageId': messageId});
+  void sendSeen({
+    required int conversationId,
+    required int messageId,
+  }) {
+    _socket?.emit(
+      'message_seen',
+      {
+        'conversationId': conversationId,
+        'messageId': messageId,
+      },
+    );
   }
 
-  void listenSeen(void Function(dynamic data) callback) {
-    _socket?.on('messageSeen', callback);
+  void listenSeen(Function(dynamic) callback) {
+    _socket?.on('message_seen', callback);
   }
 
-  // ===== Typing =====
+  // ===========================================================
+  // TYPING
+  // ===========================================================
 
-  void sendTyping(String conversationId, String userId) {
-    _socket?.emit('typing', {
-      'conversationId': conversationId,
-      'userId': userId,
-    });
+  void sendTyping(int conversationId) {
+    _socket?.emit(
+      'typing',
+      {
+        'conversationId': conversationId,
+      },
+    );
   }
 
-  void sendStopTyping(String conversationId, String userId) {
-    _socket?.emit('stopTyping', {
-      'conversationId': conversationId,
-      'userId': userId,
-    });
+  void sendStopTyping(int conversationId) {
+    _socket?.emit(
+      'stop_typing',
+      {
+        'conversationId': conversationId,
+      },
+    );
   }
 
-  void listenTyping(void Function(dynamic data) callback) {
+  void listenTyping(Function(dynamic) callback) {
     _socket?.on('typing', callback);
   }
 
-  void listenStopTyping(void Function(dynamic data) callback) {
-    _socket?.on('stopTyping', callback);
+  void listenStopTyping(Function(dynamic) callback) {
+    _socket?.on('stop_typing', callback);
   }
 
-  // ===== Presence =====
+  // ===========================================================
+  // PRESENCE
+  // ===========================================================
 
   void updatePresence(bool online) {
-    _socket?.emit('presenceUpdate', {'online': online});
+    _socket?.emit(
+      'presence_update',
+      {
+        'online': online,
+      },
+    );
   }
 
-  void listenPresence(void Function(dynamic data) callback) {
-    _socket?.on('presenceUpdate', callback);
+  void listenPresence(Function(dynamic) callback) {
+    _socket?.on('presence_update', callback);
   }
 
-  // ===== Reactions =====
+  // ===========================================================
+  // REACTIONS
+  // ===========================================================
 
   void sendReaction({
-    required String messageId,
-    required String userId,
+    required int conversationId,
+    required int messageId,
     required String emoji,
   }) {
-    _socket?.emit('messageReaction', {
-      'messageId': messageId,
-      'userId': userId,
-      'emoji': emoji,
-    });
+    _socket?.emit(
+      'message_reaction',
+      {
+        'conversationId': conversationId,
+        'messageId': messageId,
+        'emoji': emoji,
+      },
+    );
   }
 
-  void listenReaction(void Function(dynamic data) callback) {
-    _socket?.on('messageReaction', callback);
-  }
-
-  // ===== Room joined =====
-
-  void listenRoomJoined(void Function(dynamic data) callback) {
-    _socket?.on('roomJoined', callback);
+  void listenReaction(Function(dynamic) callback) {
+    _socket?.on('message_reaction', callback);
   }
 }
