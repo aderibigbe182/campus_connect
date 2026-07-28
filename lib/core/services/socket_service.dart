@@ -1,254 +1,150 @@
-import 'package:socket_io_client/socket_io_client.dart' as io;
+import 'package:socket_io_client/socket_io_client.dart' as IO;
 
 class SocketService {
-  static final SocketService instance =
-      SocketService._();
-
   SocketService._();
 
-  io.Socket? socket;
+  static final SocketService instance = SocketService._();
 
-  void connect(String token) {
-    socket ??= io.io(
+  IO.Socket? _socket;
+
+  bool get isConnected => _socket?.connected ?? false;
+
+  void connect(String userId) {
+    if (_socket != null) return;
+
+    _socket = IO.io(
       'https://campus-connect-backend-6pwg.onrender.com',
-      io.OptionBuilder()
+      IO.OptionBuilder()
           .setTransports(['websocket'])
           .disableAutoConnect()
-          .setAuth({
-            "token": token,
-          })
+          .setQuery({'userId': userId})
           .build(),
     );
 
-    socket!.connect();
+    _socket!.connect();
+
+    _socket!.onConnect((_) {
+      print('Socket connected');
+    });
+
+    _socket!.onDisconnect((_) {
+      print('Socket disconnected');
+    });
   }
 
   void disconnect() {
-    socket?.disconnect();
+    _socket?.disconnect();
+    _socket?.dispose();
+    _socket = null;
   }
 
-  bool get connected =>
-      socket?.connected ?? false;
-}
-void joinConversation(int conversationId) {
-  socket?.emit(
-    'join_conversation',
-    {
+  // ===== Conversations =====
+
+  void joinConversation(String conversationId) {
+    _socket?.emit('joinConversation', {'conversationId': conversationId});
+  }
+
+  void leaveConversation(String conversationId) {
+    _socket?.emit('leaveConversation', {'conversationId': conversationId});
+  }
+
+  // ===== Messages =====
+
+  void sendMessage({
+    required String conversationId,
+    required String senderId,
+    required String receiverId,
+    required String text,
+    String messageType = 'text',
+  }) {
+    _socket?.emit('sendMessage', {
       'conversationId': conversationId,
-    },
-  );
-}
+      'senderId': senderId,
+      'receiverId': receiverId,
+      'text': text,
+      'messageType': messageType,
+    });
+  }
 
-void leaveConversation(int conversationId) {
-  socket?.emit(
-    'leave_conversation',
-    {
+  void listenMessage(void Function(dynamic data) callback) {
+    _socket?.on('newMessage', callback);
+  }
+
+  // ===== Delivered =====
+
+  void sendDelivered(String messageId) {
+    _socket?.emit('messageDelivered', {'messageId': messageId});
+  }
+
+  void listenDelivered(void Function(dynamic data) callback) {
+    _socket?.on('messageDelivered', callback);
+  }
+
+  // ===== Seen =====
+
+  void sendSeen(String messageId) {
+    _socket?.emit('messageSeen', {'messageId': messageId});
+  }
+
+  void listenSeen(void Function(dynamic data) callback) {
+    _socket?.on('messageSeen', callback);
+  }
+
+  // ===== Typing =====
+
+  void sendTyping(String conversationId, String userId) {
+    _socket?.emit('typing', {
       'conversationId': conversationId,
-    },
-  );
-}
-void listenRoomJoined() {
-  socket?.on(
-    'joined_conversation',
-    (data) {
-      print(
-        'Joined room: ${data["conversationId"]}',
-      );
-    },
-  );
-}
-void sendTyping(
-  int conversationId,
-) {
-  socket?.emit(
-    "typing",
-    {
-      "conversationId": conversationId,
-    },
-  );
-}
+      'userId': userId,
+    });
+  }
 
-void sendStopTyping(
-  int conversationId,
-) {
-  socket?.emit(
-    "stop_typing",
-    {
-      "conversationId": conversationId,
-    },
-  );
-}
-void listenTyping(
-  void Function(dynamic data) callback,
-) {
-  socket?.on(
-    "typing",
-    callback,
-  );
-}
+  void sendStopTyping(String conversationId, String userId) {
+    _socket?.emit('stopTyping', {
+      'conversationId': conversationId,
+      'userId': userId,
+    });
+  }
 
-void listenStopTyping(
-  void Function(dynamic data) callback,
-) {
-  socket?.on(
-    "stop_typing",
-    callback,
-  );
-}
-void listenMessage(
-  void Function(dynamic data) callback,
-) {
-  socket?.on(
-    "new_message",
-    callback,
-  );
-}
-void sendMessage({
-  required int conversationId,
-  required int receiverId,
-  required String message,
-  dynamic replyTo,
-}) {
-  socket?.emit(
-    "send_message",
-    {
-      "conversationId": conversationId,
-      "receiverId": receiverId,
-      "message": message,
-      "replyTo": replyTo,
-    },
-  );
-}
-socket.listenMessage((data) {
+  void listenTyping(void Function(dynamic data) callback) {
+    _socket?.on('typing', callback);
+  }
 
-  final incoming =
-      MessageModel.fromJson(data);
+  void listenStopTyping(void Function(dynamic data) callback) {
+    _socket?.on('stopTyping', callback);
+  }
 
-  final pendingIndex =
-      messages.indexWhere(
-    (m) =>
-        m.sending &&
-        m.senderId ==
-            incoming.senderId &&
-        m.message ==
-            incoming.message,
-  );
+  // ===== Presence =====
 
-  setState(() {
+  void updatePresence(bool online) {
+    _socket?.emit('presenceUpdate', {'online': online});
+  }
 
-    if (pendingIndex != -1) {
+  void listenPresence(void Function(dynamic data) callback) {
+    _socket?.on('presenceUpdate', callback);
+  }
 
-      messages[pendingIndex] =
-          incoming;
+  // ===== Reactions =====
 
-    } else {
+  void sendReaction({
+    required String messageId,
+    required String userId,
+    required String emoji,
+  }) {
+    _socket?.emit('messageReaction', {
+      'messageId': messageId,
+      'userId': userId,
+      'emoji': emoji,
+    });
+  }
 
-      messages.insert(
-        0,
-        incoming,
-      );
-      _markMessagesSeen();
-    }
+  void listenReaction(void Function(dynamic data) callback) {
+    _socket?.on('messageReaction', callback);
+  }
 
-  });
+  // ===== Room joined =====
 
-  _scrollToBottom();
-
-});
-void listenDelivered(
-  void Function(dynamic data) callback,
-) {
-  socket?.on(
-    "message_delivered",
-    callback,
-  );
-}
-void listenSeen(
-  void Function(dynamic data) callback,
-) {
-  socket?.on(
-    "message_seen",
-    callback,
-  );
-}
-void sendSeen({
-  required int conversationId,
-  required int messageId,
-}) {
-  socket?.emit(
-    "message_seen",
-    {
-      "conversationId": conversationId,
-      "messageId": messageId,
-    },
-  );
-}
-socket.listenSeen((data) {
-
-  final id = data["messageId"];
-
-  final index =
-      messages.indexWhere(
-    (m) => m.id == id,
-  );
-
-  if (index == -1) return;
-
-  if (!mounted) return;
-
-  setState(() {
-
-    messages[index] =
-        messages[index].copyWith(
-      seen: true,
-    );
-
-  });
-
-});
-void listenPresence(
-  void Function(dynamic data) callback,
-) {
-  socket?.on(
-    "presence_changed",
-    callback,
-  );
-}
-void updatePresence(bool online) {
-  socket?.emit(
-    "presence",
-    {
-      "online": online,
-    },
-  );
-}
-void sendReaction({
-  required int conversationId,
-  required int messageId,
-  required String emoji,
-}) {
-  socket.sendReaction(
-  conversationId: widget.conversationId,
-  messageId: message.id,
-  emoji: emoji,
-  removed: existing != -1 &&
-      oldReaction.emoji == emoji,
-);
-  socket?.emit(
-    "message_reaction",
-    {
-      "conversationId": conversationId,
-      "messageId": messageId,
-      "emoji": emoji,
-      "removed": removed,
-    },
-  );
-}
-void listenReaction(
-  void Function(dynamic data) callback,
-) {
-  socket?.on(
-    "message_reaction",
-    callback,
-  );
+  void listenRoomJoined(void Function(dynamic data) callback) {
+    _socket?.on('roomJoined', callback);
+  }
 }
