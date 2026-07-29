@@ -1,471 +1,397 @@
-import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'dart:async';
-
-import 'package:image_picker/image_picker.dart';
-import '../widgets/attachment_sheet.dart';
 import 'dart:io';
-import 'package:file_picker/file_picker.dart';
-import 'selected_media_preview.dart';
-import '../models/reply_message_model.dart';
-import 'reply_preview.dart';
 
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+
+import '../models/message_model.dart';
 
 class MessageInputBar extends StatefulWidget {
-  final Future<void> Function(
-  String message,
-  ReplyMessageModel? reply,
-)?onSend;
   const MessageInputBar({
     super.key,
-    this.onSend,
-    this.onImageSelected,
-    this.onFileSelected,
-    this.replyingTo,
-    this.onCancelReply,
-    this.onTyping,
-    this.onStopTyping,
+    required this.onSend,
+    required this.onImageSelected,
+    required this.onFileSelected,
+    required this.replyingTo,
+    required this.onCancelReply,
+    required this.onTyping,
+    required this.onStopTyping,
+    this.enabled = true,
   });
 
-  @override
-  State<MessageInputBar> createState() =>
-      _MessageInputBarState();
-}
-class _MessageInputBarState
-    extends State<MessageInputBar> {
-  final TextEditingController _controller =
-      TextEditingController();
-  final void Function(File image)? onImageSelected;
-  final void Function(LocalFileMessage file)?
-    onFileSelected;
-  final FocusNode _focusNode = FocusNode();
-  final ImagePicker _picker = ImagePicker();
-  File? _selectedImage;
+  final Future<void> Function(String message) onSend;
+
+  final Future<void> Function(File image) onImageSelected;
+
+  final Future<void> Function(File file) onFileSelected;
+
   final ReplyMessageModel? replyingTo;
-  final VoidCallback? onCancelReply;
-  final VoidCallback? onTyping;
-  final VoidCallback? onStopTyping;
+
+  final VoidCallback onCancelReply;
+
+  final VoidCallback onTyping;
+
+  final VoidCallback onStopTyping;
+
+  final bool enabled;
+
+  @override
+  State<MessageInputBar> createState() => _MessageInputBarState();
+}
+
+class _MessageInputBarState extends State<MessageInputBar> {
+  final TextEditingController _controller = TextEditingController();
+
+  final FocusNode _focusNode = FocusNode();
+
+  final ImagePicker _picker = ImagePicker();
+
+  bool _hasText = false;
+
+  bool _sending = false;
 
   bool _showEmoji = false;
+
   bool _isRecording = false;
-  Duration _recordDuration = Duration.zero;
-  Timer? _timer;
-  bool get _hasText => _controller.text.trim().isNotEmpty;
-Future<void> _pickFromGallery() async {
-  if (_selectedImage != null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          "Remove the current image first.",
-        ),
-      ),
-    );
-    return;
+
+  Timer? _typingTimer;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _controller.addListener(_onTextChanged);
   }
 
-  final file = await _picker.pickImage(
-    source: ImageSource.gallery,
-    imageQuality: 85,
-  );
-
-  if (file == null) return;
-
-  setState(() {
-    _selectedImage = File(file.path);
-  });
-
-  widget.onImageSelected?.call(
-    _selectedImage!,
-  );
-
-  // Backend upload comes later.
-}
-Future<void> _pickFromCamera() async {
-  if (_selectedImage != null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          "Remove the current image first.",
-        ),
-      ),
-    );
-    return;
-  }
-
-  final file = await _picker.pickImage(
-    source: ImageSource.camera,
-    imageQuality: 85,
-  );
-
-  if (file == null) return;
-
-  setState(() {
-    _selectedImage = File(file.path);
-  });
-
-  widget.onImageSelected?.call(
-    _selectedImage!,
-  );
-
-  // Backend upload comes later.
-}
-Future<void> _pickDocument() async {
-  final result =
-      await FilePicker.platform.pickFiles();
-
-  if (result == null) return;
-
-  final file = result.files.single;
-
-  widget.onFileSelected?.call(
-  LocalFileMessage(
-    file: File(file.path!),
-    name: file.name,
-    size: file.size,
-    isMe: true,
-    createdAt: DateTime.now(),
-  ),
-);
-
-  // Upload comes later
-}
-@override
-void initState() {
-  super.initState();
-
-  _controller.addListener(() {
-    setState(() {});
-    widget.onTyping?.call();
-  });
-}
-void _startRecording() {
-  HapticFeedback.mediumImpact();
-
-  setState(() {
-    _isRecording = true;
-    _recordDuration = Duration.zero;
-  });
-
-  _timer?.cancel();
-
-  _timer = Timer.periodic(
-    const Duration(seconds: 1),
-    (_) {
-      setState(() {
-        _recordDuration +=
-            const Duration(seconds: 1);
-      });
-    },
-  );
-}
-void _stopRecording() {
-  _timer?.cancel();
-
-  HapticFeedback.lightImpact();
-
-  final duration = _recordDuration;
-
-  setState(() {
-    _isRecording = false;
-  });
-
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text(
-        "Voice message recorded (${_formatRecordingTime()})",
-      ),
-    ),
-  );
-
-  // Later we'll upload the audio here.
-}
-String _formatRecordingTime() {
-  final minutes =
-      _recordDuration.inMinutes
-          .toString()
-          .padLeft(2, "0");
-
-  final seconds =
-      (_recordDuration.inSeconds % 60)
-          .toString()
-          .padLeft(2, "0");
-
-  return "$minutes:$seconds";
-}
   @override
   void dispose() {
+    _typingTimer?.cancel();
+
+    _controller.removeListener(_onTextChanged);
+
     _controller.dispose();
+
     _focusNode.dispose();
-    _timer?.cancel();
+
     super.dispose();
   }
 
-  void _toggleEmojiKeyboard() {
-    if (_selectedImage != null) {
-      return;
-    }
-    if (_showEmoji) {
-      _focusNode.requestFocus();
-    } else {
-      _focusNode.unfocus();
+  void _onTextChanged() {
+    final hasText = _controller.text.trim().isNotEmpty;
+
+    if (hasText != _hasText) {
+      setState(() {
+        _hasText = hasText;
+      });
     }
 
-    setState(() {
-      _showEmoji = !_showEmoji;
-    });
+    widget.onTyping();
+
+    _typingTimer?.cancel();
+
+    _typingTimer = Timer(
+      const Duration(seconds: 2),
+      () {
+        widget.onStopTyping();
+      },
+    );
   }
-  void _showAttachmentSheet() {
+
+  Future<void> _pickImage() async {}
+
+  Future<void> _pickFile() async {}
+
+  Future<void> _sendMessage() async {}
+
+  void _toggleEmojiKeyboard() {}
+
+  void _showAttachmentSheet() {}
+
+  Future<void> _startRecording() async {}
+
+  Future<void> _stopRecording() async {}
+}
+Future<void> _pickImage() async {
+  try {
+    final XFile? image = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
+
+    if (image == null) return;
+
+    await widget.onImageSelected(
+      File(image.path),
+    );
+  } catch (e) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Failed to select image.\n$e',
+        ),
+      ),
+    );
+  }
+}
+
+Future<void> _pickFile() async {
+  try {
+    final result = await FilePicker.platform.pickFiles(
+      allowMultiple: false,
+    );
+
+    if (result == null) return;
+
+    final path = result.files.single.path;
+
+    if (path == null) return;
+
+    await widget.onFileSelected(
+      File(path),
+    );
+  } catch (e) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Failed to select file.\n$e',
+        ),
+      ),
+    );
+  }
+}
+
+Future<void> _sendMessage() async {
+  final text = _controller.text.trim();
+
+  if (text.isEmpty || _sending) return;
+
+  setState(() {
+    _sending = true;
+  });
+
+  try {
+    await widget.onSend(text);
+
+    _controller.clear();
+
+    widget.onStopTyping();
+  } finally {
+    if (mounted) {
+      setState(() {
+        _sending = false;
+      });
+    }
+  }
+}
+
+void _toggleEmojiKeyboard() {
+  if (_showEmoji) {
+    _focusNode.requestFocus();
+  } else {
+    _focusNode.unfocus();
+  }
+
+  setState(() {
+    _showEmoji = !_showEmoji;
+  });
+}
+
+void _showAttachmentSheet() {
   showModalBottomSheet(
     context: context,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(
-        top: Radius.circular(24),
-      ),
-    ),
     builder: (_) {
-      return AttachmentSheet(
-        onGallery: _pickFromGallery,
-        onCamera: _pickFromCamera,
-        onDocument: _pickDocument,
+      return SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo),
+              title: const Text('Photo'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage();
+              },
             ),
-          );
-        },
-        onLocation: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("Location sharing coming soon"),
+            ListTile(
+              leading: const Icon(Icons.attach_file),
+              title: const Text('Document'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickFile();
+              },
             ),
-          );
-        },
-        onContact: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("Contact sharing coming soon"),
-            ),
-          );
-        },
+          ],
+        ),
       );
     },
   );
 }
 
-  @override
-  Widget build(BuildContext context) {
-    return PopScope(
-      canPop: !_showEmoji,
-      onPopInvokedWithResult: (didPop, result) {
-        if (!didPop && _showEmoji) {
-          setState(() {
-            _showEmoji = false;
-          });
-        }
-      },
-      child: SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-             if (_selectedImage != null)
-                SelectedMediaPreview(
-                  image: _selectedImage!,
-                  onRemove: () {
-                    setState(() {
-                      _selectedImage = null;
-                    });
-                  },
+Future<void> _startRecording() async {
+  setState(() {
+    _isRecording = true;
+  });
+}
+
+Future<void> _stopRecording() async {
+  setState(() {
+    _isRecording = false;
+  });
+}
+@override
+Widget build(BuildContext context) {
+  return SafeArea(
+    top: false,
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (widget.replyingTo != null)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 10,
+            ),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              border: Border(
+                left: BorderSide(
+                  color: Theme.of(context).colorScheme.primary,
+                  width: 4,
                 ),
-                if (widget.replyingTo != null)
-  ReplyPreview(
-    reply: widget.replyingTo!,
-    onCancel:
-        widget.onCancelReply ??
-        () {},
-  ),
-            if (_isRecording)
-              Container(
-                margin: const EdgeInsets.only(
-                  bottom: 8,
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade50,
-                  borderRadius:
-                      BorderRadius.circular(18),
-                ),
-                child: Row(
-                  children: [
-
-                    const Icon(
-                      Icons.fiber_manual_record,
-                      color: Colors.red,
-                      size: 14,
-                    ),
-
-                    const SizedBox(width: 10),
-
-                    Text(
-                      _formatRecordingTime(),
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-
-                    const SizedBox(width: 20),
-
-                    const Expanded(
-                      child: Text(
-                        "← Slide to cancel",
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 10,
-              ),
-              decoration: BoxDecoration(
-                color: Theme.of(context)
-                    .colorScheme
-                    .surface,
-                border: Border(
-                  top: BorderSide(
-                    color: Colors.grey.shade300,
-                  ),
-                ),
-              ),
-              child: Row(
-                children: [
-                  IconButton(
-                    onPressed: _toggleEmojiKeyboard,
-                    icon: Icon(
-                      _showEmoji
-                          ? Icons.keyboard
-                          : Icons
-                              .emoji_emotions_outlined,
-                    ),
-                  ),
-
-                  Expanded(
-                    child: TextField(
-                      controller: _controller,
-                      focusNode: _focusNode,
-                      textCapitalization:
-                        TextCapitalization.sentences,
-                        minLines: 1,
-                        maxLines: 5,
-                      onTap: () {
-                        if (_showEmoji) {
-                          setState(() {
-                            _showEmoji = false;
-                          });
-                        }
-                      },
-                      decoration: InputDecoration(
-                        hintText:
-                            "Type a message...",
-                        filled: true,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 18,
-                          vertical: 12,
-                        ),
-                        border:
-                            OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius.circular(
-                            25,
-                          ),
-                          borderSide:
-                              BorderSide.none,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  IconButton(
-                    onPressed: 
-                    _selectedImage == null
-                            ? _showAttachmentSheet
-                            : null,
-  icon: const Icon(Icons.attach_file),
-),
-                  AnimatedSwitcher(
-  duration: const Duration(milliseconds: 200),
-  child: _hasText
-      ? IconButton(
-          key: const ValueKey("send"),
-          onPressed: () async {
-            HapticFeedback.lightImpact();
-
-            final text = _controller.text.trim();
-
-            if (text.isEmpty &&
-              _selectedImage == null) {
-            return;
-          }
-
-            if (widget.onSend != null) {
-              await widget.onSend!(
-  text,
-  widget.replyingTo,
-);
-            }
-
-            _controller.clear();
-            widget.onStopTyping?.call();
-            setState(() {
-              _selectedImage = null;
-            });
-            
-          },
-          icon: const Icon(
-            Icons.send,
-            color: Colors.blue,
-          ),
-        )
-      : GestureDetector(
-          key: const ValueKey("mic"),
-          onLongPressStart: (_) {
-            _startRecording();
-          },
-          onLongPressEnd: (_) {
-            _stopRecording();
-          },
-          child: const Padding(
-            padding: EdgeInsets.all(8),
-            child: Icon(Icons.mic),
-          ),
-        ),
-),
-                ],
               ),
             ),
-
-            if (_showEmoji)
-              SizedBox(
-                height: 320,
-                child: EmojiPicker(
-                  textEditingController:
-                      _controller,
-                  config: Config(
-                    height: 320,
-                    checkPlatformCompatibility:
-                        true,
-                    emojiViewConfig:
-                        const EmojiViewConfig(
-                      emojiSizeMax: 28,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.replyingTo!.senderName,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .primary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        widget.replyingTo!.message,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: widget.onCancelReply,
+                ),
+              ],
+            ),
+          ),
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 8,
+            vertical: 8,
+          ),
+          child: Row(
+            crossAxisAlignment:
+                CrossAxisAlignment.end,
+            children: [
+              IconButton(
+                onPressed: _toggleEmojiKeyboard,
+                icon: Icon(
+                  _showEmoji
+                      ? Icons.keyboard
+                      : Icons.emoji_emotions_outlined,
+                ),
+              ),
+              Expanded(
+                child: TextField(
+                  controller: _controller,
+                  focusNode: _focusNode,
+                  enabled: widget.enabled,
+                  minLines: 1,
+                  maxLines: 6,
+                  textCapitalization:
+                      TextCapitalization.sentences,
+                  decoration: InputDecoration(
+                    hintText: 'Type a message',
+                    border: OutlineInputBorder(
+                      borderRadius:
+                          BorderRadius.circular(24),
+                    ),
+                    contentPadding:
+                        const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    suffixIcon: IconButton(
+                      icon: const Icon(
+                        Icons.attach_file,
+                      ),
+                      onPressed:
+                          _showAttachmentSheet,
                     ),
                   ),
                 ),
               ),
-          ],
+              const SizedBox(width: 8),
+              AnimatedSwitcher(
+                duration:
+                    const Duration(milliseconds: 200),
+                child: _hasText
+                    ? FloatingActionButton(
+                        key: const ValueKey(
+                          'send',
+                        ),
+                        mini: true,
+                        elevation: 0,
+                        onPressed: _sending
+                            ? null
+                            : _sendMessage,
+                        child: _sending
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child:
+                                    CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(
+                                Icons.send,
+                              ),
+                      )
+                    : FloatingActionButton(
+                        key: const ValueKey(
+                          'mic',
+                        ),
+                        mini: true,
+                        elevation: 0,
+                        onPressed: _isRecording
+                            ? _stopRecording
+                            : _startRecording,
+                        child: Icon(
+                          _isRecording
+                              ? Icons.stop
+                              : Icons.mic,
+                        ),
+                      ),
+              ),
+            ],
+          ),
         ),
-      ),
-    );
-  }
+      ],
+    ),
+  );
 }

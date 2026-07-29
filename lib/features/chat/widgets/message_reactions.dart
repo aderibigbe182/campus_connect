@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/reaction_summary.dart';
 
-class MessageReactions extends StatelessWidget {
+class MessageReactions extends StatelessWidget{
   final List<String> reactions;
   final void Function(String emoji)? onTap;
 
@@ -108,4 +108,5 @@ Widget build(BuildContext context) {
       }).toList(),
     ),
   );
+}
 }
