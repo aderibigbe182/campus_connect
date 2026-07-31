@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../screens/image_view_screen.dart';
 
@@ -46,26 +47,26 @@ class ImageMessageBubble extends StatelessWidget {
           child: Stack(
             alignment: Alignment.bottomRight,
             children: [
-              GestureDetector(
-  onTap: () {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ImageViewScreen(
-          imageUrl: imageUrl,
-        ),
-      ),
-    );
-  },
-  child: Hero(
-    tag: imageUrl,
-    child: Image.network(
-      imageUrl,
-      width: 220,
-      fit: BoxFit.cover,
-    ),
-  ),
-),
+                      GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ImageViewScreen(
+                        imageUrl: imageUrl,
+                      ),
+                    ),
+                  );
+                },
+                child: Hero(
+                  tag: imageUrl,
+                  child: Image.network(
+                    imageUrl,
+                    width: 220,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
 
               Container(
                 margin: const EdgeInsets.all(8),

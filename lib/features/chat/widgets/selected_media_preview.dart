@@ -5,75 +5,50 @@ import 'package:flutter/material.dart';
 class SelectedMediaPreview extends StatelessWidget {
   final File image;
   final VoidCallback onRemove;
+  final VoidCallback? onTap;
 
   const SelectedMediaPreview({
     super.key,
     required this.image,
     required this.onRemove,
+    this.onTap,
   });
-
-  @override
+    @override
   Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 250),
-      margin: const EdgeInsets.fromLTRB(
-        12,
-        8,
-        12,
-        0,
-      ),
-      AnimatedOpacity(
-        duration: const Duration(milliseconds: 250),
-        opacity: 1,
-        child: Hero(
-            tag: image.path,
-            child: Image.file(
-            image,
-            width: 140,
-            height: 140,
-            fit: BoxFit.cover,
-            ),
-        ),
-        )
-      alignment: Alignment.centerLeft,
+    return GestureDetector(
+      onTap: onTap,
       child: Stack(
+        clipBehavior: Clip.none,
         children: [
-          ClipRRect(
-            borderRadius:
-                BorderRadius.circular(14),
-            child: Image.file(
-              image,
-              width: 140,
-              height: 140,
-              fit: BoxFit.cover,
-              Hero(
-                tag: image.path,
-                child: Image.file(
-                    image,
-                    width: 140,
-                    height: 140,
-                    fit: BoxFit.cover,
-                ),
-              )
+          Container(
+            width: 90,
+            height: 90,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Theme.of(context).primaryColor,
+              ),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.file(
+                image,
+                fit: BoxFit.cover,
+              ),
             ),
           ),
 
           Positioned(
-            top: 6,
-            right: 6,
-            child: InkWell(
-                borderRadius: BorderRadius.circular(20),
-                onTap: onRemove,
-                child: Container(
+            top: -8,
+            right: -8,
+            child: GestureDetector(
               onTap: onRemove,
               child: Container(
-                decoration:
-                    const BoxDecoration(
-                  color: Colors.black54,
+                decoration: const BoxDecoration(
+                  color: Colors.red,
                   shape: BoxShape.circle,
                 ),
-                padding:
-                    const EdgeInsets.all(4),
+                padding: const EdgeInsets.all(4),
                 child: const Icon(
                   Icons.close,
                   color: Colors.white,

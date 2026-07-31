@@ -1,59 +1,30 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
+import 'package:photo_view/photo_view.dart';
 
 class ImageViewScreen extends StatelessWidget {
-  final TransformationController
-    _controller = TransformationController();
-  final File image;
+  final String imageUrl;
 
   const ImageViewScreen({
     super.key,
-    required this.image,
+    required this.imageUrl,
   });
-
-  @override
+    @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.black,
         elevation: 0,
-        iconTheme: const IconThemeData(
-          color: Colors.white,
-        ),
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
-      @override
-        void dispose() {
-          _controller.dispose();
-          super.dispose();
-        }
-      body: Center(
-        child: Hero(
-          transitionOnUserGestures: true,
-          tag: image.path,
-          child: InteractiveViewer(
-              clipBehavior: Clip.none,
-              boundaryMargin:
-                  const EdgeInsets.all(60),
-               GestureDetector(
-  onDoubleTap: () {
-    if (_controller.value != Matrix4.identity()) {
-      _controller.value = Matrix4.identity();
-    } else {
-      _controller.value =
-          Matrix4.identity()
-            ..scale(2.5);
-    }
-  },
-  child: InteractiveViewer(
-    transformationController: _controller, 
-              minScale: 1,
-              maxScale: 5,
-            minScale: 1,
-            maxScale: 5,
-            child: Image.file(image),
+      body: SafeArea(
+        child: PhotoView(
+          imageProvider: NetworkImage(imageUrl),
+          backgroundDecoration: const BoxDecoration(
+            color: Colors.black,
           ),
+          minScale: PhotoViewComputedScale.contained,
+          maxScale: PhotoViewComputedScale.covered * 4,
         ),
       ),
     );

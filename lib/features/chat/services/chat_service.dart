@@ -1,134 +1,120 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
 import '../../../core/constants/api_constants.dart';
 import '../../../core/services/storage_service.dart';
+
+import '../models/chat_model.dart';
 import '../models/message_model.dart';
+import '../models/reply_message_model.dart';
 
 class ChatService {
   ChatService._();
 
   static final ChatService instance = ChatService._();
 
-  final StorageService _storage = StorageService();
-
   String get _baseUrl => ApiConstants.baseUrl;
 
-  Future<Map<String, String>> _headers() async {
-    final token = await _storage.getToken();
+  Future<Map<String, String>> _headers({
+    bool json = true,
+  }) async {
+    final token = await StorageService.getToken();
 
     return {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $token',
+      if (json) 'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
     };
   }
 
-  // ==========================================================
-  // LOAD CONVERSATION
-  // ==========================================================
+  Map<String, dynamic> _replyToJson(ReplyMessageModel reply) {
+    return {
+      'messageId': reply.messageId,
+      'sender': reply.sender,
+      'message': reply.message,
+    };
+  }
+    // ==========================
+  // CHAT LIST
+  // ==========================
 
-  Future<List<MessageModel>> getConversation(
+  Future<List<ChatModel>> getChats() async {
+    final response = await http.get(
+      Uri.parse('$_baseUrl/chat'),
+      headers: await _headers(),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to load chats');
+    }
+
+    final List data = jsonDecode(response.body);
+
+    return data
+        .map((e) => ChatModel.fromJson(e))
+        .toList();
+  }
+
+  Future<ChatModel> getChat(String conversationId) async {
+    final response = await http.get(
+      Uri.parse('$_baseUrl/chat/$conversationId'),
+      headers: await _headers(),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to load chat');
+    }
+
+    return ChatModel.fromJson(
+      jsonDecode(response.body),
+    );
+  }
+
+  Future<List<MessageModel>> getMessages(
     String conversationId,
   ) async {
     final response = await http.get(
       Uri.parse(
-        '$_baseUrl/api/chat/conversations/$conversationId/messages',
+        '$_baseUrl/chat/$conversationId/messages',
       ),
       headers: await _headers(),
     );
 
     if (response.statusCode != 200) {
-      throw Exception('Failed to load conversation');
+      throw Exception('Failed to load messages');
     }
 
-    final body = jsonDecode(response.body);
-
-    final List data =
-        body is List ? body : (body['messages'] ?? []);
+    final List data = jsonDecode(response.body);
 
     return data
         .map((e) => MessageModel.fromJson(e))
         .toList();
   }
+  // ==========================
+  // CONVERSATION
+  // ==========================
 
-  // ==========================================================
-  // LOAD RECENT CHATS
-  // ==========================================================
-
-  Future<List<dynamic>> getConversations() async {
-    final response = await http.get(
-      Uri.parse(
-        '$_baseUrl/api/chat/conversations',
-      ),
-      headers: await _headers(),
-    );
-
-    if (response.statusCode != 200) {
-      throw Exception('Failed to load conversations');
-    }
-
-    final body = jsonDecode(response.body);
-
-    if (body is List) return body;
-
-    return body['conversations'] ?? [];
-  }
-
-  // ==========================================================
-  // LOAD OLDER MESSAGES (PAGINATION)
-  // ==========================================================
-
-  Future<List<MessageModel>> loadOlderMessages({
-    required String conversationId,
-    required int page,
-    int limit = 30,
-  }) async {
-    final response = await http.get(
-      Uri.parse(
-        '$_baseUrl/api/chat/conversations/$conversationId/messages?page=$page&limit=$limit',
-      ),
-      headers: await _headers(),
-    );
-
-    if (response.statusCode != 200) {
-      throw Exception('Failed to load older messages');
-    }
-
-    final body = jsonDecode(response.body);
-
-    final List data =
-        body is List ? body : (body['messages'] ?? []);
-
-    return data
-        .map((e) => MessageModel.fromJson(e))
-        .toList();
-  }
-}
-  // ==========================================================
-  // SEND TEXT MESSAGE
-  // ==========================================================
-
-  Future<MessageModel> sendMessage({
+  Future<MessageModel> sendTextMessage({
     required String conversationId,
     required String message,
     ReplyMessageModel? reply,
   }) async {
     final response = await http.post(
       Uri.parse(
-        '$_baseUrl/api/chat/messages/send',
+        '$_baseUrl/chat/$conversationId/messages/text',
       ),
       headers: await _headers(),
       body: jsonEncode({
-        "conversation_id": conversationId,
-        "message": message,
-        "reply": reply?.toJson(),
+        'message': message,
+        if (reply != null) 'reply': _replyToJson(reply),
       }),
     );
 
     if (response.statusCode != 200 &&
         response.statusCode != 201) {
-      throw Exception("Failed to send message");
+      throw Exception('Failed to send message');
     }
 
     return MessageModel.fromJson(
@@ -136,32 +122,82 @@ class ChatService {
     );
   }
 
-  // ==========================================================
-  // SEND IMAGE
-  // ==========================================================
-
-  Future<MessageModel> sendImage({
+  Future<void> deleteMessageSimple({
     required String conversationId,
-    required String imageUrl,
+    required String messageId,
+  }) async {
+    final response = await http.delete(
+      Uri.parse(
+        '$_baseUrl/chat/$conversationId/messages/$messageId',
+      ),
+      headers: await _headers(),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to delete message');
+    }
+  }
+
+  Future<void> editMessagePatch({
+    required String conversationId,
+    required String messageId,
+    required String message,
+  }) async {
+    final response = await http.patch(
+      Uri.parse(
+        '$_baseUrl/chat/$conversationId/messages/$messageId',
+      ),
+      headers: await _headers(),
+      body: jsonEncode({
+        'message': message,
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to edit message');
+    }
+  }
+  // ==========================
+  // MEDIA MESSAGES
+  // ==========================
+
+  Future<MessageModel> sendImageMessage({
+    required String conversationId,
+    required File image,
     String? caption,
     ReplyMessageModel? reply,
   }) async {
-    final response = await http.post(
+    final request = http.MultipartRequest(
+      'POST',
       Uri.parse(
-        '$_baseUrl/api/chat/messages/image',
+        '$_baseUrl/chat/$conversationId/messages/image',
       ),
-      headers: await _headers(),
-      body: jsonEncode({
-        "conversation_id": conversationId,
-        "image_url": imageUrl,
-        "caption": caption,
-        "reply": reply?.toJson(),
-      }),
     );
+
+    request.headers.addAll(await _headers(json: false));
+
+    request.fields['caption'] = caption ?? '';
+
+    if (reply != null) {
+      request.fields['reply'] =
+          jsonEncode(_replyToJson(reply));
+    }
+
+    request.files.add(
+      await http.MultipartFile.fromPath(
+        'image',
+        image.path,
+      ),
+    );
+
+    final streamed = await request.send();
+
+    final response =
+        await http.Response.fromStream(streamed);
 
     if (response.statusCode != 200 &&
         response.statusCode != 201) {
-      throw Exception("Failed to send image");
+      throw Exception('Failed to send image');
     }
 
     return MessageModel.fromJson(
@@ -169,34 +205,40 @@ class ChatService {
     );
   }
 
-  // ==========================================================
-  // SEND FILE
-  // ==========================================================
-
-  Future<MessageModel> sendFile({
+  Future<MessageModel> sendFileMessage({
     required String conversationId,
-    required String fileUrl,
-    required String fileName,
-    required int fileSize,
+    required File file,
     ReplyMessageModel? reply,
   }) async {
-    final response = await http.post(
+    final request = http.MultipartRequest(
+      'POST',
       Uri.parse(
-        '$_baseUrl/api/chat/messages/file',
+        '$_baseUrl/chat/$conversationId/messages/file',
       ),
-      headers: await _headers(),
-      body: jsonEncode({
-        "conversation_id": conversationId,
-        "file_url": fileUrl,
-        "file_name": fileName,
-        "file_size": fileSize,
-        "reply": reply?.toJson(),
-      }),
     );
+
+    request.headers.addAll(await _headers(json: false));
+
+    if (reply != null) {
+      request.fields['reply'] =
+          jsonEncode(_replyToJson(reply));
+    }
+
+    request.files.add(
+      await http.MultipartFile.fromPath(
+        'file',
+        file.path,
+      ),
+    );
+
+    final streamed = await request.send();
+
+    final response =
+        await http.Response.fromStream(streamed);
 
     if (response.statusCode != 200 &&
         response.statusCode != 201) {
-      throw Exception("Failed to send file");
+      throw Exception('Failed to send file');
     }
 
     return MessageModel.fromJson(
@@ -204,619 +246,276 @@ class ChatService {
     );
   }
 
-  // ==========================================================
-  // EDIT MESSAGE
-  // ==========================================================
+  Future<MessageModel> sendVoiceMessage({
+    required String conversationId,
+    required File audio,
+    ReplyMessageModel? reply,
+  }) async {
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse(
+        '$_baseUrl/chat/$conversationId/messages/voice',
+      ),
+    );
 
-  Future<void> editMessage({
+    request.headers.addAll(await _headers(json: false));
+
+    if (reply != null) {
+      request.fields['reply'] =
+          jsonEncode(_replyToJson(reply));
+    }
+
+    request.files.add(
+      await http.MultipartFile.fromPath(
+        'audio',
+        audio.path,
+      ),
+    );
+
+    final streamed = await request.send();
+
+    final response =
+        await http.Response.fromStream(streamed);
+
+    if (response.statusCode != 200 &&
+        response.statusCode != 201) {
+      throw Exception('Failed to send voice message');
+    }
+
+    return MessageModel.fromJson(
+      jsonDecode(response.body),
+    );
+  }
+    // ==========================
+  // DELETE / EDIT MESSAGES
+  // ==========================
+
+  Future<void> deleteMessage({
+    required String conversationId,
+    required String messageId,
+    bool deleteForEveryone = false,
+  }) async {
+    final response = await http.delete(
+      Uri.parse(
+        '$_baseUrl/chat/$conversationId/messages/$messageId',
+      ),
+      headers: await _headers(),
+      body: jsonEncode({
+        'deleteForEveryone': deleteForEveryone,
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to delete message');
+    }
+  }
+
+  Future<MessageModel> editMessage({
+    required String conversationId,
     required String messageId,
     required String newMessage,
   }) async {
     final response = await http.put(
       Uri.parse(
-        '$_baseUrl/api/chat/messages/$messageId',
+        '$_baseUrl/chat/$conversationId/messages/$messageId',
       ),
       headers: await _headers(),
       body: jsonEncode({
-        "message": newMessage,
+        'message': newMessage,
       }),
     );
 
     if (response.statusCode != 200) {
-      throw Exception("Failed to edit message");
+      throw Exception('Failed to edit message');
     }
-  }
 
-  // ==========================================================
-  // DELETE MESSAGE
-  // ==========================================================
-
-  Future<void> deleteMessage(
-    String messageId,
-  ) async {
-    final response = await http.delete(
-      Uri.parse(
-        '$_baseUrl/api/chat/messages/$messageId',
-      ),
-      headers: await _headers(),
+    return MessageModel.fromJson(
+      jsonDecode(response.body),
     );
-
-    if (response.statusCode != 200) {
-      throw Exception("Failed to delete message");
-    }
   }
 
-  // ==========================================================
-  // REACT TO MESSAGE
-  // ==========================================================
-
-  Future<void> reactToMessage({
+  Future<void> markMessageAsRead({
+    required String conversationId,
     required String messageId,
-    required String emoji,
   }) async {
     final response = await http.post(
       Uri.parse(
-        '$_baseUrl/api/chat/messages/$messageId/reaction',
+        '$_baseUrl/chat/$conversationId/messages/$messageId/read',
+      ),
+      headers: await _headers(),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to mark message as read');
+    }
+  }
+    // ==========================
+  // REACTIONS & TYPING
+  // ==========================
+
+  Future<void> addReaction({
+    required String conversationId,
+    required String messageId,
+    required String reaction,
+  }) async {
+    final response = await http.post(
+      Uri.parse(
+        '$_baseUrl/chat/$conversationId/messages/$messageId/reaction',
       ),
       headers: await _headers(),
       body: jsonEncode({
-        "emoji": emoji,
+        'reaction': reaction,
       }),
     );
 
     if (response.statusCode != 200) {
-      throw Exception("Failed to react");
+      throw Exception('Failed to add reaction');
     }
   }
 
-  // ==========================================================
-  // REMOVE REACTION
-  // ==========================================================
-
-  Future<void> removeReaction(
-    String messageId,
-  ) async {
+  Future<void> removeReaction({
+    required String conversationId,
+    required String messageId,
+  }) async {
     final response = await http.delete(
       Uri.parse(
-        '$_baseUrl/api/chat/messages/$messageId/reaction',
+        '$_baseUrl/chat/$conversationId/messages/$messageId/reaction',
       ),
       headers: await _headers(),
     );
 
     if (response.statusCode != 200) {
-      throw Exception("Failed to remove reaction");
+      throw Exception('Failed to remove reaction');
     }
   }
-  // ==========================================
-// MESSAGE REACTIONS
-// ==========================================
 
-Future<bool> addReaction({
-  required String conversationId,
-  required String messageId,
-  required String emoji,
-}) async {
-  final token = await StorageService.getToken();
-
-  final response = await http.post(
-    Uri.parse(
-      "$baseUrl/api/chat/$conversationId/messages/$messageId/reactions",
-    ),
-    headers: {
-      "Authorization": "Bearer $token",
-      "Content-Type": "application/json",
-    },
-    body: jsonEncode({
-      "emoji": emoji,
-    }),
-  );
-
-  return response.statusCode == 200;
-}
-
-Future<bool> removeReaction({
-  required String conversationId,
-  required String messageId,
-}) async {
-  final token = await StorageService.getToken();
-
-  final response = await http.delete(
-    Uri.parse(
-      "$baseUrl/api/chat/$conversationId/messages/$messageId/reactions",
-    ),
-    headers: {
-      "Authorization": "Bearer $token",
-    },
-  );
-
-  return response.statusCode == 200;
-}
-
-Future<List<Map<String, dynamic>>> getReactionUsers({
-  required String conversationId,
-  required String messageId,
-}) async {
-  final token = await StorageService.getToken();
-
-  final response = await http.get(
-    Uri.parse(
-      "$baseUrl/api/chat/$conversationId/messages/$messageId/reactions",
-    ),
-    headers: {
-      "Authorization": "Bearer $token",
-    },
-  );
-
-  if (response.statusCode == 200) {
-    final data = jsonDecode(response.body);
-
-    return List<Map<String, dynamic>>.from(
-      data["users"] ?? [],
+  Future<void> sendTypingStatus({
+    required String conversationId,
+    required bool typing,
+  }) async {
+    final response = await http.post(
+      Uri.parse(
+        '$_baseUrl/chat/$conversationId/typing',
+      ),
+      headers: await _headers(),
+      body: jsonEncode({
+        'typing': typing,
+      }),
     );
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to update typing status');
+    }
+  }
+    // ==========================
+  // CHAT MANAGEMENT
+  // ==========================
+
+  Future<void> muteChat({
+    required String conversationId,
+    required bool muted,
+  }) async {
+    final response = await http.patch(
+      Uri.parse(
+        '$_baseUrl/chat/$conversationId/mute',
+      ),
+      headers: await _headers(),
+      body: jsonEncode({
+        'muted': muted,
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to update mute status');
+    }
   }
 
-  return [];
-}
-// ==========================================
-// TYPING INDICATOR
-// ==========================================
+  Future<void> archiveChat({
+    required String conversationId,
+    required bool archived,
+  }) async {
+    final response = await http.patch(
+      Uri.parse(
+        '$_baseUrl/chat/$conversationId/archive',
+      ),
+      headers: await _headers(),
+      body: jsonEncode({
+        'archived': archived,
+      }),
+    );
 
-Future<void> startTyping({
-  required String conversationId,
-}) async {
-  final token = await StorageService.getToken();
+    if (response.statusCode != 200) {
+      throw Exception('Failed to archive chat');
+    }
+  }
 
-  await http.post(
-    Uri.parse(
-      "$baseUrl/api/chat/$conversationId/typing/start",
-    ),
-    headers: {
-      "Authorization": "Bearer $token",
-      "Content-Type": "application/json",
-    },
-  );
-}
+  Future<void> pinChat({
+    required String conversationId,
+    required bool pinned,
+  }) async {
+    final response = await http.patch(
+      Uri.parse(
+        '$_baseUrl/chat/$conversationId/pin',
+      ),
+      headers: await _headers(),
+      body: jsonEncode({
+        'pinned': pinned,
+      }),
+    );
 
-Future<void> stopTyping({
-  required String conversationId,
-}) async {
-  final token = await StorageService.getToken();
+    if (response.statusCode != 200) {
+      throw Exception('Failed to pin chat');
+    }
+  }
 
-  await http.post(
-    Uri.parse(
-      "$baseUrl/api/chat/$conversationId/typing/stop",
-    ),
-    headers: {
-      "Authorization": "Bearer $token",
-      "Content-Type": "application/json",
-    },
-  );
-}
+  Future<void> clearChat({
+    required String conversationId,
+  }) async {
+    final response = await http.delete(
+      Uri.parse(
+        '$_baseUrl/chat/$conversationId/clear',
+      ),
+      headers: await _headers(),
+    );
 
-// ==========================================
-// READ RECEIPTS
-// ==========================================
+    if (response.statusCode != 200) {
+      throw Exception('Failed to clear chat');
+    }
+  }
 
-Future<bool> markMessageAsRead({
-  required String conversationId,
-  required String messageId,
-}) async {
-  final token = await StorageService.getToken();
+  Future<void> blockUser({
+    required String userId,
+  }) async {
+    final response = await http.post(
+      Uri.parse(
+        '$_baseUrl/users/$userId/block',
+      ),
+      headers: await _headers(),
+    );
 
-  final response = await http.post(
-    Uri.parse(
-      "$baseUrl/api/chat/$conversationId/messages/$messageId/read",
-    ),
-    headers: {
-      "Authorization": "Bearer $token",
-      "Content-Type": "application/json",
-    },
-  );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to block user');
+    }
+  }
 
-  return response.statusCode == 200;
-}
+  Future<List<ChatModel>> searchChats(
+    String query,
+  ) async {
+    final response = await http.get(
+      Uri.parse(
+        '$_baseUrl/chat/search?q=$query',
+      ),
+      headers: await _headers(),
+    );
 
-Future<bool> markConversationAsRead({
-  required String conversationId,
-}) async {
-  final token = await StorageService.getToken();
+    if (response.statusCode != 200) {
+      throw Exception('Failed to search chats');
+    }
 
-  final response = await http.post(
-    Uri.parse(
-      "$baseUrl/api/chat/$conversationId/read",
-    ),
-    headers: {
-      "Authorization": "Bearer $token",
-      "Content-Type": "application/json",
-    },
-  );
+    final List data = jsonDecode(response.body);
 
-  return response.statusCode == 200;
-}
-// ==========================================
-// SEARCH MESSAGES
-// ==========================================
-
-Future<List<MessageModel>> searchMessages({
-  required String conversationId,
-  required String query,
-}) async {
-  final token = await StorageService.getToken();
-
-  final response = await http.get(
-    Uri.parse(
-      "$baseUrl/api/chat/$conversationId/search?query=$query",
-    ),
-    headers: {
-      "Authorization": "Bearer $token",
-    },
-  );
-
-  if (response.statusCode == 200) {
-    final data = jsonDecode(response.body);
-
-    return (data["messages"] as List)
-        .map((e) => MessageModel.fromJson(e))
+    return data
+        .map((e) => ChatModel.fromJson(e))
         .toList();
   }
-
-  return [];
-}
-
-// ==========================================
-// PIN CHAT
-// ==========================================
-
-Future<bool> pinConversation(
-  String conversationId,
-) async {
-  final token = await StorageService.getToken();
-
-  final response = await http.post(
-    Uri.parse(
-      "$baseUrl/api/chat/$conversationId/pin",
-    ),
-    headers: {
-      "Authorization": "Bearer $token",
-    },
-  );
-
-  return response.statusCode == 200;
-}
-
-// ==========================================
-// UNPIN CHAT
-// ==========================================
-
-Future<bool> unpinConversation(
-  String conversationId,
-) async {
-  final token = await StorageService.getToken();
-
-  final response = await http.delete(
-    Uri.parse(
-      "$baseUrl/api/chat/$conversationId/pin",
-    ),
-    headers: {
-      "Authorization": "Bearer $token",
-    },
-  );
-
-  return response.statusCode == 200;
-}
-
-// ==========================================
-// MUTE CHAT
-// ==========================================
-
-Future<bool> muteConversation(
-  String conversationId,
-) async {
-  final token = await StorageService.getToken();
-
-  final response = await http.post(
-    Uri.parse(
-      "$baseUrl/api/chat/$conversationId/mute",
-    ),
-    headers: {
-      "Authorization": "Bearer $token",
-    },
-  );
-
-  return response.statusCode == 200;
-}
-
-// ==========================================
-// UNMUTE CHAT
-// ==========================================
-
-Future<bool> unmuteConversation(
-  String conversationId,
-) async {
-  final token = await StorageService.getToken();
-
-  final response = await http.delete(
-    Uri.parse(
-      "$baseUrl/api/chat/$conversationId/mute",
-    ),
-    headers: {
-      "Authorization": "Bearer $token",
-    },
-  );
-
-  return response.statusCode == 200;
-}
-// ==========================================
-// ARCHIVE CHAT
-// ==========================================
-
-Future<bool> archiveConversation(
-  String conversationId,
-) async {
-  final token = await StorageService.getToken();
-
-  final response = await http.post(
-    Uri.parse(
-      "$baseUrl/api/chat/$conversationId/archive",
-    ),
-    headers: {
-      "Authorization": "Bearer $token",
-    },
-  );
-
-  return response.statusCode == 200;
-}
-
-// ==========================================
-// UNARCHIVE CHAT
-// ==========================================
-
-Future<bool> unarchiveConversation(
-  String conversationId,
-) async {
-  final token = await StorageService.getToken();
-
-  final response = await http.delete(
-    Uri.parse(
-      "$baseUrl/api/chat/$conversationId/archive",
-    ),
-    headers: {
-      "Authorization": "Bearer $token",
-    },
-  );
-
-  return response.statusCode == 200;
-}
-
-// ==========================================
-// DELETE CONVERSATION
-// ==========================================
-
-Future<bool> deleteConversation(
-  String conversationId,
-) async {
-  final token = await StorageService.getToken();
-
-  final response = await http.delete(
-    Uri.parse(
-      "$baseUrl/api/chat/$conversationId",
-    ),
-    headers: {
-      "Authorization": "Bearer $token",
-    },
-  );
-
-  return response.statusCode == 200;
-}
-
-// ==========================================
-// CLEAR CHAT
-// ==========================================
-
-Future<bool> clearConversation(
-  String conversationId,
-) async {
-  final token = await StorageService.getToken();
-
-  final response = await http.delete(
-    Uri.parse(
-      "$baseUrl/api/chat/$conversationId/messages",
-    ),
-    headers: {
-      "Authorization": "Bearer $token",
-    },
-  );
-
-  return response.statusCode == 200;
-}
-// ==========================================
-// BLOCK USER
-// ==========================================
-
-Future<bool> blockUser({
-  required String userId,
-}) async {
-  final token = await StorageService.getToken();
-
-  final response = await http.post(
-    Uri.parse(
-      "$baseUrl/api/chat/block/$userId",
-    ),
-    headers: {
-      "Authorization": "Bearer $token",
-    },
-  );
-
-  return response.statusCode == 200;
-}
-
-// ==========================================
-// UNBLOCK USER
-// ==========================================
-
-Future<bool> unblockUser({
-  required String userId,
-}) async {
-  final token = await StorageService.getToken();
-
-  final response = await http.delete(
-    Uri.parse(
-      "$baseUrl/api/chat/block/$userId",
-    ),
-    headers: {
-      "Authorization": "Bearer $token",
-    },
-  );
-
-  return response.statusCode == 200;
-}
-
-// ==========================================
-// REPORT USER
-// ==========================================
-
-Future<bool> reportUser({
-  required String userId,
-  required String reason,
-}) async {
-  final token = await StorageService.getToken();
-
-  final response = await http.post(
-    Uri.parse(
-      "$baseUrl/api/chat/report",
-    ),
-    headers: {
-      "Authorization": "Bearer $token",
-      "Content-Type": "application/json",
-    },
-    body: jsonEncode({
-      "user_id": userId,
-      "reason": reason,
-    }),
-  );
-
-  return response.statusCode == 200;
-}
-
-// ==========================================
-// LEAVE CONVERSATION
-// ==========================================
-
-Future<bool> leaveConversation(
-  String conversationId,
-) async {
-  final token = await StorageService.getToken();
-
-  final response = await http.post(
-    Uri.parse(
-      "$baseUrl/api/chat/$conversationId/leave",
-    ),
-    headers: {
-      "Authorization": "Bearer $token",
-    },
-  );
-
-  return response.statusCode == 200;
-}
-// ==========================================
-// FORWARD MESSAGE
-// ==========================================
-
-Future<bool> forwardMessage({
-  required String messageId,
-  required List<String> conversationIds,
-}) async {
-  final token = await StorageService.getToken();
-
-  final response = await http.post(
-    Uri.parse(
-      "$baseUrl/api/chat/messages/$messageId/forward",
-    ),
-    headers: {
-      "Authorization": "Bearer $token",
-      "Content-Type": "application/json",
-    },
-    body: jsonEncode({
-      "conversation_ids": conversationIds,
-    }),
-  );
-
-  return response.statusCode == 200;
-}
-
-// ==========================================
-// STAR MESSAGE
-// ==========================================
-
-Future<bool> starMessage(
-  String messageId,
-) async {
-  final token = await StorageService.getToken();
-
-  final response = await http.post(
-    Uri.parse(
-      "$baseUrl/api/chat/messages/$messageId/star",
-    ),
-    headers: {
-      "Authorization": "Bearer $token",
-    },
-  );
-
-  return response.statusCode == 200;
-}
-
-// ==========================================
-// UNSTAR MESSAGE
-// ==========================================
-
-Future<bool> unstarMessage(
-  String messageId,
-) async {
-  final token = await StorageService.getToken();
-
-  final response = await http.delete(
-    Uri.parse(
-      "$baseUrl/api/chat/messages/$messageId/star",
-    ),
-    headers: {
-      "Authorization": "Bearer $token",
-    },
-  );
-
-  return response.statusCode == 200;
-}
-
-// ==========================================
-// GET STARRED MESSAGES
-// ==========================================
-
-Future<List<MessageModel>> getStarredMessages() async {
-  final token = await StorageService.getToken();
-
-  final response = await http.get(
-    Uri.parse(
-      "$baseUrl/api/chat/messages/starred",
-    ),
-    headers: {
-      "Authorization": "Bearer $token",
-    },
-  );
-
-  if (response.statusCode == 200) {
-    final data = jsonDecode(response.body);
-
-    return (data["messages"] as List)
-        .map((e) => MessageModel.fromJson(e))
-        .toList();
-  }
-
-  return [];
-}
-
-// ==========================================
-// DISPOSE / CLEANUP
-// ==========================================
-
-void dispose() {
-  // Reserved for future stream controllers or socket listeners.
 }

@@ -21,7 +21,7 @@ class ChatHomeScreen extends StatefulWidget {
 }
 
 class _ChatHomeScreenState extends State<ChatHomeScreen> {
-  final ChatService service = ChatService();
+  final ChatService service = ChatService.instance;
 
   late Future<List<ChatModel>> chats;
 

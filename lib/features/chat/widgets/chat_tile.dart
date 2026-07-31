@@ -2,6 +2,73 @@ import 'package:flutter/material.dart';
 
 import '../models/chat_model.dart';
 
+extension _ChatModelHelpers on ChatModel {
+  String? get profilePicture {
+    final dynamic model = this;
+    try {
+      return model.profilePicture as String?;
+    } catch (_) {}
+    try {
+      return model.profileImage as String?;
+    } catch (_) {}
+    try {
+      return model.profilePictureUrl as String?;
+    } catch (_) {}
+    try {
+      return model.avatarUrl as String?;
+    } catch (_) {}
+    try {
+      return model.imageUrl as String?;
+    } catch (_) {}
+    return null;
+  }
+
+  String get fullName {
+    final dynamic model = this;
+    try {
+      final value = model.fullName;
+      if (value is String) return value;
+    } catch (_) {}
+    try {
+      final value = model.name;
+      if (value is String) return value;
+    } catch (_) {}
+    try {
+      final value = model.displayName;
+      if (value is String) return value;
+    } catch (_) {}
+    try {
+      final value = model.title;
+      if (value is String) return value;
+    } catch (_) {}
+    try {
+      final value = model.username;
+      if (value is String) return value;
+    } catch (_) {}
+    return '';
+  }
+
+  String? get lastMessageTime {
+    final dynamic model = this;
+    try {
+      final value = model.lastMessageTime;
+      if (value is String) return value;
+      if (value is DateTime) return value.toLocal().toString();
+    } catch (_) {}
+    try {
+      final value = model.time;
+      if (value is String) return value;
+      if (value is DateTime) return value.toLocal().toString();
+    } catch (_) {}
+    try {
+      final value = model.timestamp;
+      if (value is String) return value;
+      if (value is DateTime) return value.toLocal().toString();
+    } catch (_) {}
+    return null;
+  }
+}
+
 class ChatTile extends StatelessWidget {
   final ChatModel chat;
   final VoidCallback onTap;
@@ -80,7 +147,7 @@ class ChatTile extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          chat.lastMessage ?? "",
+                          (chat.lastMessage ?? "") as String,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(

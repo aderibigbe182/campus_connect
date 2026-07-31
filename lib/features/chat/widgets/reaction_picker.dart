@@ -35,38 +35,39 @@ class ReactionPicker extends StatelessWidget {
               duration: const Duration(milliseconds: 120),
               scale: 1,
               child: InkWell(
-              borderRadius: BorderRadius.circular(20),
-              onTap: () => onSelected(emoji),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 6,
-                ),
-                child: TweenAnimationBuilder<double>(
-                tween: Tween(
-                  begin: 0.8,
-                  end: 1,
-                ),
-                duration: const Duration(
-                  milliseconds: 180,
-                ),
-                curve: Curves.elasticOut,
-                builder: (
-                  context,
-                  scale,
-                  child,
-                ) {
-                  return Transform.scale(
-                    scale: scale,
-                    child: child,
-                  );
-                },
-                child: Text(
-                  emoji,
-                  style: const TextStyle(
-                    fontSize: 30,
+                borderRadius: BorderRadius.circular(20),
+                onTap: () => onSelected(emoji),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                  ),
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween<double>(
+                      begin: 0.8,
+                      end: 1,
+                    ),
+                    duration: const Duration(
+                      milliseconds: 180,
+                    ),
+                    curve: Curves.elasticOut,
+                    builder: (
+                      context,
+                      scale,
+                      child,
+                    ) {
+                      return Transform.scale(
+                        scale: scale,
+                        child: child,
+                      );
+                    },
+                    child: Text(
+                      emoji,
+                      style: const TextStyle(
+                        fontSize: 30,
+                      ),
+                    ),
                   ),
                 ),
-              ),
               ),
             );
           }).toList(),

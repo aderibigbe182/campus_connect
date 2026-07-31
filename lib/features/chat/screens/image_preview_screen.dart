@@ -11,14 +11,13 @@ class ImagePreviewScreen extends StatefulWidget {
   });
 
   @override
-  State<ImagePreviewScreen> createState() =>
-      _ImagePreviewScreenState();
+  State<ImagePreviewScreen> createState() => _ImagePreviewScreenState();
 }
 
-class _ImagePreviewScreenState
-    extends State<ImagePreviewScreen> {
-  final TextEditingController _captionController =
-      TextEditingController();
+class _ImagePreviewScreenState extends State<ImagePreviewScreen> {
+  final TextEditingController _captionController = TextEditingController();
+  final TransformationController _transformationController =
+      TransformationController();
 
   bool _sending = false;
 
@@ -27,10 +26,7 @@ class _ImagePreviewScreenState
       _sending = true;
     });
 
-    // Temporary upload delay.
-    await Future.delayed(
-      const Duration(seconds: 2),
-    );
+    await Future.delayed(const Duration(seconds: 2));
 
     if (!mounted) return;
 
@@ -38,8 +34,7 @@ class _ImagePreviewScreenState
       context,
       {
         "image": widget.imageFile,
-        "caption":
-            _captionController.text.trim(),
+        "caption": _captionController.text.trim(),
       },
     );
   }
@@ -47,6 +42,7 @@ class _ImagePreviewScreenState
   @override
   void dispose() {
     _captionController.dispose();
+    _transformationController.dispose();
     super.dispose();
   }
 
@@ -67,52 +63,44 @@ class _ImagePreviewScreenState
           ),
         ),
       ),
-      @override
-        void dispose() {
-          _controller.dispose();
-          super.dispose();
-        }
       body: SafeArea(
         child: Column(
           children: [
-
             Expanded(
               child: Center(
                 child: Hero(
                   tag: widget.imageFile.path,
                   child: InteractiveViewer(
-                      clipBehavior: Clip.none,
-                      boundaryMargin:
-                      GestureDetector(
-  onDoubleTap: () {
-    if (_controller.value != Matrix4.identity()) {
-      _controller.value = Matrix4.identity();
-    } else {
-      _controller.value =
-          Matrix4.identity()
-            ..scale(2.5);
-    }
-  },
-  child: InteractiveViewer(
-    transformationController: _controller,
-                          const EdgeInsets.all(60),
-                      minScale: 1,
-                      maxScale: 5,
-                    child: Image.file(
-                      widget.imageFile,
-                      fit: BoxFit.contain,
+                    clipBehavior: Clip.none,
+                    boundaryMargin: const EdgeInsets.all(60),
+                    minScale: 1,
+                    maxScale: 5,
+                    transformationController: _transformationController,
+                    child: GestureDetector(
+                      onDoubleTap: () {
+                        if (_transformationController.value !=
+                            Matrix4.identity()) {
+                          _transformationController.value =
+                              Matrix4.identity();
+                        } else {
+                          _transformationController.value =
+                              Matrix4.identity()..scale(2.5);
+                        }
+                      },
+                      child: Image.file(
+                        widget.imageFile,
+                        fit: BoxFit.contain,
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-
             Container(
               padding: const EdgeInsets.all(16),
               color: Colors.black87,
               child: Column(
                 children: [
-
                   TextField(
                     controller: _captionController,
                     style: const TextStyle(
@@ -121,78 +109,56 @@ class _ImagePreviewScreenState
                     maxLines: 3,
                     minLines: 1,
                     decoration: InputDecoration(
-                      hintText:
-                          "Add a caption...",
+                      hintText: "Add a caption...",
                       hintStyle: TextStyle(
-                        color:
-                            Colors.grey.shade400,
+                        color: Colors.grey.shade400,
                       ),
                       filled: true,
-                      fillColor:
-                          Colors.grey.shade900,
-                      border:
-                          OutlineInputBorder(
-                        borderRadius:
-                            BorderRadius.circular(
+                      fillColor: Colors.grey.shade900,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(
                           18,
                         ),
-                        borderSide:
-                            BorderSide.none,
+                        borderSide: BorderSide.none,
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 16),
-
                   Row(
                     children: [
-
                       Expanded(
                         child: OutlinedButton(
                           onPressed: _sending
                               ? null
                               : () {
-                                  Navigator.pop(
-                                      context);
+                                  Navigator.pop(context);
                                 },
-                          style:
-                              OutlinedButton.styleFrom(
-                            foregroundColor:
-                                Colors.white,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
                           ),
                           child: const Text(
                             "Cancel",
                           ),
                         ),
                       ),
-
                       const SizedBox(width: 12),
-
                       Expanded(
                         child: ElevatedButton.icon(
-                          onPressed: _sending
-                              ? null
-                              : _sendImage,
+                          onPressed: _sending ? null : _sendImage,
                           icon: _sending
                               ? const SizedBox(
                                   width: 18,
                                   height: 18,
-                                  child:
-                                      CircularProgressIndicator(
-                                    strokeWidth:
-                                        2,
-                                    color:
-                                        Colors
-                                            .white,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
                                   ),
                                 )
                               : const Icon(
                                   Icons.send,
                                 ),
                           label: Text(
-                            _sending
-                                ? "Sending..."
-                                : "Send",
+                            _sending ? "Sending..." : "Send",
                           ),
                         ),
                       ),

@@ -99,15 +99,7 @@ class MessageModel {
       edited: json["edited"] ?? false,
       isEdited: json["isEdited"] ?? false,
       isDeleted: json["isDeleted"] ?? false,
-      replyTo: json["reply_to"] != null
-          ? ReplyMessageModel.fromJson(
-              json["reply_to"],
-            )
-          : json["replyTo"] != null
-              ? ReplyMessageModel.fromJson(
-                  json["replyTo"],
-                )
-              : null,
+      replyTo: null,
       reactions: json["reactions"] != null
           ? (json["reactions"] as List)
               .map(
@@ -131,7 +123,7 @@ class MessageModel {
       "edited": edited,
       "isEdited": isEdited,
       "isDeleted": isDeleted,
-      "reply_to": replyTo?.toJson(),
+      "reply_to":  null,
       "reactions": reactions
           .map((e) => e.toJson())
           .toList(),
