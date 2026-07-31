@@ -36,21 +36,25 @@ class ChatService {
       'message': reply.message,
     };
   }
-    // ==========================
+  // ==========================
   // CHAT LIST
   // ==========================
-
   Future<List<ChatModel>> getChats() async {
     final response = await http.get(
       Uri.parse('$_baseUrl/chat/conversations'),
       headers: await _headers(),
     );
+     print("CHAT STATUS = ${response.statusCode}");
+  print("CHAT BODY = ${response.body}");
+
 
     if (response.statusCode != 200) {
       throw Exception('Failed to load chats');
     }
 
-    final List data = jsonDecode(response.body);
+    final json = jsonDecode(response.body);
+
+          final List data = json['chats'];
 
     return data
         .map((e) => ChatModel.fromJson(e))
@@ -59,7 +63,7 @@ class ChatService {
 
   Future<ChatModel> getChat(String conversationId) async {
     final response = await http.get(
-      Uri.parse('$_baseUrl/chat/$conversationId'),
+      Uri.parse('$_baseUrl/chat/conversations/$conversationId'),
       headers: await _headers(),
     );
 
@@ -77,7 +81,7 @@ class ChatService {
   ) async {
     final response = await http.get(
       Uri.parse(
-        '$_baseUrl/chat/$conversationId/messages',
+        '$_baseUrl/chat/conversations/$conversationId/messages',
       ),
       headers: await _headers(),
     );
@@ -86,7 +90,8 @@ class ChatService {
       throw Exception('Failed to load messages');
     }
 
-    final List data = jsonDecode(response.body);
+    final json = jsonDecode(response.body);
+    final List data = json['messages'];
 
     return data
         .map((e) => MessageModel.fromJson(e))
@@ -103,7 +108,7 @@ class ChatService {
   }) async {
     final response = await http.post(
       Uri.parse(
-        '$_baseUrl/chat/$conversationId/messages/text',
+        '$_baseUrl/chat/conversations/$conversationId/messages/text',
       ),
       headers: await _headers(),
       body: jsonEncode({
@@ -128,7 +133,7 @@ class ChatService {
   }) async {
     final response = await http.delete(
       Uri.parse(
-        '$_baseUrl/chat/$conversationId/messages/$messageId',
+        '$_baseUrl/chat/conversations/$conversationId/messages/$messageId',
       ),
       headers: await _headers(),
     );
@@ -145,7 +150,7 @@ class ChatService {
   }) async {
     final response = await http.patch(
       Uri.parse(
-        '$_baseUrl/chat/$conversationId/messages/$messageId',
+        '$_baseUrl/chat/conversations/$conversationId/messages/$messageId',
       ),
       headers: await _headers(),
       body: jsonEncode({
@@ -170,7 +175,7 @@ class ChatService {
     final request = http.MultipartRequest(
       'POST',
       Uri.parse(
-        '$_baseUrl/chat/$conversationId/messages/image',
+        '$_baseUrl/chat/conversations/$conversationId/messages/image',
       ),
     );
 
@@ -213,7 +218,7 @@ class ChatService {
     final request = http.MultipartRequest(
       'POST',
       Uri.parse(
-        '$_baseUrl/chat/$conversationId/messages/file',
+        '$_baseUrl/chat/conversations/$conversationId/messages/file',
       ),
     );
 
@@ -254,7 +259,7 @@ class ChatService {
     final request = http.MultipartRequest(
       'POST',
       Uri.parse(
-        '$_baseUrl/chat/$conversationId/messages/voice',
+        '$_baseUrl/chat/conversations/$conversationId/messages/voice',
       ),
     );
 
@@ -297,7 +302,7 @@ class ChatService {
   }) async {
     final response = await http.delete(
       Uri.parse(
-        '$_baseUrl/chat/$conversationId/messages/$messageId',
+        '$_baseUrl/chat/conversations/$conversationId/messages/$messageId',
       ),
       headers: await _headers(),
       body: jsonEncode({
@@ -317,7 +322,7 @@ class ChatService {
   }) async {
     final response = await http.put(
       Uri.parse(
-        '$_baseUrl/chat/$conversationId/messages/$messageId',
+        '$_baseUrl/chat/conversations/$conversationId/messages/$messageId',
       ),
       headers: await _headers(),
       body: jsonEncode({
@@ -340,7 +345,7 @@ class ChatService {
   }) async {
     final response = await http.post(
       Uri.parse(
-        '$_baseUrl/chat/$conversationId/messages/$messageId/read',
+        '$_baseUrl/chat/conversations/$conversationId/messages/$messageId/read',
       ),
       headers: await _headers(),
     );
@@ -360,7 +365,7 @@ class ChatService {
   }) async {
     final response = await http.post(
       Uri.parse(
-        '$_baseUrl/chat/$conversationId/messages/$messageId/reaction',
+        '$_baseUrl/chat/conversations/$conversationId/messages/$messageId/reaction',
       ),
       headers: await _headers(),
       body: jsonEncode({
@@ -379,7 +384,7 @@ class ChatService {
   }) async {
     final response = await http.delete(
       Uri.parse(
-        '$_baseUrl/chat/$conversationId/messages/$messageId/reaction',
+        '$_baseUrl/chat/conversations/$conversationId/messages/$messageId/reaction',
       ),
       headers: await _headers(),
     );
@@ -395,7 +400,7 @@ class ChatService {
   }) async {
     final response = await http.post(
       Uri.parse(
-        '$_baseUrl/chat/$conversationId/typing',
+        '$_baseUrl/chat/conversations/$conversationId/typing',
       ),
       headers: await _headers(),
       body: jsonEncode({
@@ -417,7 +422,7 @@ class ChatService {
   }) async {
     final response = await http.patch(
       Uri.parse(
-        '$_baseUrl/chat/$conversationId/mute',
+        '$_baseUrl/chat/conversations/$conversationId/mute',
       ),
       headers: await _headers(),
       body: jsonEncode({
@@ -436,7 +441,7 @@ class ChatService {
   }) async {
     final response = await http.patch(
       Uri.parse(
-        '$_baseUrl/chat/$conversationId/archive',
+        '$_baseUrl/chat/conversations/$conversationId/archive',
       ),
       headers: await _headers(),
       body: jsonEncode({
@@ -455,7 +460,7 @@ class ChatService {
   }) async {
     final response = await http.patch(
       Uri.parse(
-        '$_baseUrl/chat/$conversationId/pin',
+        '$_baseUrl/chat/conversations/$conversationId/pin',
       ),
       headers: await _headers(),
       body: jsonEncode({
@@ -473,7 +478,7 @@ class ChatService {
   }) async {
     final response = await http.delete(
       Uri.parse(
-        '$_baseUrl/chat/$conversationId/clear',
+        '$_baseUrl/chat/conversations/$conversationId/clear',
       ),
       headers: await _headers(),
     );

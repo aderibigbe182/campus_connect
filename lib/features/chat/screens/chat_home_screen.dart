@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../services/chat_service.dart';
 
 import '../models/chat_model.dart';
-import '../models/message_model.dart';
 import '../widgets/chat_tile.dart';
 import 'conversation_screen.dart';
 class ChatsScreen extends StatefulWidget {
@@ -54,50 +53,45 @@ Widget build(BuildContext context) {
       centerTitle: false,
     ),
 
-    body: ListView.builder(
-      itemCount: chats.length,
+   body: loading
+    ? const Center(
+        child: CircularProgressIndicator(),
+      )
+    : chats.isEmpty
+        ? const Center(
+            child: Text(
+              "No conversations yet",
+            ),
+          )
+        : ListView.builder(
+            itemCount: chats.length,
+            itemBuilder: (context, index) {
+              final chat = chats[index];
 
-      itemBuilder: (context, index) {
+              print(chat.lastMessage.runtimeType);
+              print(chat.lastMessage);
+              print(chat.lastMessage?.message);
+              print(chat.lastMessage?.message.runtimeType);
 
-        final chat = chats[index];
-print(chat.lastMessage.runtimeType);
-print(chat.lastMessage);
-print(chat.lastMessage?.message);
-print(chat.lastMessage?.message.runtimeType);
-        return ChatTile(
+              return ChatTile(
+                chat: chat,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ConversationScreen(
+                        conversationId: chat.conversationId,
 
-          chat: chat,
-
-          onTap: () {
-
-            Navigator.push(
-
-              context,
-
-              MaterialPageRoute(
-
-                builder: (_) => ConversationScreen(
-
-                  conversationId: chat.conversationId,
-
-                  // Provide required parameters
-                  currentUserId: 1,
-                  chatName: chat.otherUserName,
-
-                ),
-
-              ),
-
-            );
-
-          },
-
-        );
-
-      },
-
-    ),
-
+                        // Provide required parameters
+                        currentUserId: 1,
+                        chatName: chat.otherUserName,
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
   );
 }
 }
