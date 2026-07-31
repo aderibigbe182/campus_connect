@@ -124,7 +124,7 @@ class _ConversationScreenState
 
     try {
       final messages =
-          await _chatService.getMessages(
+          await (_chatService as dynamic).getMessages(
         widget.conversationId,
       );
 
@@ -244,7 +244,6 @@ class _ConversationScreenState
     int messageId,
   ) async {
     await _chatService.deleteMessage(
-      conversationId: widget.conversationId,
       messageId: messageId.toString(),
     );
 
