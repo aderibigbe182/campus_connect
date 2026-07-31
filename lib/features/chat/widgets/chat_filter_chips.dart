@@ -42,7 +42,7 @@ class _ChatFilterChipsState
             },
           );
         },
-        separatorBuilder: (_, __) =>
+        separatorBuilder: (_, _) =>
             const SizedBox(width: 8),
         itemCount: filters.length,
       ),

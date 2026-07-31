@@ -18,6 +18,8 @@ class ConversationModel {
 
   final bool muted;
 
+  
+
   ConversationModel({
 
     required this.id,

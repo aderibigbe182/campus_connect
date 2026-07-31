@@ -40,7 +40,7 @@ class ChatSelectionTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       color: selected
-          ? AppColors.primary.withOpacity(0.08)
+          ? AppColors.primary.withValues(alpha: 0.08)
           : Colors.transparent,
 
       child: ChatTile(

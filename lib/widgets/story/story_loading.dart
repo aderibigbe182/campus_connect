@@ -11,7 +11,7 @@ class StoryLoading extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         itemCount: 6,
-        separatorBuilder: (_, __) =>
+        separatorBuilder: (_, _) =>
             const SizedBox(width: 14),
         itemBuilder: (context, index) {
           return Column(

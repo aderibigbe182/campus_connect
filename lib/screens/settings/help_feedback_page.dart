@@ -450,7 +450,7 @@ class _HelpFeedbackPageState
           ),
         ),
         value: value,
-        activeColor: Colors.blue,
+        activeThumbColor: Colors.blue,
         onChanged: onChanged,
       ),
     );

@@ -42,7 +42,7 @@ class ChatService {
 
   Future<List<ChatModel>> getChats() async {
     final response = await http.get(
-      Uri.parse('$_baseUrl/chat'),
+      Uri.parse('$_baseUrl/chat/conversations'),
       headers: await _headers(),
     );
 

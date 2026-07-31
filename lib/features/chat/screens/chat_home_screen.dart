@@ -1,145 +1,103 @@
 import 'package:flutter/material.dart';
-import '../models/chat_model.dart';
-import '../services/chat_service.dart';   
-import '../widgets/chat_app_bar.dart';
-import '../widgets/chat_connection_banner.dart';
-import '../widgets/chat_fab_badge.dart';
-import '../widgets/chat_filter_chips.dart';
-import '../widgets/chat_list_shimmer.dart';
-import '../widgets/chat_search_bar.dart';
-import '../widgets/chat_sync_banner.dart';
-import '../widgets/chat_sync_status.dart';
-import '../widgets/chat_tile.dart';
-import '../widgets/chat_empty_state.dart';
-import '../widgets/chat_error_state.dart';
+import '../services/chat_service.dart';
 
-class ChatHomeScreen extends StatefulWidget {
-  const ChatHomeScreen({super.key});
+import '../models/chat_model.dart';
+import '../models/message_model.dart';
+import '../widgets/chat_tile.dart';
+import 'conversation_screen.dart';
+class ChatsScreen extends StatefulWidget {
+  const ChatsScreen({super.key});
 
   @override
- State<ChatHomeScreen> createState() => _ChatHomeScreenState();
+  State<ChatsScreen> createState() => _ChatsScreenState();
 }
 
-class _ChatHomeScreenState extends State<ChatHomeScreen> {
-  final ChatService service = ChatService.instance;
-
-  late Future<List<ChatModel>> chats;
-
-  bool isConnected = true;
-  bool syncing = false;
-  int unreadCount = 0;
-
-  @override
+class _ChatsScreenState extends State<ChatsScreen> {
+  List<ChatModel> chats = [];
+  bool loading = true;
+    @override
   void initState() {
     super.initState();
-    chats = service.getChats();
+    loadChats();
   }
-
-  Future<void> _refreshChats() async {
-    setState(() {
-      syncing = true;
-      chats = service.getChats();
-    });
-
-    await chats;
+Future<void> loadChats() async {
+  try {
+    final result = await ChatService.instance.getChats();
 
     if (!mounted) return;
 
     setState(() {
-      syncing = false;
-
-      // Temporary value.
-      // Will come from backend in Phase 9.
-      unreadCount = 4;
+      chats = result;
+      loading = false;
     });
-  }
+  } catch (e) {
+    debugPrint("Load chats error: $e");
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: const ChatAppBar(),
+    if (!mounted) return;
 
-      floatingActionButton: ChatFabBadge(
-        unreadCount: unreadCount,
-        onPressed: () {},
-      ),
+    setState(() {
+      loading = false;
+    });
 
-      body: Column(
-        children: [
-          const SizedBox(height: 10),
-
-          ChatSearchBar(
-            onTap: () {},
-          ),
-
-          const SizedBox(height: 8),
-
-          const ChatFilterChips(),
-
-          const SizedBox(height: 8),
-
-          ChatSyncBanner(
-            syncing: syncing,
-          ),
-
-          const SizedBox(height: 8),
-
-          ChatConnectionBanner(
-            isConnected: isConnected,
-          ),
-
-          ChatSyncStatus(
-            syncing: syncing,
-          ),
-
-          const SizedBox(height: 10),
-
-          Expanded(
-            child: FutureBuilder<List<ChatModel>>(
-              future: chats,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState ==
-                    ConnectionState.waiting) {
-                 return const ChatListShimmer();
-                }
-
-                if (snapshot.hasError) {
-                  return ChatErrorState(
-                    onRetry: () {
-                      setState(() {
-                        chats = service.getChats();
-                      });
-                    },
-                  );
-                }
-
-                final chatsData = snapshot.data ?? [];
-
-                if (chatsData.isEmpty) {
-                 return const ChatEmptyState();
-                }
-
-                return RefreshIndicator(
-                  onRefresh: () async {
-                    await _refreshChats();
-                  },
-                child: ListView.builder(
-                  itemCount: chatsData.length,
-                  itemBuilder: (context, index) {
-                    final chat = chatsData[index];
-
-                    return ChatTile(
-                      chat: chat,
-                      onTap: () {},
-                    );
-                  },
-                ),
-             );
-          },
-        ),
-          ),
-        ],
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("Failed to load chats"),
       ),
     );
   }
+}
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    appBar: AppBar(
+      title: const Text("Chats"),
+      centerTitle: false,
+    ),
+
+    body: ListView.builder(
+      itemCount: chats.length,
+
+      itemBuilder: (context, index) {
+
+        final chat = chats[index];
+print(chat.lastMessage.runtimeType);
+print(chat.lastMessage);
+print(chat.lastMessage?.message);
+print(chat.lastMessage?.message.runtimeType);
+        return ChatTile(
+
+          chat: chat,
+
+          onTap: () {
+
+            Navigator.push(
+
+              context,
+
+              MaterialPageRoute(
+
+                builder: (_) => ConversationScreen(
+
+                  conversationId: chat.conversationId,
+
+                  // Provide required parameters
+                  currentUserId: 1,
+                  chatName: chat.otherUserName,
+
+                ),
+
+              ),
+
+            );
+
+          },
+
+        );
+
+      },
+
+    ),
+
+  );
+}
 }

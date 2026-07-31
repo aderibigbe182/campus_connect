@@ -225,7 +225,7 @@ class SenderMessageBubble extends StatelessWidget {
                       fontSize: 10,
                       color: theme
                           .colorScheme.onPrimary
-                          .withOpacity(.75),
+                          .withValues(alpha: .75),
                     ),
                   ),
                 ),
@@ -251,7 +251,7 @@ class SenderMessageBubble extends StatelessWidget {
                       fontSize: 11,
                       color: theme
                           .colorScheme.onPrimary
-                          .withOpacity(.75),
+                          .withValues(alpha: .75),
                     ),
                   ),
                   const SizedBox(width: 4),

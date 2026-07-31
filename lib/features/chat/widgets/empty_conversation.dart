@@ -18,7 +18,7 @@ class EmptyConversation extends StatelessWidget {
             Icon(
               Icons.chat_bubble_outline_rounded,
               size: 90,
-              color: theme.colorScheme.primary.withOpacity(.7),
+              color: theme.colorScheme.primary.withValues(alpha: .7),
             ),
 
             const SizedBox(height: 24),

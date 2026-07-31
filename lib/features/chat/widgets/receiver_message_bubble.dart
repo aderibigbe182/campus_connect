@@ -188,7 +188,7 @@ class ReceiverMessageBubble extends StatelessWidget {
                     fontSize: 11,
                     color: theme
                         .colorScheme.onSurface
-                        .withOpacity(.75),
+                        .withValues(alpha: .75),
                   ),
                 ),
               ),

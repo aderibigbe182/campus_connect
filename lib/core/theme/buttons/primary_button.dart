@@ -37,7 +37,7 @@ class PrimaryButton extends StatelessWidget {
           foregroundColor: Colors.white,
 
           disabledBackgroundColor:
-              AppColors.primary.withOpacity(.45),
+              AppColors.primary.withValues(alpha: .45),
 
           padding: AppSpacing.button,
 

@@ -78,7 +78,7 @@ class _ChatFilterTabsState
             ),
           );
         },
-        separatorBuilder: (_, __) =>
+        separatorBuilder: (_, _) =>
             const SizedBox(width: 10),
         itemCount: tabs.length,
       ),

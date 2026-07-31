@@ -69,7 +69,7 @@ class StatusIndicator extends StatelessWidget {
       ),
 
       decoration: BoxDecoration(
-        color: _color.withOpacity(.12),
+        color: _color.withValues(alpha: .12),
 
         borderRadius: BorderRadius.circular(20),
       ),

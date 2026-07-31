@@ -2,72 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../models/chat_model.dart';
 
-extension _ChatModelHelpers on ChatModel {
-  String? get profilePicture {
-    final dynamic model = this;
-    try {
-      return model.profilePicture as String?;
-    } catch (_) {}
-    try {
-      return model.profileImage as String?;
-    } catch (_) {}
-    try {
-      return model.profilePictureUrl as String?;
-    } catch (_) {}
-    try {
-      return model.avatarUrl as String?;
-    } catch (_) {}
-    try {
-      return model.imageUrl as String?;
-    } catch (_) {}
-    return null;
-  }
-
-  String get fullName {
-    final dynamic model = this;
-    try {
-      final value = model.fullName;
-      if (value is String) return value;
-    } catch (_) {}
-    try {
-      final value = model.name;
-      if (value is String) return value;
-    } catch (_) {}
-    try {
-      final value = model.displayName;
-      if (value is String) return value;
-    } catch (_) {}
-    try {
-      final value = model.title;
-      if (value is String) return value;
-    } catch (_) {}
-    try {
-      final value = model.username;
-      if (value is String) return value;
-    } catch (_) {}
-    return '';
-  }
-
-  String? get lastMessageTime {
-    final dynamic model = this;
-    try {
-      final value = model.lastMessageTime;
-      if (value is String) return value;
-      if (value is DateTime) return value.toLocal().toString();
-    } catch (_) {}
-    try {
-      final value = model.time;
-      if (value is String) return value;
-      if (value is DateTime) return value.toLocal().toString();
-    } catch (_) {}
-    try {
-      final value = model.timestamp;
-      if (value is String) return value;
-      if (value is DateTime) return value.toLocal().toString();
-    } catch (_) {}
-    return null;
-  }
-}
 
 class ChatTile extends StatelessWidget {
   final ChatModel chat;
@@ -78,6 +12,12 @@ class ChatTile extends StatelessWidget {
     required this.chat,
     required this.onTap,
   });
+  String _formatTime(DateTime dateTime) {
+  final hour = dateTime.hour.toString().padLeft(2, '0');
+  final minute = dateTime.minute.toString().padLeft(2, '0');
+
+  return "$hour:$minute";
+}
 
   @override
   Widget build(BuildContext context) {
@@ -94,14 +34,14 @@ class ChatTile extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 30,
-                  backgroundImage: chat.profilePicture != null
-                      ? NetworkImage(chat.profilePicture!)
-                      : null,
-                  child: chat.profilePicture == null
+                  backgroundImage: chat.otherUserAvatar != null
+                        ? NetworkImage(chat.otherUserAvatar!)
+                        : null,
+                  child: chat.otherUserAvatar == null
                       ? Text(
-                          chat.fullName.isNotEmpty
-                              ? chat.fullName[0]
-                              : "?",
+                          chat.otherUserName.isNotEmpty
+                            ? chat.otherUserName[0]
+                            : "?"
                         )
                       : null,
                 ),
@@ -132,7 +72,7 @@ class ChatTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    chat.fullName,
+                    chat.otherUserName,
                     style: TextStyle(
                       fontWeight:
                           chat.unreadCount > 0
@@ -147,7 +87,7 @@ class ChatTile extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          (chat.lastMessage ?? "") as String,
+                          chat.lastMessage?.message ?? "",
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -167,7 +107,7 @@ class ChatTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  chat.lastMessageTime ?? "",
+                  _formatTime(chat.updatedAt),
                   style: const TextStyle(
                     fontSize: 11,
                     color: Colors.grey,

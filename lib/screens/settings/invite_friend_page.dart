@@ -511,7 +511,7 @@ ${settings.inviteLink}
           ),
         ),
         value: value,
-        activeColor: Colors.blue,
+        activeThumbColor: Colors.blue,
         onChanged: onChanged,
       ),
     );

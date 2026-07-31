@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/services/presence_service.dart';
 
 import '/screens/main/pages/profile_page.dart';
+import '/features/chat/screens/chat_home_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -34,13 +35,7 @@ class _HomeScreenState extends State<HomeScreen>
     title: "Groups",
     subtitle: "Groups screen will be built later.",
   ),
-
-  const ComingSoonPage(
-    icon: Icons.chat,
-    title: "Chats",
-    subtitle: "Chats screen will be built later.",
-  ),
-
+  const ChatsScreen(),
   const ProfilePage(),
 ];
 
