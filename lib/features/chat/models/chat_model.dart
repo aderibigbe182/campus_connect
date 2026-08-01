@@ -67,21 +67,31 @@ class ChatModel {
     return ChatModel(
       id: json['id'] ?? 0,
       conversationId: json['conversation_id']?.toString() ?? '',
-      otherUserId: json['other_user_id'] ?? 0,
-      otherUserName: json['other_user_name'] ?? '',
-      otherUserAvatar: json['other_user_avatar'],
+      otherUserId: json['receiver_id'] ?? 0,
+      otherUserName: json['full_name'] ?? '',
+      otherUserAvatar: json['profile_picture'],
       isOnline: json['is_online'] ?? false,
-      lastMessage: json['last_message'] != null
-          ? MessageModel.fromJson(json['last_message'])
-          : null,
+      lastMessage: json['message'] == null
+    ? null
+    : MessageModel(
+        id: 0,
+        conversationId: json['conversation_id'],
+        senderId: json['sender_id'],
+        message: json['message'],
+        messageType: json['message_type'] ?? 'text',
+        createdAt: DateTime.tryParse(
+              json['created_at'].toString(),
+            ) ??
+            DateTime.now(),
+      ),
       unreadCount: json['unread_count'] ?? 0,
       isPinned: json['is_pinned'] ?? false,
       isMuted: json['is_muted'] ?? false,
       isArchived: json['is_archived'] ?? false,
       updatedAt: DateTime.tryParse(
-            json['updated_at']?.toString() ?? '',
-          ) ??
-          DateTime.now(),
+  json['created_at']?.toString() ?? '',
+) ??
+DateTime.now(),
     );
   }
 

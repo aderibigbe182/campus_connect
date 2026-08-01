@@ -39,12 +39,63 @@ class ChatService {
       'message': reply.message,
     };
   }
+
   // ==========================================================
   // GET ALL CONVERSATIONS
   // ==========================================================
+  Future<List<ChatModel>> getChats() async {
+
+  final response = await http.get(
+    Uri.parse(
+      '$_baseUrl/api/chat/conversations',
+    ),
+    headers: await _headers(),
+  );
+
+
+  print("CHAT STATUS = ${response.statusCode}");
+  print("CHAT BODY = ${response.body}");
+
+
+  if (response.statusCode != 200) {
+    throw Exception(
+      'Failed to load chats',
+    );
+  }
+
+
+  final json = jsonDecode(response.body);
+
+  final List chats = json['chats'] ?? [];
+
+
+  return chats
+      .map(
+        (e) => ChatModel.fromJson(e),
+      )
+      .toList();
+}
   // ==========================================================
-  // (Conversations methods defined later)
+  // GET SINGLE CHAT
   // ==========================================================
+  Future<ChatModel> getChat(
+    String conversationId,
+  ) async {
+    final response = await http.get(
+      Uri.parse(
+        '$_baseUrl/api/chat/$conversationId',
+      ),
+      headers: await _headers(),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to load chat');
+    }
+
+    return ChatModel.fromJson(
+      jsonDecode(response.body),
+    );
+  }
   //============================
 // CHAT REQUESTS
 //============================
@@ -53,7 +104,7 @@ Future<void> sendChatRequest({
   required String receiverId,
 }) async {
   final response = await http.post(
-    Uri.parse("$_baseUrl/chat/request"),
+    Uri.parse("$_baseUrl/api/chat/request"),
     headers: await _headers(),
     body: jsonEncode({
       "receiverId": receiverId,
@@ -71,7 +122,7 @@ Future<void> acceptChatRequest({
 }) async {
   final response = await http.put(
     Uri.parse(
-      "$_baseUrl/chat/request/$requestId/accept",
+      "$_baseUrl/api/chat/request/$requestId/accept",
     ),
     headers: await _headers(),
   );
@@ -86,7 +137,7 @@ Future<void> declineChatRequest({
 }) async {
   final response = await http.put(
     Uri.parse(
-      "$_baseUrl/chat/request/$requestId/decline",
+      "$_baseUrl/api/chat/request/$requestId/decline",
     ),
     headers: await _headers(),
   );
@@ -98,7 +149,7 @@ Future<void> declineChatRequest({
 
 Future<List<ChatRequestModel>> getPendingRequests() async {
   final response = await http.get(
-    Uri.parse("$_baseUrl/chat/requests"),
+    Uri.parse("$_baseUrl/api/chat/requests"),
     headers: await _headers(),
   );
 
@@ -114,74 +165,6 @@ Future<List<ChatRequestModel>> getPendingRequests() async {
       .toList();
 }
 //============================
-// CONVERSATIONS
-//============================
-Future<List<ChatModel>> getChats() async {
-  final response = await http.get(
-    Uri.parse("$_baseUrl/chat/conversations"),
-    headers: await _headers(),
-  );
-
-  if (response.statusCode != 200) {
-    throw Exception("Failed to load chats");
-  }
-
-  final json = jsonDecode(response.body);
-
-  final List data = json["chats"] ?? [];
-
-  return data
-      .map((e) => ChatModel.fromJson(e))
-      .toList();
-}
-Future<ChatModel> getChat(
-  String conversationId,
-) async {
-  final response = await http.get(
-    Uri.parse(
-      "$_baseUrl/chat/$conversationId",
-    ),
-    headers: await _headers(),
-  );
-
-  if (response.statusCode != 200) {
-    throw Exception("Failed to load chat");
-  }
-
-  return ChatModel.fromJson(
-    jsonDecode(response.body),
-  );
-}
-Future<List<MessageModel>>
-    getConversationMessages(
-  String conversationId,
-) async {
-  final response = await http.get(
-    Uri.parse(
-      "$_baseUrl/chat/conversation/$conversationId",
-    ),
-    headers: await _headers(),
-  );
-
-  if (response.statusCode != 200) {
-    throw Exception(
-      "Failed to load messages",
-    );
-  }
-
-  final json = jsonDecode(response.body);
-
-  final List data =
-      json["messages"] ?? [];
-
-  return data
-      .map(
-        (e) =>
-            MessageModel.fromJson(e),
-      )
-      .toList();
-}
-//============================
 // SEND MESSAGES
 //============================
 Future<MessageModel> sendTextMessage({
@@ -191,7 +174,7 @@ Future<MessageModel> sendTextMessage({
 }) async {
   final response = await http.post(
     Uri.parse(
-      "$_baseUrl/chat/$conversationId/messages/text",
+      "$_baseUrl/api/chat/$conversationId/messages/text",
     ),
     headers: await _headers(),
     body: jsonEncode({
@@ -221,7 +204,7 @@ Future<MessageModel> sendImageMessage({
   final request = http.MultipartRequest(
     "POST",
     Uri.parse(
-      "$_baseUrl/chat/$conversationId/messages/image",
+      "$_baseUrl/api/chat/$conversationId/messages/image",
     ),
   );
 
@@ -271,7 +254,7 @@ Future<MessageModel> sendVoiceMessage({
   final request = http.MultipartRequest(
     "POST",
     Uri.parse(
-      "$_baseUrl/chat/$conversationId/messages/voice",
+      "$_baseUrl/api/chat/$conversationId/messages/voice",
     ),
   );
 
@@ -318,7 +301,7 @@ Future<MessageModel> sendFileMessage({
   final request = http.MultipartRequest(
     "POST",
     Uri.parse(
-      "$_baseUrl/chat/$conversationId/messages/file",
+      "$_baseUrl/api/chat/$conversationId/messages/file",
     ),
   );
 
@@ -370,7 +353,7 @@ Future<MessageModel> sendMediaMessage({
   String? caption,
 }) async {
   final response = await http.post(
-    Uri.parse("$_baseUrl/chat/media"),
+    Uri.parse("$_baseUrl/api/chat/media"),
     headers: await _headers(),
     body: jsonEncode({
       "conversationId": conversationId,
@@ -402,7 +385,7 @@ Future<MessageModel> editMessage({
 }) async {
   final response = await http.put(
     Uri.parse(
-      "$_baseUrl/chat/messages/$messageId",
+      "$_baseUrl/api/chat/messages/$messageId",
     ),
     headers: await _headers(),
     body: jsonEncode({
@@ -425,7 +408,7 @@ Future<void> deleteMessage({
 }) async {
   final response = await http.delete(
     Uri.parse(
-      "$_baseUrl/chat/messages/$messageId",
+      "$_baseUrl/api/chat/messages/$messageId",
     ),
     headers: await _headers(),
   );
@@ -442,7 +425,7 @@ Future<MessageModel> forwardMessage({
 }) async {
   final response = await http.post(
     Uri.parse(
-      "$_baseUrl/chat/messages/$messageId/forward",
+      "$_baseUrl/api/chat/messages/$messageId/forward",
     ),
     headers: await _headers(),
     body: jsonEncode({
@@ -466,7 +449,7 @@ Future<void> starMessage({
 }) async {
   final response = await http.post(
     Uri.parse(
-      "$_baseUrl/chat/messages/$messageId/star",
+      "$_baseUrl/api/chat/messages/$messageId/star",
     ),
     headers: await _headers(),
   );
@@ -482,7 +465,7 @@ Future<void> unstarMessage({
 }) async {
   final response = await http.delete(
     Uri.parse(
-      "$_baseUrl/chat/messages/$messageId/star",
+      "$_baseUrl/api/chat/messages/$messageId/star",
     ),
     headers: await _headers(),
   );
@@ -502,7 +485,7 @@ Future<void> addReaction({
 }) async {
   final response = await http.post(
     Uri.parse(
-      "$_baseUrl/chat/messages/$messageId/reaction",
+      "$_baseUrl/api/chat/messages/$messageId/reaction",
     ),
     headers: await _headers(),
     body: jsonEncode({
@@ -522,7 +505,7 @@ Future<void> removeReaction({
 }) async {
   final response = await http.delete(
     Uri.parse(
-      "$_baseUrl/chat/messages/$messageId/reaction",
+      "$_baseUrl/api/chat/messages/$messageId/reaction",
     ),
     headers: await _headers(),
   );
@@ -538,7 +521,7 @@ Future<List<dynamic>> getMessageReactions({
 }) async {
   final response = await http.get(
     Uri.parse(
-      "$_baseUrl/chat/messages/$messageId/reactions",
+      "$_baseUrl/api/chat/messages/$messageId/reactions",
     ),
     headers: await _headers(),
   );
@@ -569,7 +552,7 @@ Future<void> markMessageDelivered({
 }) async {
   final response = await http.put(
     Uri.parse(
-      "$_baseUrl/chat/messages/$messageId/delivered",
+      "$_baseUrl/api/chat/messages/$messageId/delivered",
     ),
     headers: await _headers(),
   );
@@ -585,7 +568,7 @@ Future<void> markMessageSeen({
 }) async {
   final response = await http.put(
     Uri.parse(
-      "$_baseUrl/chat/messages/$messageId/seen",
+      "$_baseUrl/api/chat/messages/$messageId/seen",
     ),
     headers: await _headers(),
   );
@@ -601,7 +584,7 @@ Future<void> markMessagesAsRead({
 }) async {
   final response = await http.put(
     Uri.parse(
-      "$_baseUrl/chat/conversations/$conversationId/read",
+      "$_baseUrl/api/chat/conversations/$conversationId/read",
     ),
     headers: await _headers(),
   );
@@ -615,7 +598,7 @@ Future<void> markMessagesAsRead({
 Future<int> getUnreadCount() async {
   final response = await http.get(
     Uri.parse(
-      "$_baseUrl/chat/unread-count",
+      "$_baseUrl/api/chat/unread-count",
     ),
     headers: await _headers(),
   );
@@ -647,7 +630,7 @@ Future<void> sendTypingStatus({
 }) async {
   final response = await http.post(
     Uri.parse(
-      "$_baseUrl/chat/$conversationId/typing",
+      "$_baseUrl/api/chat/$conversationId/typing",
     ),
     headers: await _headers(),
     body: jsonEncode({
@@ -666,7 +649,7 @@ Future<void> setOnline({
 }) async {
   final response = await http.put(
     Uri.parse(
-      "$_baseUrl/chat/online",
+      "$_baseUrl/api/chat/online",
     ),
     headers: await _headers(),
     body: jsonEncode({
@@ -683,7 +666,7 @@ Future<void> setOnline({
 Future<void> updateLastSeen() async {
   final response = await http.put(
     Uri.parse(
-      "$_baseUrl/chat/last-seen",
+      "$_baseUrl/api/chat/last-seen",
     ),
     headers: await _headers(),
   );
@@ -702,7 +685,7 @@ Future<void> pinChat({
 }) async {
   final response = await http.post(
     Uri.parse(
-      "$_baseUrl/chat/$conversationId/pin",
+      "$_baseUrl/api/chat/$conversationId/pin",
     ),
     headers: await _headers(),
   );
@@ -718,7 +701,7 @@ Future<void> unpinChat({
 }) async {
   final response = await http.delete(
     Uri.parse(
-      "$_baseUrl/chat/$conversationId/pin",
+      "$_baseUrl/api/chat/$conversationId/pin",
     ),
     headers: await _headers(),
   );
@@ -734,7 +717,7 @@ Future<void> archiveChat({
 }) async {
   final response = await http.post(
     Uri.parse(
-      "$_baseUrl/chat/$conversationId/archive",
+      "$_baseUrl/api/chat/$conversationId/archive",
     ),
     headers: await _headers(),
   );
@@ -750,7 +733,7 @@ Future<void> unarchiveChat({
 }) async {
   final response = await http.delete(
     Uri.parse(
-      "$_baseUrl/chat/$conversationId/archive",
+      "$_baseUrl/api/chat/$conversationId/archive",
     ),
     headers: await _headers(),
   );
@@ -766,7 +749,7 @@ Future<void> muteConversation({
 }) async {
   final response = await http.put(
     Uri.parse(
-      "$_baseUrl/chat/conversation/$conversationId/mute",
+      "$_baseUrl/api/chat/conversation/$conversationId/mute",
     ),
     headers: await _headers(),
   );
@@ -782,7 +765,7 @@ Future<void> unmuteConversation({
 }) async {
   final response = await http.put(
     Uri.parse(
-      "$_baseUrl/chat/conversation/$conversationId/unmute",
+      "$_baseUrl/api/chat/conversation/$conversationId/unmute",
     ),
     headers: await _headers(),
   );
@@ -798,7 +781,7 @@ Future<void> clearChat({
 }) async {
   final response = await http.put(
     Uri.parse(
-      "$_baseUrl/chat/$conversationId/clear",
+      "$_baseUrl/api/chat/$conversationId/clear",
     ),
     headers: await _headers(),
   );
@@ -818,7 +801,7 @@ Future<List<MessageModel>> searchMessages({
 }) async {
   final response = await http.get(
     Uri.parse(
-      '$_baseUrl/chat/search?query=${Uri.encodeComponent(query)}',
+      '$_baseUrl/api/chat/search?query=${Uri.encodeComponent(query)}',
     ),
     headers: await _headers(),
   );
@@ -842,7 +825,7 @@ Future<List<MessageModel>> searchConversationMessages({
 }) async {
   final response = await http.get(
     Uri.parse(
-      '$_baseUrl/chat/conversation/$conversationId/search?query=${Uri.encodeComponent(query)}',
+      '$_baseUrl/api/chat/conversation/$conversationId/search?query=${Uri.encodeComponent(query)}',
     ),
     headers: await _headers(),
   );
@@ -870,7 +853,7 @@ Future<List<MessageModel>> getSharedMedia({
 }) async {
   final response = await http.get(
     Uri.parse(
-      '$_baseUrl/chat/$conversationId/media',
+      '$_baseUrl/api/chat/$conversationId/media',
     ),
     headers: await _headers(),
   );
@@ -897,7 +880,7 @@ Future<String> saveMediaToPhone({
 }) async {
   final response = await http.get(
     Uri.parse(
-      '$_baseUrl/chat/media/$messageId/download',
+      '$_baseUrl/api/chat/media/$messageId/download',
     ),
     headers: await _headers(),
   );
@@ -922,7 +905,7 @@ Future<List<MessageModel>> getMediaLinksDocuments({
 }) async {
   final response = await http.get(
     Uri.parse(
-      '$_baseUrl/chat/$conversationId/media-links-documents',
+      '$_baseUrl/api/chat/$conversationId/media-links-documents',
     ),
     headers: await _headers(),
   );
@@ -950,7 +933,7 @@ Future<List<MessageModel>> getMediaLinksDocuments({
 
 Future<void> blockUser(String userId) async {
   final response = await http.post(
-    Uri.parse('$_baseUrl/chat/block/$userId'),
+    Uri.parse('$_baseUrl/api/chat/block/$userId'),
     headers: await _headers(),
   );
 
@@ -965,7 +948,7 @@ Future<void> blockUser(String userId) async {
 
 Future<void> unblockUser(String userId) async {
   final response = await http.delete(
-    Uri.parse('$_baseUrl/chat/unblock/$userId'),
+    Uri.parse('$_baseUrl/api/chat/unblock/$userId'),
     headers: await _headers(),
   );
 
@@ -983,7 +966,7 @@ Future<void> reportUser({
   required String reason,
 }) async {
   final response = await http.post(
-    Uri.parse('$_baseUrl/chat/report/$userId'),
+    Uri.parse('$_baseUrl/api/chat/report/$userId'),
     headers: await _headers(),
     body: jsonEncode({
       "reason": reason,
@@ -1003,7 +986,7 @@ Future<void> reportUser({
 Future<Map<String, dynamic>> getRecipientProfile(
     String userId) async {
   final response = await http.get(
-    Uri.parse('$_baseUrl/chat/profile/$userId'),
+    Uri.parse('$_baseUrl/api/chat/profile/$userId'),
     headers: await _headers(),
   );
 
@@ -1022,7 +1005,7 @@ Future<Map<String, dynamic>> getChatNotificationSettings(
 ) async {
   final response = await http.get(
     Uri.parse(
-      '$_baseUrl/chat/$conversationId/notifications',
+      '$_baseUrl/api/chat/$conversationId/notifications',
     ),
     headers: await _headers(),
   );
@@ -1042,7 +1025,7 @@ Future<void> updateChatNotificationSettings({
 }) async {
   final response = await http.put(
     Uri.parse(
-      '$_baseUrl/chat/$conversationId/notifications',
+      '$_baseUrl/api/chat/$conversationId/notifications',
     ),
     headers: await _headers(),
     body: jsonEncode(settings),
@@ -1060,7 +1043,7 @@ Future<Map<String, dynamic>> getChatTheme(
 ) async {
   final response = await http.get(
     Uri.parse(
-      '$_baseUrl/chat/$conversationId/theme',
+      '$_baseUrl/api/chat/$conversationId/theme',
     ),
     headers: await _headers(),
   );
@@ -1080,7 +1063,7 @@ Future<void> updateChatTheme({
 }) async {
   final response = await http.put(
     Uri.parse(
-      '$_baseUrl/chat/$conversationId/theme',
+      '$_baseUrl/api/chat/$conversationId/theme',
     ),
     headers: await _headers(),
     body: jsonEncode({

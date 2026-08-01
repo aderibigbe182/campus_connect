@@ -495,6 +495,7 @@ void initState() {
         vertical: 6,
         horizontal: 12,
       ),
+      
       child: ListTile(
         title: Text(
           "$title:",
