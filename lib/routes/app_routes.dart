@@ -5,7 +5,7 @@ import '../screens/auth/register_screen.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/onboarding/onboarding_screen.dart';
 import '/screens/main/pages/profile_page.dart';
-import '/screens/search/search_screen.dart';
+import '/features/search/screens/search_screen.dart';
 
 class AppRoutes {
   AppRoutes._();
