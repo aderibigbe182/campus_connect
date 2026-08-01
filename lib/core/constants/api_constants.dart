@@ -4,6 +4,6 @@ class ApiConstants {
 
   /// Change this only if your backend URL changes.
   static const String baseUrl =
-      "https://campus-connect-backend-6pwg.onrender.com/api";
+      "https://campus-connect-backend-6pwg.onrender.com";
 
 }
