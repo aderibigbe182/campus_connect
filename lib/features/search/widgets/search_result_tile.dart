@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'highlight_text.dart';
 
 class SearchResultTile extends StatelessWidget {
   final Widget? leading;
   final String title;
   final String? subtitle;
   final VoidCallback? onTap;
+  final String searchQuery;
 
   const SearchResultTile({
     super.key,
@@ -12,6 +14,7 @@ class SearchResultTile extends StatelessWidget {
     required this.title,
     this.subtitle,
     this.onTap,
+    required this.searchQuery,
   });
 
   @override
@@ -20,11 +23,24 @@ class SearchResultTile extends StatelessWidget {
       color: Colors.transparent,
       child: ListTile(
         leading: leading,
-        title: Text(title),
+        title: HighlightText(
+  text: title,
+  query: searchQuery,
+  style: const TextStyle(
+    fontWeight: FontWeight.w600,
+    fontSize: 16,
+  ),
+),
         subtitle:
             subtitle == null
                 ? null
-                : Text(subtitle!),
+                : HighlightText(
+                    text: subtitle!,
+                    query: searchQuery,
+                    style: const TextStyle(
+                      color: Colors.grey,
+                    ),
+                  ),
         onTap: onTap,
       ),
     );

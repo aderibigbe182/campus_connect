@@ -1,8 +1,10 @@
 class SearchChatModel {
   final String conversationId;
+  final int currentUserId;
   final String receiverId;
   final String fullName;
   final String username;
+   final bool isOnline;
   final String? profilePicture;
 
   final String? lastMessage;
@@ -12,9 +14,11 @@ class SearchChatModel {
 
   SearchChatModel({
     required this.conversationId,
+    required this.currentUserId,
     required this.receiverId,
     required this.fullName,
     required this.username,
+    required this.isOnline,
     this.profilePicture,
     this.lastMessage,
     this.messageType,
@@ -38,6 +42,8 @@ class SearchChatModel {
       createdAt: json["created_at"] != null
           ? DateTime.parse(json["created_at"])
           : null,
+      currentUserId: int.tryParse(json["current_user_id"].toString()) ?? 0,
+      isOnline: json["is_online"] == 1,
     );
   }
 

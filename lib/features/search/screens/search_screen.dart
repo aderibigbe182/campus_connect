@@ -3,6 +3,16 @@ import 'package:provider/provider.dart';
 
 import '../providers/search_provider.dart';
 
+import '../widgets/recent_search_tile.dart';
+import '../widgets/search_empty.dart';
+import '../widgets/search_error.dart';
+import '../widgets/search_loading.dart';
+import '../widgets/search_result_tile.dart';
+import '../widgets/suggested_contact_tile.dart';
+import '/features/chat/screens/conversation_screen.dart';
+import '/features/profile/screens/user_profile_screen.dart';
+import '/core/services/storage_service.dart';
+
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
 
@@ -10,16 +20,19 @@ class SearchScreen extends StatefulWidget {
   State<SearchScreen> createState() =>
       _SearchScreenState();
 }
-
+int? currentUserId;
 class _SearchScreenState
     extends State<SearchScreen> {
   final TextEditingController
       _searchController =
       TextEditingController();
+       int? currentUserId;
 
   @override
   void initState() {
     super.initState();
+   _loadCurrentUser();
+
 
     Future.microtask(() {
       final provider =
@@ -29,7 +42,14 @@ class _SearchScreenState
       provider.loadSuggestedContacts();
     });
   }
+Future<void> _loadCurrentUser() async {
+  currentUserId =
+      await StorageService.getUserId();
 
+  if (mounted) {
+    setState(() {});
+  }
+}
   @override
   void dispose() {
     _searchController.dispose();
@@ -53,11 +73,13 @@ class _SearchScreenState
           child: TextField(
             controller:
                 _searchController,
+            autofocus: true,
+            textInputAction: TextInputAction.search,
             onChanged: (value) {
-              provider
-                  .debouncedSearch(
+              provider.debouncedSearch(
                 value,
               );
+              setState(() {});
             },
             decoration:
                 InputDecoration(
@@ -78,8 +100,7 @@ class _SearchScreenState
                             _searchController
                                 .clear();
 
-                            provider
-                                .clear();
+                            provider.clear();
 
                             setState(() {});
                           },
@@ -88,8 +109,7 @@ class _SearchScreenState
               border:
                   OutlineInputBorder(
                 borderRadius:
-                    BorderRadius
-                        .circular(
+                    BorderRadius.circular(
                   30,
                 ),
               ),
@@ -98,18 +118,25 @@ class _SearchScreenState
         ),
       ),
 
-      body: provider.loading
-          ? const Center(
-              child:
-                  CircularProgressIndicator(),
+      body: RefreshIndicator(
+  onRefresh: () async {
+    await provider.loadRecentSearches();
+    await provider.loadSuggestedContacts();
+
+    if (_searchController.text.isNotEmpty) {
+      await provider.liveSearch(
+        _searchController.text,
+      );
+    }
+  },
+  child: provider.loading
+      ? const SearchLoading()
+      : provider.error != null
+          ? SearchError(
+              message: provider.error!,
             )
-          : provider.error != null
-              ? Center(
-                  child: Text(
-                    provider.error!,
-                  ),
-                )
-              : _buildBody(provider),
+          : _buildBody(provider),
+),
     );
   }
 
@@ -154,15 +181,27 @@ class _SearchScreenState
           ...provider.recentSearches
               .map(
                 (search) =>
-                    ListTile(
-                  leading:
-                      const Icon(
-                    Icons.history,
-                  ),
-                  title: Text(
-                    search
-                        .searchText,
-                  ),
+                    RecentSearchTile(
+                  text:
+                      search.searchText,
+                  onTap: () {
+                    _searchController
+                        .text = search
+                            .searchText;
+
+                    provider
+                        .debouncedSearch(
+                      search.searchText,
+                    );
+
+                    setState(() {});
+                  },
+                  onDelete: () {
+                    provider
+                        .deleteRecentSearch(
+                      search.id,
+                    );
+                  },
                 ),
               ),
 
@@ -190,38 +229,26 @@ class _SearchScreenState
               .suggestedContacts
               .map(
                 (user) =>
-                    ListTile(
-                  leading:
-                      CircleAvatar(
-                    backgroundImage:
-                        user.profilePicture !=
-                                null
-                            ? NetworkImage(
-                                user.profilePicture!,
-                              )
-                            : null,
-                    child: user
-                                .profilePicture ==
-                            null
-                        ? const Icon(
-                            Icons.person,
-                          )
-                        : null,
-                  ),
-                  title: Text(
-                    user.fullName,
-                  ),
-                  subtitle: Text(
-                    "@${user.username}",
-                  ),
-                  trailing: Icon(
-                    Icons.circle,
-                    size: 12,
-                    color: user
-                            .isOnline
-                        ? Colors.green
-                        : Colors.grey,
-                  ),
+                    SuggestedContactTile(
+                  fullName:
+                      user.fullName,
+                  username:
+                      user.username,
+                  profilePicture:
+                      user
+                          .profilePicture,
+                  isOnline:
+                      user.isOnline,
+                  onTap: () {
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => UserProfileScreen(
+        userId: int.parse(user.id),
+      ),
+    ),
+  );
+},
                 ),
               ),
         ],
@@ -232,11 +259,7 @@ class _SearchScreenState
         provider.liveResults;
 
     if (result == null) {
-      return const Center(
-        child: Text(
-          "Searching...",
-        ),
-      );
+      return const SearchLoading();
     }
 
     return ListView(
@@ -244,133 +267,223 @@ class _SearchScreenState
           const EdgeInsets.all(16),
       children: [
 
+        //============================
+        // USERS
+        //============================
+
         if (result.users.isNotEmpty)
-          const Padding(
-            padding:
-                EdgeInsets.only(
-              bottom: 10,
-            ),
-            child: Text(
-              "Users",
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight:
-                    FontWeight.bold,
-              ),
-            ),
-          ),
+          Padding(
+  padding: const EdgeInsets.only(
+    bottom: 10,
+  ),
+  child: AnimatedSwitcher(
+    duration: const Duration(
+      milliseconds: 250,
+    ),
+    child: const Text(
+      "Users",
+      key: ValueKey("users"),
+      style: TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
+      ),
+    ),
+  ),
+),
 
         ...result.users.map(
-          (user) => ListTile(
-            leading: CircleAvatar(
-              backgroundImage:
-                  user.profilePicture !=
-                          null
-                      ? NetworkImage(
-                          user
-                              .profilePicture!,
-                        )
-                      : null,
-              child:
-                  user.profilePicture ==
-                          null
-                      ? const Icon(
-                          Icons.person,
-                        )
-                      : null,
-            ),
-            title:
-                Text(user.fullName),
-            subtitle:
-                Text("@${user.username}"),
+          (user) =>
+              TweenAnimationBuilder<double>(
+  duration: const Duration(
+    milliseconds: 250,
+  ),
+  tween: Tween(
+    begin: 0,
+    end: 1,
+  ),
+  builder: (_, value, child) {
+    return Opacity(
+      opacity: value,
+      child: Transform.translate(
+        offset: Offset(
+          0,
+          20 * (1 - value),
+        ),
+        child: child,
+      ),
+    );
+  },
+  child: SearchResultTile(
+    searchQuery: _searchController.text,
+    leading: CircleAvatar(
+      backgroundImage: user.profilePicture != null
+          ? NetworkImage(user.profilePicture!)
+          : null,
+      child: user.profilePicture == null
+          ? const Icon(Icons.person)
+          : null,
+    ),
+    title: user.fullName,
+    subtitle: "@${user.username}",
+    onTap: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => UserProfileScreen(
+            userId: user.id,
           ),
         ),
+      );
+    },
+  ),
+)
+        ),
+
+        //============================
+        // CHATS
+        //============================
 
         if (result.chats.isNotEmpty)
-          const Padding(
-            padding:
-                EdgeInsets.only(
-              top: 20,
-              bottom: 10,
-            ),
-            child: Text(
-              "Chats",
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight:
-                    FontWeight.bold,
-              ),
-            ),
-          ),
+          Padding(
+  padding: const EdgeInsets.only(
+    top: 20,
+    bottom: 10,
+  ),
+  child: AnimatedSwitcher(
+    duration: const Duration(
+      milliseconds: 250,
+    ),
+    child: const Text(
+      "Chats",
+      key: ValueKey("chats"),
+      style: TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
+      ),
+    ),
+  ),
+),
 
         ...result.chats.map(
-          (chat) => ListTile(
+          (chat) =>
+          TweenAnimationBuilder<double>(
+  duration: const Duration(milliseconds: 250),
+  tween: Tween(begin: 0, end: 1),
+  builder: (_, value, child) {
+    return Opacity(
+      opacity: value,
+      child: Transform.translate(
+        offset: Offset(0, 20 * (1 - value)),
+        child: child,
+      ),
+    );
+  },
+              child: SearchResultTile(
+                searchQuery: _searchController.text,
             leading:
                 CircleAvatar(
               backgroundImage:
                   chat.profilePicture !=
                           null
                       ? NetworkImage(
-                          chat.profilePicture!,
+                          chat
+                              .profilePicture!,
                         )
                       : null,
             ),
             title:
-                Text(chat.fullName),
-            subtitle: Text(
-              chat.lastMessage ??
-                  "",
-            ),
+                chat.fullName,
+            subtitle:
+                chat.lastMessage ??
+                    "",
+            onTap: () {
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => ConversationScreen(
+        conversationId: chat.conversationId,
+        currentUserId: currentUserId ?? 0,
+        chatName: chat.fullName,
+        profileImage: chat.profilePicture,
+        isOnline: chat.isOnline,
+      ),
+    ),
+  );
+},
+              ),
           ),
         ),
 
-        if (result.messages
-            .isNotEmpty)
-          const Padding(
-            padding:
-                EdgeInsets.only(
-              top: 20,
-              bottom: 10,
-            ),
-            child: Text(
-              "Messages",
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight:
-                    FontWeight.bold,
-              ),
-            ),
-          ),
+        //============================
+        // MESSAGES
+        //============================
+
+        if (result.messages.isNotEmpty)
+          Padding(
+  padding: const EdgeInsets.only(
+    top: 20,
+    bottom: 10,
+  ),
+  child: AnimatedSwitcher(
+    duration: const Duration(
+      milliseconds: 250,
+    ),
+    child: const Text(
+      "Messages",
+      key: ValueKey("messages"),
+      style: TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
+      ),
+    ),
+  ),
+),
 
         ...result.messages.map(
           (message) =>
-              ListTile(
-            leading: const Icon(
+          TweenAnimationBuilder<double>(
+  duration: const Duration(milliseconds: 250),
+  tween: Tween(begin: 0, end: 1),
+  builder: (_, value, child) {
+    return Opacity(
+      opacity: value,
+      child: Transform.translate(
+        offset: Offset(0, 20 * (1 - value)),
+        child: child,
+      ),
+    );
+  },
+              child: SearchResultTile(
+                searchQuery: _searchController.text,
+            leading:
+                const Icon(
               Icons.message,
             ),
-            title: Text(
-              message.senderName,
-            ),
-            subtitle: Text(
-              message.message,
-            ),
+            title:
+                message.senderName,
+            subtitle:
+                message.message,
+            onTap: () {
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => ConversationScreen(
+        conversationId: message.conversationId,
+        isOnline: false,
+        currentUserId: currentUserId ?? 0,
+        chatName: message.senderName,
+      ),
+    ),
+  );
+},
+              ),
           ),
         ),
 
         if (result.users.isEmpty &&
             result.chats.isEmpty &&
             result.messages.isEmpty)
-          const Padding(
-            padding:
-                EdgeInsets.only(
-              top: 40,
-            ),
-            child: Center(
-              child: Text(
-                "No results found",
-              ),
-            ),
-          ),
+          const SearchEmpty(),
       ],
     );
   }
