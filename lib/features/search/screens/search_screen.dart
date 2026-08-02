@@ -130,7 +130,7 @@ Future<void> _loadCurrentUser() async {
     }
   },
   child: provider.loading
-      ? const SearchLoading()
+      ? SearchLoading()
       : provider.error != null
           ? SearchError(
               message: provider.error!,
@@ -483,7 +483,7 @@ Future<void> _loadCurrentUser() async {
         if (result.users.isEmpty &&
             result.chats.isEmpty &&
             result.messages.isEmpty)
-          const SearchEmpty(),
+          SearchEmpty(),
       ],
     );
   }

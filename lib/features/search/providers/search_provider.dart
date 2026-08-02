@@ -77,7 +77,24 @@ class SearchProvider extends ChangeNotifier {
     _error = e.toString();
     notifyListeners();
   }
+//====================================
+// DEBOUNCED SEARCH
+//====================================  
+void debouncedSearch(String query) {
+  _debounce?.cancel();
 
+  if (query.trim().isEmpty) {
+    clear();
+    return;
+  }
+
+  _debounce = Timer(
+    const Duration(milliseconds: 300),
+    () async {
+      await liveSearch(query);
+    },
+  );
+}
   //====================================
   // SEARCH CHATS
   //====================================
@@ -316,25 +333,6 @@ class SearchProvider extends ChangeNotifier {
 
       notifyListeners();
     } catch (_) {}
-  }
-
-  //====================================
-  // DEBOUNCED SEARCH
-  //====================================
-
-  void debouncedSearch(
-    String query,
-  ) {
-    _debounce?.cancel();
-
-    _debounce = Timer(
-      const Duration(
-        milliseconds: 300,
-      ),
-      () {
-        liveSearch(query);
-      },
-    );
   }
 
   //====================================

@@ -7,6 +7,8 @@ import 'core/theme/app_theme.dart';
 import 'screens/onboarding/onboarding_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/home/home_screen.dart';
+import 'package:provider/provider.dart';
+import 'features/auth/providers/auth_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,7 +17,16 @@ void main() async {
     DeviceOrientation.portraitUp,
   ]);
 
-  runApp(const CampusConnectApp());
+  runApp(
+  MultiProvider(
+    providers: [
+      ChangeNotifierProvider(
+        create: (_) => AuthProvider(),
+      ),
+    ],
+    child: const CampusConnectApp(),
+  ),
+);
 }
 
 class CampusConnectApp extends StatelessWidget {

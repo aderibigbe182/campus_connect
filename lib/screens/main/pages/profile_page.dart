@@ -30,6 +30,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<bool> performLogout() async {
     try {
       await StorageService.deleteToken();
+      await StorageService.deleteUserId();
       return true;
     } catch (e) {
       print("Logout failed: $e");

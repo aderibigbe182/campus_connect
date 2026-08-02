@@ -183,6 +183,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
 
       final token = result['token'];
+      await StorageService.saveUserId(
+  result["user"]["id"],
+);
       await StorageService.saveToken(token);
 
       await PresenceService.setOnline();

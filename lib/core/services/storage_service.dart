@@ -27,6 +27,24 @@ class StorageService {
     await prefs.remove('token');
   }
 
+// ====================================
+// 🧑‍💻 USER ID STORAGE (LOGIN SYSTEM)
+// =======================================
+  static Future<void> saveUserId(int id) async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setInt("user_id", id);
+}
+
+static Future<int?> getUserId() async {
+  final prefs = await SharedPreferences.getInstance();
+  return prefs.getInt("user_id");
+}
+
+static Future<void> deleteUserId() async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.remove("user_id");
+}
+
   // =========================
   // 📤 FILE UPLOAD (BACKEND)
   // =========================

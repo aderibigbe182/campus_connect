@@ -1,5 +1,5 @@
 class SearchUserModel {
-  final String id;
+  final int id;
   final String fullName;
   final String username;
   final String? profilePicture;
@@ -17,7 +17,7 @@ class SearchUserModel {
     Map<String, dynamic> json,
   ) {
     return SearchUserModel(
-      id: json["id"].toString(),
+      id: json["id"],
       fullName: json["full_name"] ?? "",
       username: json["username"] ?? "",
       profilePicture: json["profile_picture"],
