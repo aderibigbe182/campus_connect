@@ -97,27 +97,6 @@ class ChatService {
       jsonDecode(response.body),
     );
   }
-  //============================
-// CHAT REQUESTS
-//============================
-
-Future<void> sendChatRequest({
-  required String receiverId,
-}) async {
-  final response = await http.post(
-    Uri.parse("$_baseUrl/api/chat/requests"),
-    headers: await _headers(),
-    body: jsonEncode({
-      "receiverId": receiverId,
-    }),
-  );
-
-  if (response.statusCode != 200 &&
-      response.statusCode != 201) {
-    throw Exception("Failed to send chat request");
-  }
-}
-
 Future<void> acceptChatRequest({
   required String requestId,
 }) async {
@@ -168,215 +147,63 @@ Future<List<ChatRequestModel>> getPendingRequests() async {
 //============================
 // SEND MESSAGES
 //============================
-Future<MessageModel> sendTextMessage({
-  required String conversationId,
+Future<MessageModel> sendMessage({
+  required int conversationId,
   required String message,
+
+  // text | image | voice | file
+  String messageType = "text",
+
+  String? fileUrl,
+  String? fileName,
+  int? fileSize,
+
   ReplyMessageModel? reply,
 }) async {
+  print({
+  "conversationId": conversationId,
+  "message": message,
+  "messageType": messageType,
+  "fileUrl": fileUrl,
+  "fileName": fileName,
+  "fileSize": fileSize,
+  "replyToMessageId": reply?.messageId,
+});
   final response = await http.post(
-    Uri.parse(
-      "$_baseUrl/api/chat/conversations/$conversationId/messages/text",
-    ),
-    headers: await _headers(),
-    body: jsonEncode({
-      "message": message,
-      if (reply != null)
-        "reply": _replyToJson(reply),
-    }),
-  );
-
-  if (response.statusCode != 200 &&
-      response.statusCode != 201) {
-    throw Exception(
-      "Failed to send message",
-    );
-  }
-
-  return MessageModel.fromJson(
-    jsonDecode(response.body),
-  );
-}
-Future<MessageModel> sendImageMessage({
-  required String conversationId,
-  required File image,
-  String? caption,
-  ReplyMessageModel? reply,
-}) async {
-  final request = http.MultipartRequest(
-    "POST",
-    Uri.parse(
-      "$_baseUrl/api/chat/conversations/$conversationId/messages/image",
-    ),
-  );
-
-  request.headers.addAll(
-    await _headers(json: false),
-  );
-
-  request.fields["caption"] =
-      caption ?? "";
-
-  if (reply != null) {
-    request.fields["reply"] = jsonEncode(
-      _replyToJson(reply),
-    );
-  }
-
-  request.files.add(
-    await http.MultipartFile.fromPath(
-      "image",
-      image.path,
-    ),
-  );
-
-  final streamed = await request.send();
-
-  final response =
-      await http.Response.fromStream(
-    streamed,
-  );
-
-  if (response.statusCode != 200 &&
-      response.statusCode != 201) {
-    throw Exception(
-      "Failed to send image",
-    );
-  }
-
-  return MessageModel.fromJson(
-    jsonDecode(response.body),
-  );
-}
-Future<MessageModel> sendVoiceMessage({
-  required String conversationId,
-  required File audio,
-  ReplyMessageModel? reply,
-}) async {
-  final request = http.MultipartRequest(
-    "POST",
-    Uri.parse(
-      "$_baseUrl/api/chat/conversations/$conversationId/messages/voice",
-    ),
-  );
-
-  request.headers.addAll(
-    await _headers(json: false),
-  );
-
-  if (reply != null) {
-    request.fields["reply"] = jsonEncode(
-      _replyToJson(reply),
-    );
-  }
-
-  request.files.add(
-    await http.MultipartFile.fromPath(
-      "audio",
-      audio.path,
-    ),
-  );
-
-  final streamed = await request.send();
-
-  final response =
-      await http.Response.fromStream(
-    streamed,
-  );
-
-  if (response.statusCode != 200 &&
-      response.statusCode != 201) {
-    throw Exception(
-      "Failed to send voice message",
-    );
-  }
-
-  return MessageModel.fromJson(
-    jsonDecode(response.body),
-  );
-}
-Future<MessageModel> sendFileMessage({
-  required String conversationId,
-  required File file,
-  ReplyMessageModel? reply,
-}) async {
-  final request = http.MultipartRequest(
-    "POST",
-    Uri.parse(
-      "$_baseUrl/api/chat/conversations/$conversationId/messages/file",
-    ),
-  );
-
-  request.headers.addAll(
-    await _headers(json: false),
-  );
-
-  if (reply != null) {
-    request.fields["reply"] = jsonEncode(
-      _replyToJson(reply),
-    );
-  }
-
-  request.files.add(
-    await http.MultipartFile.fromPath(
-      "file",
-      file.path,
-    ),
-  );
-
-  final streamed = await request.send();
-
-  final response =
-      await http.Response.fromStream(
-    streamed,
-  );
-
-  if (response.statusCode != 200 &&
-      response.statusCode != 201) {
-    throw Exception(
-      "Failed to send file",
-    );
-  }
-
-  return MessageModel.fromJson(
-    jsonDecode(response.body),
-  );
-}
-//============================
-// SEND GENERIC MEDIA MESSAGE
-//============================
-
-Future<MessageModel> sendMediaMessage({
-  required String conversationId,
-  required String messageType,
-  required String fileUrl,
-  required String fileName,
-  required int fileSize,
-  String? caption,
-}) async {
-  final response = await http.post(
-    Uri.parse("$_baseUrl/api/chat/media"),
+    Uri.parse("$_baseUrl/api/chat/message"),
     headers: await _headers(),
     body: jsonEncode({
       "conversationId": conversationId,
+      "message": message,
       "messageType": messageType,
-      "fileUrl": fileUrl,
-      "fileName": fileName,
-      "fileSize": fileSize,
-      "caption": caption,
+
+      if (fileUrl != null)
+        "fileUrl": fileUrl,
+
+      if (fileName != null)
+        "fileName": fileName,
+
+      if (fileSize != null)
+        "fileSize": fileSize,
+
+      if (reply != null)
+        "replyToMessageId": reply.messageId,
     }),
   );
 
+  print("SEND STATUS = ${response.statusCode}");
+  print("SEND BODY = ${response.body}");
+
   if (response.statusCode != 200 &&
       response.statusCode != 201) {
-    throw Exception(
-      "Failed to send media message",
-    );
+    throw Exception("Failed to send message");
   }
 
   return MessageModel.fromJson(
     jsonDecode(response.body),
   );
 }
+
 //============================
 // MESSAGE ACTIONS
 //============================
@@ -1077,36 +904,5 @@ Future<void> updateChatTheme({
       'Failed to update chat theme',
     );
   }
-}
-Future<int> getOrCreateConversation(
-  int receiverId,
-) async {
-  final token = await StorageService.getToken();
-
-  final response = await http.post(
-    Uri.parse(
-      "$_baseUrl/api/chat/conversation",
-    ),
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": "Bearer $token",
-    },
-    body: jsonEncode({
-      "userId": receiverId,
-    }),
-  );
-
-  if (response.statusCode == 200 ||
-      response.statusCode == 201) {
-    final data = jsonDecode(response.body);
-
-    return int.parse(
-  data["conversationId"].toString(),
-);
-  }
-
-  throw Exception(
-  "Status: ${response.statusCode}\nBody: ${response.body}",
-);
 }
 }

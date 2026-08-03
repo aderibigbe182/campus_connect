@@ -163,10 +163,9 @@ class _ConversationScreenState
     setState(() => _sending = true);
 
     try {
-      await _chatService.sendTextMessage(
-        conversationId: widget.conversationId,
+      await ChatService.instance.sendMessage(
+        conversationId: int.parse(widget.conversationId),
         message: text,
-        reply: _replyMessage,
       );
 
       setState(() {
@@ -187,10 +186,13 @@ class _ConversationScreenState
     setState(() => _sending = true);
 
     try {
-      await _chatService.sendImageMessage(
-        conversationId: widget.conversationId,
-        image: image,
-        reply: _replyMessage,
+      await ChatService.instance.sendMessage(
+          conversationId: int.parse(widget.conversationId),
+        message: "",
+        messageType: "image",
+        fileUrl: image.path,
+        fileName: image.path.split(Platform.pathSeparator).last,
+        fileSize: await image.length(),
       );
 
       setState(() {
@@ -211,10 +213,13 @@ class _ConversationScreenState
     setState(() => _sending = true);
 
     try {
-      await _chatService.sendFileMessage(
-        conversationId: widget.conversationId,
-        file: file,
-        reply: _replyMessage,
+      await ChatService.instance.sendMessage(
+          conversationId: int.parse(widget.conversationId),
+        message: "",
+        messageType: "file",
+        fileUrl: file.path,
+        fileName: file.path.split(Platform.pathSeparator).last,
+        fileSize: await file.length(),
       );
 
       setState(() {

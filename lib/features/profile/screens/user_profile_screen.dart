@@ -185,9 +185,11 @@ class _UserProfileScreenState
                       print("Current User: $currentUserId");
 print("Profile User: ${user!.id}");
   try {
+   final firstMessage = "";
     final conversationId =
-        await ChatService.instance.getOrCreateConversation(
-      user!.id,
+        await ChatService.instance.sendMessage(
+      conversationId: 0, // or null if you update the backend
+      message: firstMessage,
     );
 
     if (!mounted) return;
