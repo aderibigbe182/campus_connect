@@ -1082,7 +1082,6 @@ Future<int> getOrCreateConversation(
   int receiverId,
 ) async {
   final token = await StorageService.getToken();
-  final userId = await StorageService.getUserId();
 
   final response = await http.post(
     Uri.parse(
