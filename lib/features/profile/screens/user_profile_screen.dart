@@ -63,34 +63,6 @@ class _UserProfileScreenState
     }
   }
 
-  Future<void> _openConversation() async {
-    if (user == null) return;
-
-    final conversationId =
-        await UserProfileService
-            .getOrCreateConversation(
-      user!.id,
-    );
-
-    if (!mounted) return;
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ConversationScreen(
-          conversationId:
-              conversationId.toString(),
-          currentUserId:
-              currentUserId ?? 0,
-          chatName: user!.fullName,
-          profileImage:
-              user!.profilePicture,
-          isOnline: user!.isOnline,
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     if (loading) {
