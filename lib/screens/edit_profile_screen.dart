@@ -51,6 +51,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
         Uri.parse("$baseUrl/api/users/profile"),
         headers: {"Authorization": "Bearer $token"},
       );
+      print("PROFILE STATUS = ${response.statusCode}");
+print("PROFILE BODY = ${response.body}");
 
       if (!mounted) return;
 

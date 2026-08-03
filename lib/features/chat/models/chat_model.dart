@@ -65,9 +65,9 @@ class ChatModel {
 
   factory ChatModel.fromJson(Map<String, dynamic> json) {
     return ChatModel(
-      id: json['id'] ?? 0,
+      id: int.tryParse(json['id'].toString(),) ??0,
       conversationId: json['conversation_id']?.toString() ?? '',
-      otherUserId: json['receiver_id'] ?? 0,
+      otherUserId: int.tryParse(json['receiver_id'].toString(),) ??0,
       otherUserName: json['full_name'] ?? '',
       otherUserAvatar: json['profile_picture'],
       isOnline: json['is_online'] ?? false,
@@ -76,7 +76,8 @@ class ChatModel {
     : MessageModel(
         id: 0,
         conversationId: json['conversation_id'],
-        senderId: json['sender_id'],
+        senderId:
+    int.tryParse(json['sender_id'].toString(),) ??0,
         message: json['message'],
         messageType: json['message_type'] ?? 'text',
         createdAt: DateTime.tryParse(
@@ -84,7 +85,7 @@ class ChatModel {
             ) ??
             DateTime.now(),
       ),
-      unreadCount: json['unread_count'] ?? 0,
+      unreadCount: int.tryParse(json['unread_count'].toString(),) ??0,
       isPinned: json['is_pinned'] ?? false,
       isMuted: json['is_muted'] ?? false,
       isArchived: json['is_archived'] ?? false,
