@@ -8,6 +8,7 @@ import '../models/user_profile_model.dart';
 import '../services/user_profile_service.dart';
 
 import '../../../core/services/storage_service.dart';
+import '../../chat/services/chat_service.dart';
 
 class UserProfileScreen extends StatefulWidget {
   final int userId;
@@ -208,8 +209,39 @@ class _UserProfileScreenState
                 Expanded(
                   child:
                       ElevatedButton.icon(
-                    onPressed:
-                        _openConversation,
+                    onPressed: () async {
+                      print("Current User: $currentUserId");
+print("Profile User: ${user!.id}");
+  try {
+    final conversationId =
+        await ChatService.instance.getOrCreateConversation(
+      user!.id,
+    );
+
+    if (!mounted) return;
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ConversationScreen(
+          conversationId: conversationId.toString(), // or conversationId if it's an int
+          currentUserId: currentUserId ?? 0,
+          chatName: user!.fullName,
+          profileImage: user!.profilePicture,
+          isOnline: user!.isOnline,
+        ),
+      ),
+    );
+  } catch (e) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(e.toString()),
+      ),
+    );
+  }
+},
                     icon: const Icon(
                       Icons.message,
                     ),

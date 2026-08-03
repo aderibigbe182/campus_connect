@@ -9,6 +9,7 @@ import 'screens/auth/login_screen.dart';
 import 'screens/home/home_screen.dart';
 import 'package:provider/provider.dart';
 import 'features/auth/providers/auth_provider.dart';
+import 'features/search/providers/search_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,13 +20,17 @@ void main() async {
 
   runApp(
   MultiProvider(
-    providers: [
-      ChangeNotifierProvider(
-        create: (_) => AuthProvider(),
-      ),
-    ],
-    child: const CampusConnectApp(),
-  ),
+  providers: [
+    ChangeNotifierProvider(
+      create: (_) => AuthProvider(),
+    ),
+
+    ChangeNotifierProvider(
+      create: (_) => SearchProvider(),
+    ),
+  ],
+  child: const CampusConnectApp(),
+),
 );
 }
 

@@ -16,6 +16,8 @@ class ChatService {
   static final ChatService instance = ChatService._();
 
   String get _baseUrl => ApiConstants.baseUrl;
+  String get _chatBase => '$_baseUrl/api/chat';
+  
 
   Future<Map<String, String>> _headers({
     bool json = true,
@@ -39,8 +41,6 @@ class ChatService {
       'message': reply.message,
     };
   }
-String get _chatBase =>
-    '$_baseUrl/api/chat';
   // ==========================================================
   // GET ALL CONVERSATIONS
   // ==========================================================
@@ -48,7 +48,7 @@ String get _chatBase =>
 
   final response = await http.get(
     Uri.parse(
-      '$_chatBase/conversations',
+      '$_baseUrl/api/chat/conversations',
     ),
     headers: await _headers(),
   );
@@ -84,7 +84,7 @@ String get _chatBase =>
   ) async {
     final response = await http.get(
       Uri.parse(
-        '$_chatBase/$conversationId',
+        '$_baseUrl/api/chat/conversations/$conversationId',
       ),
       headers: await _headers(),
     );
@@ -105,7 +105,7 @@ Future<void> sendChatRequest({
   required String receiverId,
 }) async {
   final response = await http.post(
-    Uri.parse("$_chatBase/requests"),
+    Uri.parse("$_baseUrl/api/chat/requests"),
     headers: await _headers(),
     body: jsonEncode({
       "receiverId": receiverId,
@@ -123,7 +123,7 @@ Future<void> acceptChatRequest({
 }) async {
   final response = await http.put(
     Uri.parse(
-      "$_chatBase/requests/$requestId/accept",
+      "$_baseUrl/api/chat/requests/$requestId/accept",
     ),
     headers: await _headers(),
   );
@@ -138,7 +138,7 @@ Future<void> declineChatRequest({
 }) async {
   final response = await http.put(
     Uri.parse(
-      "$_chatBase/requests/$requestId/decline",
+      "$_baseUrl/api/chat/requests/$requestId/decline",
     ),
     headers: await _headers(),
   );
@@ -150,7 +150,7 @@ Future<void> declineChatRequest({
 
 Future<List<ChatRequestModel>> getPendingRequests() async {
   final response = await http.get(
-    Uri.parse("$_chatBase/requests"),
+    Uri.parse("$_baseUrl/api/chat/requests"),
     headers: await _headers(),
   );
 
@@ -175,7 +175,7 @@ Future<MessageModel> sendTextMessage({
 }) async {
   final response = await http.post(
     Uri.parse(
-      "$_chatBase/$conversationId/messages/text",
+      "$_baseUrl/api/chat/conversations/$conversationId/messages/text",
     ),
     headers: await _headers(),
     body: jsonEncode({
@@ -205,7 +205,7 @@ Future<MessageModel> sendImageMessage({
   final request = http.MultipartRequest(
     "POST",
     Uri.parse(
-      "$_chatBase/$conversationId/messages/image",
+      "$_baseUrl/api/chat/conversations/$conversationId/messages/image",
     ),
   );
 
@@ -255,7 +255,7 @@ Future<MessageModel> sendVoiceMessage({
   final request = http.MultipartRequest(
     "POST",
     Uri.parse(
-      "$_chatBase/$conversationId/messages/voice",
+      "$_baseUrl/api/chat/conversations/$conversationId/messages/voice",
     ),
   );
 
@@ -302,7 +302,7 @@ Future<MessageModel> sendFileMessage({
   final request = http.MultipartRequest(
     "POST",
     Uri.parse(
-      "$_chatBase/$conversationId/messages/file",
+      "$_baseUrl/api/chat/conversations/$conversationId/messages/file",
     ),
   );
 
@@ -354,7 +354,7 @@ Future<MessageModel> sendMediaMessage({
   String? caption,
 }) async {
   final response = await http.post(
-    Uri.parse("$_chatBase/media"),
+    Uri.parse("$_baseUrl/api/chat/media"),
     headers: await _headers(),
     body: jsonEncode({
       "conversationId": conversationId,
@@ -1077,5 +1077,37 @@ Future<void> updateChatTheme({
       'Failed to update chat theme',
     );
   }
+}
+Future<int> getOrCreateConversation(
+  int receiverId,
+) async {
+  final token = await StorageService.getToken();
+  final userId = await StorageService.getUserId();
+
+  final response = await http.post(
+    Uri.parse(
+      "$_baseUrl/api/chat/conversation",
+    ),
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer $token",
+    },
+    body: jsonEncode({
+      "userId": receiverId,
+    }),
+  );
+
+  if (response.statusCode == 200 ||
+      response.statusCode == 201) {
+    final data = jsonDecode(response.body);
+
+    return int.parse(
+  data["conversationId"].toString(),
+);
+  }
+
+  throw Exception(
+  "Status: ${response.statusCode}\nBody: ${response.body}",
+);
 }
 }
