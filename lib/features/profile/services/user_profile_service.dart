@@ -48,23 +48,28 @@ class UserProfileService {
 
     final response = await http.post(
       Uri.parse(
-        "$baseUrl/api/chat/conversation/$userId",
+        "$baseUrl/api/chat/conversation",
       ),
       headers: {
         "Content-Type": "application/json",
         "Authorization": "Bearer $token",
       },
+       body: jsonEncode({
+      "userId": userId,
+    }),
     );
+    print("STATUS = ${response.statusCode}");
+  print("BODY = ${response.body}");
 
     if (response.statusCode == 200) {
       final json =
           jsonDecode(response.body);
 
-      return json["conversationId"];
+      return int.parse(json["conversationId"].toString());
     }
 
     throw Exception(
-      "Unable to create conversation.",
+      "response.body",
     );
   }
 }

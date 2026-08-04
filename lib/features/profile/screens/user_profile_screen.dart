@@ -8,7 +8,6 @@ import '../models/user_profile_model.dart';
 import '../services/user_profile_service.dart';
 
 import '../../../core/services/storage_service.dart';
-import '../../chat/services/chat_service.dart';
 
 class UserProfileScreen extends StatefulWidget {
   final int userId;
@@ -185,11 +184,7 @@ class _UserProfileScreenState
                       print("Current User: $currentUserId");
 print("Profile User: ${user!.id}");
   try {
-   final result =
-    await ChatService.instance.sendMessage(
-  receiverId: user!.id,
-  message: "",
-);
+    final conversationId = await UserProfileService.getOrCreateConversation(user!.id);
 
     if (!mounted) return;
 
@@ -197,7 +192,7 @@ print("Profile User: ${user!.id}");
       context,
       MaterialPageRoute(
         builder: (_) => ConversationScreen(
-          conversationId: user!.id.toString(), // Use the user's ID as the conversation ID
+          conversationId: conversationId.toString(),
           receiverId: user!.id,
           currentUserId: currentUserId ?? 0,
           chatName: user!.fullName,
