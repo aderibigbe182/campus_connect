@@ -65,7 +65,7 @@ class ChatModel {
 
   factory ChatModel.fromJson(Map<String, dynamic> json) {
     return ChatModel(
-      id: int.tryParse(json['id'].toString(),) ??0,
+      id: int.tryParse(json['conversation_id'].toString(),) ??0,
       conversationId: json['conversation_id']?.toString() ?? '',
       otherUserId: int.tryParse(json['receiver_id'].toString(),) ??0,
       otherUserName: json['full_name'] ?? '',
@@ -75,7 +75,8 @@ class ChatModel {
     ? null
     : MessageModel(
         id: 0,
-        conversationId: json['conversation_id'],
+        conversationId:
+    int.tryParse(json['conversation_id'].toString()) ?? 0,
         senderId:
     int.tryParse(json['sender_id'].toString(),) ??0,
         message: json['message'],

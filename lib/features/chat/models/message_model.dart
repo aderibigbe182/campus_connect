@@ -76,14 +76,28 @@ class MessageModel {
   }
 
   factory MessageModel.fromJson(Map<String, dynamic> json) {
-    return MessageModel(
-      id: json["id"] ?? 0,
-      conversationId: json["conversation_id"] ??
-          json["conversationId"] ??
-          0,
-      senderId: json["sender_id"] ??
-          json["senderId"] ??
-          0,
+  print("MESSAGE JSON = $json");
+  print("id type = ${json["id"].runtimeType}");
+  print("conversation_id type = ${json["conversation_id"].runtimeType}");
+  print("sender_id type = ${json["sender_id"].runtimeType}");
+
+  return MessageModel(
+      id: int.tryParse(json["id"].toString()) ?? 0,
+
+conversationId: int.tryParse(
+      (
+        json["conversation_id"] ??
+      json["conversationId"] ??
+      json["chat_id"] ??
+      json["chatId"]
+      ).toString(),
+    ) ??
+    0,
+
+senderId: int.tryParse(
+      (json["sender_id"] ?? json["senderId"]).toString(),
+    ) ??
+    0,
       message: json["message"] ?? "",
       messageType: json["message_type"] ??
           json["messageType"] ??

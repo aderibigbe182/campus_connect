@@ -1,7 +1,7 @@
 class ChatRequestModel {
-  final String id;
-  final String senderId;
-  final String receiverId;
+  final int id;
+  final int senderId;
+  final int receiverId;
 
   final String senderName;
   final String? senderUsername;
@@ -25,13 +25,10 @@ class ChatRequestModel {
     final sender = json["sender"] ?? {};
 
     return ChatRequestModel(
-      id: json["id"].toString(),
-      senderId: sender["id"]?.toString() ??
-          json["sender_id"]?.toString() ??
-          "",
-      receiverId: json["receiver_id"]?.toString() ??
-          "",
-      senderName:
+      id: int.tryParse(json["id"].toString()) ?? 0,
+      senderId: int.tryParse(sender["id"].toString()) ?? 0,
+      receiverId: int.tryParse(json["receiver_id"].toString()) ?? 0,
+      senderName: json["sender_name"] ??
           sender["full_name"] ??
           sender["name"] ??
           "",

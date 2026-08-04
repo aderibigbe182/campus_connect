@@ -17,7 +17,8 @@ import '../widgets/image_message_bubble.dart';
 import 'image_preview_screen.dart';
 
 class ConversationScreen extends StatefulWidget {
-  final String conversationId;
+  final String? conversationId;
+  final int receiverId;
 
   final int currentUserId;
 
@@ -30,6 +31,7 @@ class ConversationScreen extends StatefulWidget {
   const ConversationScreen({
     super.key,
     required this.conversationId,
+    required this.receiverId,
     required this.currentUserId,
     required this.chatName,
     this.profileImage,
@@ -119,13 +121,17 @@ class _ConversationScreenState
     super.dispose();
   }
 
+  int? _parseConversationId(String? value) {
+    if (value == null || value.isEmpty) return null;
+    return int.tryParse(value);
+  }
   Future<void> _loadMessages() async {
     setState(() => _loading = true);
 
     try {
       final messages =
           await (_chatService as dynamic).getMessages(
-        widget.conversationId,
+        _parseConversationId(widget.conversationId),
       );
 
       if (!mounted) return;
@@ -157,18 +163,21 @@ class _ConversationScreenState
       curve: Curves.easeOut,
     );
   }
-    Future<void> _sendText(String text) async {
+
+  Future<void> _sendText(String text) async {
     if (_sending) return;
 
     setState(() => _sending = true);
 
     try {
-      await ChatService.instance.sendMessage(
-        conversationId: int.parse(widget.conversationId),
+      final sent = await ChatService.instance.sendMessage(
+        conversationId: _parseConversationId(widget.conversationId),
+        receiverId: widget.receiverId,
         message: text,
       );
 
       setState(() {
+        _messages.add(sent);
         _replyMessage = null;
       });
 
@@ -187,7 +196,8 @@ class _ConversationScreenState
 
     try {
       await ChatService.instance.sendMessage(
-          conversationId: int.parse(widget.conversationId),
+        conversationId: _parseConversationId(widget.conversationId),
+        receiverId: widget.receiverId,
         message: "",
         messageType: "image",
         fileUrl: image.path,
@@ -214,7 +224,8 @@ class _ConversationScreenState
 
     try {
       await ChatService.instance.sendMessage(
-          conversationId: int.parse(widget.conversationId),
+        conversationId: _parseConversationId(widget.conversationId),
+        receiverId: widget.receiverId,
         message: "",
         messageType: "file",
         fileUrl: file.path,
@@ -233,7 +244,8 @@ class _ConversationScreenState
       }
     }
   }
-    void _replyToMessage(MessageModel message) {
+
+  void _replyToMessage(MessageModel message) {
     setState(() {
       _replyMessage = ReplyMessageModel(
         messageId: message.id,

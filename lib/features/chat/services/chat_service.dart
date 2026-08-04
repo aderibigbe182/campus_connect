@@ -148,7 +148,8 @@ Future<List<ChatRequestModel>> getPendingRequests() async {
 // SEND MESSAGES
 //============================
 Future<MessageModel> sendMessage({
-  required int conversationId,
+   int? conversationId,
+  int? receiverId,
   required String message,
 
   // text | image | voice | file
@@ -172,19 +173,22 @@ Future<MessageModel> sendMessage({
   final response = await http.post(
     Uri.parse("$_baseUrl/api/chat/message"),
     headers: await _headers(),
-    body: jsonEncode({
+  body: jsonEncode({
+    if (conversationId != null)
       "conversationId": conversationId,
+    if (receiverId != null)
+      "receiverId": receiverId,
+
       "message": message,
+
       "messageType": messageType,
 
-      if (fileUrl != null)
-        "fileUrl": fileUrl,
-
-      if (fileName != null)
-        "fileName": fileName,
-
-      if (fileSize != null)
-        "fileSize": fileSize,
+    if (fileUrl != null)
+      "fileUrl": fileUrl,
+    if (fileName != null)
+      "fileName": fileName,
+    if (fileSize != null)
+      "fileSize": fileSize,
 
       if (reply != null)
         "replyToMessageId": reply.messageId,
@@ -198,10 +202,35 @@ Future<MessageModel> sendMessage({
       response.statusCode != 201) {
     throw Exception("Failed to send message");
   }
-
+  final body = jsonDecode(response.body);
   return MessageModel.fromJson(
-    jsonDecode(response.body),
+    body["message"],
   );
+}
+
+//============================
+//get messages for a conversation
+//============================
+Future<List<MessageModel>> getMessages(int? conversationId) async {
+  if (conversationId == null) return [];
+
+  final response = await http.get(
+    Uri.parse("$_baseUrl/api/chat/messages/$conversationId"),
+    headers: await _headers(),
+  );
+  print("Conversation ID = $conversationId");
+  print("GET MESSAGES STATUS = ${response.statusCode}");
+  print("GET MESSAGES BODY = ${response.body}");
+
+  if (response.statusCode != 200) {
+    throw Exception("Failed to load messages");
+  }
+
+  final List data = jsonDecode(response.body);
+
+  return data
+      .map((e) => MessageModel.fromJson(e))
+      .toList();
 }
 
 //============================

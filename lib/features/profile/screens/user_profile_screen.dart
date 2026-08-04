@@ -185,12 +185,11 @@ class _UserProfileScreenState
                       print("Current User: $currentUserId");
 print("Profile User: ${user!.id}");
   try {
-   final firstMessage = "";
-    final conversationId =
-        await ChatService.instance.sendMessage(
-      conversationId: 0, // or null if you update the backend
-      message: firstMessage,
-    );
+   final result =
+    await ChatService.instance.sendMessage(
+  receiverId: user!.id,
+  message: "",
+);
 
     if (!mounted) return;
 
@@ -198,7 +197,8 @@ print("Profile User: ${user!.id}");
       context,
       MaterialPageRoute(
         builder: (_) => ConversationScreen(
-          conversationId: conversationId.toString(), // or conversationId if it's an int
+          conversationId: user!.id.toString(), // Use the user's ID as the conversation ID
+          receiverId: user!.id,
           currentUserId: currentUserId ?? 0,
           chatName: user!.fullName,
           profileImage: user!.profilePicture,

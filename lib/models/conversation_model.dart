@@ -48,7 +48,7 @@ class ConversationModel {
 
     return ConversationModel(
 
-      id: json["id"],
+      id: int.tryParse(json["id"].toString()) ?? 0,
 
       user: UserModel.fromJson(
 

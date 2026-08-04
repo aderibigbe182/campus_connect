@@ -81,8 +81,7 @@ Widget build(BuildContext context) {
                     MaterialPageRoute(
                       builder: (_) => ConversationScreen(
                         conversationId: chat.conversationId,
-
-                        // Provide required parameters
+                        receiverId: chat.otherUserId,
                         currentUserId: 1,
                         chatName: chat.otherUserName,
                       ),
