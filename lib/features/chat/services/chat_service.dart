@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import '../models/chat_request_model.dart';
@@ -9,6 +8,8 @@ import '../../../core/services/storage_service.dart';
 import '../models/chat_model.dart';
 import '../models/message_model.dart';
 import '../models/reply_message_model.dart';
+import '../models/conversation_status_model.dart';
+import '../models/conversation_model.dart';
 
 class ChatService {
   ChatService._();
@@ -32,7 +33,7 @@ class ChatService {
     };
   }
 
-  Map<String, dynamic> _replyToJson(
+  Map<String, dynamic> replyToJson(
     ReplyMessageModel reply,
   ) {
     return {
@@ -41,40 +42,84 @@ class ChatService {
       'message': reply.message,
     };
   }
-  // ==========================================================
-  // GET ALL CONVERSATIONS
-  // ==========================================================
-  Future<List<ChatModel>> getChats() async {
-
-  final response = await http.get(
+// ==========================================================
+  // ACCEPT / DECLINE REQUESTS
+  // ========================================================== 
+Future<void> acceptRequest({
+  required int requestId,
+}) async {
+  final response = await http.put(
     Uri.parse(
-      '$_baseUrl/api/chat/conversations',
+      "$_baseUrl/api/chat/requests/$requestId/accept",
     ),
     headers: await _headers(),
   );
 
+  if (response.statusCode != 200) {
+    throw Exception("Failed to accept request");
+  }
+}
+//==========================================================
+  // DECLINE REQUESTS
+  // ==========================================================
+Future<void> declineRequest({
+  required int requestId,
+}) async {
+  final response = await http.put(
+    Uri.parse(
+      "$_baseUrl/api/chat/requests/$requestId/decline",
+    ),
+    headers: await _headers(),
+  );
 
-  print("CHAT STATUS = ${response.statusCode}");
-  print("CHAT BODY = ${response.body}");
+  if (response.statusCode != 200) {
+    throw Exception("Failed to decline request");
+  }
+}
+  // ==========================================================
+  // GET CHAT LIST
+  // ==========================================================
+  Future<List<ConversationModel>> getChatList() async {
+  final response = await http.get(
+    Uri.parse("$_baseUrl/api/chat/conversations"),
+    headers: await _headers(),
+  );
 
+  if (response.statusCode != 200) {
+    throw Exception("Failed to load chats");
+  }
+
+  final body = jsonDecode(response.body);
+
+  final List data = body["chats"] ?? [];
+
+  return data
+      .map((e) => ConversationModel.fromJson(e))
+      .toList();
+}
+//=================================
+//GET CONVERSATION STATUS
+//=================================
+Future<ConversationStatusModel> getConversationStatus(
+    int userId,
+) async {
+
+  final response = await http.get(
+    Uri.parse(
+      "$_baseUrl/api/chat/status/$userId",
+    ),
+    headers: await _headers(),
+  );
 
   if (response.statusCode != 200) {
     throw Exception(
-      'Failed to load chats',
+      "Failed to load conversation status",
     );
   }
 
-
-  final json = jsonDecode(response.body);
-
-  final List chats = json['chats'] ?? [];
-
-
-  return chats
-      .map(
-        (e) => ChatModel.fromJson(e),
-      )
-      .toList();
+  return ConversationStatusModel.fromJson(
+    jsonDecode(response.body),
+  );
 }
   // ==========================================================
   // GET SINGLE CHAT
@@ -97,36 +142,6 @@ class ChatService {
       jsonDecode(response.body),
     );
   }
-Future<void> acceptChatRequest({
-  required String requestId,
-}) async {
-  final response = await http.put(
-    Uri.parse(
-      "$_baseUrl/api/chat/requests/$requestId/accept",
-    ),
-    headers: await _headers(),
-  );
-
-  if (response.statusCode != 200) {
-    throw Exception("Failed to accept chat request");
-  }
-}
-
-Future<void> declineChatRequest({
-  required String requestId,
-}) async {
-  final response = await http.put(
-    Uri.parse(
-      "$_baseUrl/api/chat/requests/$requestId/decline",
-    ),
-    headers: await _headers(),
-  );
-
-  if (response.statusCode != 200) {
-    throw Exception("Failed to decline chat request");
-  }
-}
-
 Future<List<ChatRequestModel>> getPendingRequests() async {
   final response = await http.get(
     Uri.parse("$_baseUrl/api/chat/requests"),
@@ -148,88 +163,106 @@ Future<List<ChatRequestModel>> getPendingRequests() async {
 // SEND MESSAGES
 //============================
 Future<MessageModel> sendMessage({
-   int? conversationId,
+
+  int? conversationId,
+
   int? receiverId,
+
   required String message,
 
-  // text | image | voice | file
   String messageType = "text",
 
   String? fileUrl,
+
   String? fileName,
+
   int? fileSize,
 
   ReplyMessageModel? reply,
+
 }) async {
-  print({
-  "conversationId": conversationId,
-  "message": message,
-  "messageType": messageType,
-  "fileUrl": fileUrl,
-  "fileName": fileName,
-  "fileSize": fileSize,
-  "replyToMessageId": reply?.messageId,
-});
+
   final response = await http.post(
-    Uri.parse("$_baseUrl/api/chat/message"),
+
+    Uri.parse(
+      "$_baseUrl/api/chat/message",
+    ),
+
     headers: await _headers(),
-  body: jsonEncode({
-    if (conversationId != null)
-      "conversationId": conversationId,
-    if (receiverId != null)
-      "receiverId": receiverId,
+
+    body: jsonEncode({
+
+      if (conversationId != null)
+        "conversationId": conversationId,
+
+      if (receiverId != null)
+        "receiverId": receiverId,
 
       "message": message,
 
       "messageType": messageType,
 
-    if (fileUrl != null)
-      "fileUrl": fileUrl,
-    if (fileName != null)
-      "fileName": fileName,
-    if (fileSize != null)
-      "fileSize": fileSize,
+      if (fileUrl != null)
+        "fileUrl": fileUrl,
+
+      if (fileName != null)
+        "fileName": fileName,
+
+      if (fileSize != null)
+        "fileSize": fileSize,
 
       if (reply != null)
         "replyToMessageId": reply.messageId,
-    }),
-  );
 
-  print("SEND STATUS = ${response.statusCode}");
-  print("SEND BODY = ${response.body}");
+    }),
+
+  );
 
   if (response.statusCode != 200 &&
       response.statusCode != 201) {
-    throw Exception("Failed to send message");
+    throw Exception(
+      "Failed to send message",
+    );
   }
+
   final body = jsonDecode(response.body);
+
   return MessageModel.fromJson(
     body["message"],
   );
 }
 
 //============================
-//get messages for a conversation
+// GET MESSAGES
 //============================
-Future<List<MessageModel>> getMessages(int? conversationId) async {
-  if (conversationId == null) return [];
+Future<List<MessageModel>> getMessages(
+    int conversationId,
+) async {
 
   final response = await http.get(
-    Uri.parse("$_baseUrl/api/chat/messages/$conversationId"),
+    Uri.parse(
+      "$_baseUrl/api/chat/messages/$conversationId",
+    ),
     headers: await _headers(),
   );
-  print("Conversation ID = $conversationId");
-  print("GET MESSAGES STATUS = ${response.statusCode}");
-  print("GET MESSAGES BODY = ${response.body}");
 
   if (response.statusCode != 200) {
-    throw Exception("Failed to load messages");
+    throw Exception(
+      "Failed to load messages",
+    );
   }
 
-  final List data = jsonDecode(response.body);
+  final body = jsonDecode(response.body);
+
+  final List data =
+      body is List
+          ? body
+          : body["messages"];
 
   return data
-      .map((e) => MessageModel.fromJson(e))
+      .map(
+        (e) => MessageModel.fromJson(e),
+      )
       .toList();
 }
 
@@ -330,6 +363,22 @@ Future<void> unstarMessage({
   if (response.statusCode != 200) {
     throw Exception(
       "Failed to unstar message",
+    );
+  }
+}
+Future<void> markConversationAsRead({
+  required int conversationId,
+}) async {
+  final response = await http.put(
+    Uri.parse(
+      "$_chatBase/conversation/$conversationId/read",
+    ),
+    headers: await _headers(),
+  );
+
+  if (response.statusCode != 200) {
+    throw Exception(
+      "Unable to mark conversation as read",
     );
   }
 }

@@ -1,37 +1,46 @@
 import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+
 import 'routes/app_routes.dart';
 import 'core/services/storage_service.dart';
 import 'core/services/local_storage_service.dart';
 import 'core/theme/app_theme.dart';
+
 import 'screens/onboarding/onboarding_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/home/home_screen.dart';
-import 'package:provider/provider.dart';
+
 import 'features/auth/providers/auth_provider.dart';
 import 'features/search/providers/search_provider.dart';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
   ]);
 
-  runApp(
-  MultiProvider(
-  providers: [
-    ChangeNotifierProvider(
-      create: (_) => AuthProvider(),
-    ),
+  // Initialize Hive
+  await Hive.initFlutter();
 
-    ChangeNotifierProvider(
-      create: (_) => SearchProvider(),
+  // Open chat cache box
+  await Hive.openBox("chat_cache");
+
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+          create: (_) => AuthProvider(),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => SearchProvider(),
+        ),
+      ],
+      child: const CampusConnectApp(),
     ),
-  ],
-  child: const CampusConnectApp(),
-),
-);
+  );
 }
 
 class CampusConnectApp extends StatelessWidget {
@@ -42,13 +51,10 @@ class CampusConnectApp extends StatelessWidget {
     return MaterialApp(
       title: 'Campus Connect',
       debugShowCheckedModeBanner: false,
-
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.system,
-
       routes: AppRoutes.routes,
-
       home: const StartScreen(),
     );
   }

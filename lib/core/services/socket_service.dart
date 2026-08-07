@@ -25,8 +25,8 @@ class SocketService {
       io.OptionBuilder()
           .setTransports(['websocket'])
           .disableAutoConnect()
-          .setExtraHeaders({
-            'Authorization': 'Bearer $token',
+          .setAuth({
+            'token': token
           })
           .build(),
     );
@@ -60,15 +60,17 @@ class SocketService {
   // ===========================================================
 
   void joinConversation(int conversationId) {
-    _socket?.emit('joinConversation', {
-      'conversationId': conversationId,
-    });
+    _socket?.emit(
+  "joinConversation",
+  conversationId,
+);
   }
 
   void leaveConversation(int conversationId) {
-    _socket?.emit('leaveConversation', {
-      'conversationId': conversationId,
-    });
+   _socket?.emit(
+  "leaveConversation",
+  conversationId,
+);
   }
 
   void listenRoomJoined([Function(dynamic)? callback]) {
@@ -92,11 +94,11 @@ class SocketService {
     ReplyMessageModel? replyTo,
   }) {
     _socket?.emit(
-      'sendMessage',
-      {
-        'conversationId': conversationId,
-        'receiverId': receiverId,
-        'message': message,
+  "sendMessage",
+  {
+    "conversation_id": conversationId,
+    "receiverId": receiverId,
+    "message": message,
         'replyTo': replyTo == null
             ? null
             : {
@@ -120,8 +122,7 @@ class SocketService {
     required int conversationId,
     required int messageId,
   }) {
-    _socket?.emit(
-      'message_delivered',
+    _socket?.emit("messageDelivered",
       {
         'conversationId': conversationId,
         'messageId': messageId,
@@ -130,7 +131,7 @@ class SocketService {
   }
 
   void listenDelivered(Function(dynamic) callback) {
-    _socket?.on('message_delivered', callback);
+    _socket?.on('messageDelivered', callback);
   }
 
   // ===========================================================
@@ -142,7 +143,7 @@ class SocketService {
     required int messageId,
   }) {
     _socket?.emit(
-      'message_seen',
+      'messageSeen',
       {
         'conversationId': conversationId,
         'messageId': messageId,
@@ -151,25 +152,28 @@ class SocketService {
   }
 
   void listenSeen(Function(dynamic) callback) {
-    _socket?.on('message_seen', callback);
+    _socket?.on('messageSeen', callback);
   }
 
   // ===========================================================
   // TYPING
   // ===========================================================
 
-  void sendTyping(int conversationId) {
-    _socket?.emit(
-      'typing',
-      {
-        'conversationId': conversationId,
-      },
-    );
-  }
+  void sendTyping({
+required int conversationId,
+required int senderId,
+}) {
+  _socket?.emit(
+    "typing",
+    {
+      "conversationId": conversationId,
+      "senderId": senderId,
+    },
+  );
+}
 
   void sendStopTyping(int conversationId) {
-    _socket?.emit(
-      'stop_typing',
+    _socket?.emit("stopTyping",
       {
         'conversationId': conversationId,
       },
@@ -177,28 +181,17 @@ class SocketService {
   }
 
   void listenTyping(Function(dynamic) callback) {
-    _socket?.on('typing', callback);
+    _socket?.on(
+    "userTyping",
+    callback,
+);
   }
 
   void listenStopTyping(Function(dynamic) callback) {
-    _socket?.on('stop_typing', callback);
-  }
-
-  // ===========================================================
-  // PRESENCE
-  // ===========================================================
-
-  void updatePresence(bool online) {
-    _socket?.emit(
-      'presence_update',
-      {
-        'online': online,
-      },
-    );
-  }
-
-  void listenPresence(Function(dynamic) callback) {
-    _socket?.on('presence_update', callback);
+    _socket?.on(
+    "userStoppedTyping",
+    callback,
+);
   }
 
   // ===========================================================
@@ -210,8 +203,7 @@ class SocketService {
     required int messageId,
     required String emoji,
   }) {
-    _socket?.emit(
-      'message_reaction',
+    _socket?.emit("messageReaction",
       {
         'conversationId': conversationId,
         'messageId': messageId,
@@ -221,6 +213,63 @@ class SocketService {
   }
 
   void listenReaction(Function(dynamic) callback) {
-    _socket?.on('message_reaction', callback);
+    _socket?.on('messageReaction', callback);
   }
+//================================
+//FRIEND REQUESTS
+//================================
+void listenFriendRequestSent(
+  Function(dynamic) callback,
+) {
+  _socket?.on(
+    "friend_request_sent",
+    callback,
+  );
+}
+//================================
+//FRIEND REQUEST ACCEPTED 
+//================================
+void listenFriendRequestAccepted(
+  Function(dynamic) callback,
+) {
+  _socket?.on(
+    "friend_request_accepted",
+    callback,
+  );
+}
+//===============================
+//FRIEND REQUEST DECLINED
+//===============================
+void listenFriendRequestDeclined(
+  Function(dynamic) callback,
+) {
+  _socket?.on(
+    "friend_request_declined",
+    callback,
+  );
+}
+//==============================
+//RELATIONSHIP UPDATED
+//==============================
+void listenRelationshipUpdated(
+  Function(dynamic) callback,
+) {
+  _socket?.on(
+    "relationship_updated",
+    callback,
+  );
+}
+//================================
+//MESSAGE SEEN
+//===================================
+void listenMessageSeen(
+  Function(Map<String, dynamic>) callback,
+) {
+  socket?.on(
+    "message_seen",
+    (data) => callback(
+      Map<String, dynamic>.from(data),
+    ),
+  );
+}
 }

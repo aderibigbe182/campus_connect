@@ -11,8 +11,8 @@ class ReactionModel {
     Map<String, dynamic> json,
   ) {
     return ReactionModel(
-      userId: json["userId"],
-      emoji: json["emoji"],
+      userId: int.tryParse(json["userId"].toString()) ?? 0,
+      emoji: json["emoji"] ?? "",
     );
   }
 

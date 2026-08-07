@@ -81,6 +81,8 @@ class ChatModel {
     int.tryParse(json['sender_id'].toString(),) ??0,
         message: json['message'],
         messageType: json['message_type'] ?? 'text',
+        delivered: json['delivered'] ?? false,
+        seen: json['seen'] ?? false,
         createdAt: DateTime.tryParse(
               json['created_at'].toString(),
             ) ??
@@ -98,6 +100,8 @@ DateTime.now(),
   }
 
   Map<String, dynamic> toJson() {
+    final lastMessage = this.lastMessage;
+
     return {
       'id': id,
       'conversation_id': conversationId,
@@ -105,7 +109,18 @@ DateTime.now(),
       'other_user_name': otherUserName,
       'other_user_avatar': otherUserAvatar,
       'is_online': isOnline,
-      'last_message': lastMessage?.toJson(),
+      'last_message': lastMessage == null
+          ? null
+          : {
+              'id': lastMessage.id,
+              'conversation_id': lastMessage.conversationId,
+              'sender_id': lastMessage.senderId,
+              'message': lastMessage.message,
+              'message_type': lastMessage.messageType,
+              'delivered': lastMessage.delivered,
+              'seen': lastMessage.seen,
+              'created_at': lastMessage.createdAt.toIso8601String(),
+            },
       'unread_count': unreadCount,
       'is_pinned': isPinned,
       'is_muted': isMuted,

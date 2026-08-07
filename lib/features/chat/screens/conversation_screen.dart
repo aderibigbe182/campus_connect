@@ -1,11 +1,14 @@
-import 'dart:async';
 import 'dart:io';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 
 import '../models/message_model.dart';
 import '../models/reply_message_model.dart';
 import '../services/chat_service.dart';
+import '/core/services/socket_service.dart';
+import '../services/chat_cache_service.dart';
+import '../services/message_cache_service.dart';
 
 import '../widgets/message_input_bar.dart';
 import '../widgets/reply_preview.dart';
@@ -15,7 +18,8 @@ import '../widgets/receiver_message_bubble.dart';
 import '../widgets/image_message_bubble.dart';
 
 import 'image_preview_screen.dart';
-
+import '../widgets/request_banner.dart';
+import '../models/conversation_status_model.dart';
 class ConversationScreen extends StatefulWidget {
   final String? conversationId;
   final int receiverId;
@@ -28,132 +32,299 @@ class ConversationScreen extends StatefulWidget {
 
   final bool isOnline;
 
+  final bool isPending;
+  
   const ConversationScreen({
-    super.key,
+    super.key, 
     required this.conversationId,
     required this.receiverId,
     required this.currentUserId,
     required this.chatName,
     this.profileImage,
     this.isOnline = false,
+    this.isPending = false,
   });
 
   @override
-  State<ConversationScreen> createState() =>
-      _ConversationScreenState();
+  State<ConversationScreen> createState() => _ConversationScreenState();
 }
 class _ConversationScreenState
     extends State<ConversationScreen> {
-  final ChatService _chatService =
-      ChatService.instance;
+    bool _loading = true;
+    bool _sending = false;
+    bool _typing = false;
+    bool _isOnline = false;
 
-  final ScrollController _scrollController =
-      ScrollController();
+    ConversationStatusModel? _status;
+    ReplyMessageModel? _replyMessage;
+    final List<MessageModel> _messages = [];
+    int _page = 1;
+    final int _limit = 30;
+    bool _hasMore = true;
+    bool _loadingOlder = false;
+    final ScrollController _scrollController = ScrollController();
+    
 
-  final List<MessageModel> _messages = [];
 
-  ReplyMessageModel? _replyMessage;
-
-  bool _loading = true;
-
-  bool _sending = false;
-
-  bool _typing = false;
-
-  StreamSubscription<List<MessageModel>>?
-      _messageSubscription;
-
-  StreamSubscription<bool>? _typingSubscription;
     @override
-  void initState() {
-    super.initState();
-
-    _loadMessages();
-
-    Stream<List<MessageModel>>? messageStream;
-    Stream<bool>? typingStream;
-
-    try {
-      messageStream =
-          (_chatService as dynamic).messageStream
-              as Stream<List<MessageModel>>?;
-    } catch (_) {
-      messageStream = null;
+    void initState() {
+      super.initState();
+      _listenForPresence();
+      _listenForTyping();
+      _listenForSeen();
+      _initializeConversation();
+      _scrollController.addListener(_onScroll);
+      _isOnline = widget.isOnline;
     }
 
-    try {
-      typingStream =
-          (_chatService as dynamic).typingStream
-              as Stream<bool>?;
-    } catch (_) {
-      typingStream = null;
+    @override
+    void dispose() {
+      _scrollController.removeListener(_onScroll);
+      _scrollController.dispose();
+      super.dispose();
     }
-
-    _messageSubscription =
-        (messageStream ?? Stream<List<MessageModel>>.empty())
-            .listen((messages) {
-      if (!mounted) return;
-
+    void configureStatus(
+      ConversationStatusModel status,
+    ) {
       setState(() {
-        _messages
-          ..clear()
-          ..addAll(messages);
+        _status = status;
       });
+    }
+    void _onScroll() {
+  if (_scrollController.position.pixels <= 80 &&
+      !_loadingOlder &&
+      _hasMore) {
+    _loadOlderMessages();
+  }
+}
+    Future<void> _initializeConversation() async {
+      try {
+        await _loadConversationStatus();
 
-      _scrollToBottom();
+        if (widget.conversationId != null) {
+          await _loadMessages();
+        await _loadMessages();
+
+        await ChatService.instance.markConversationAsRead(
+          conversationId:
+              int.parse(widget.conversationId!),
+        );
+        }
+      } catch (e) {
+        debugPrint(e.toString());
+      }
+    }
+    
+    Future<void> _loadConversationStatus() async {
+  try {
+
+    final status = await ChatService.instance.getConversationStatus(
+      widget.receiverId,
+    );
+
+    if (!mounted) return;
+
+    configureStatus(status);
+
+  } catch (e) {
+    debugPrint(e.toString());
+  }
+}
+void _listenForSeen() {
+  SocketService.instance.listenMessageSeen((data) {
+
+    final messageId = data["messageId"];
+
+    final index = _messages.indexWhere(
+      (m) => m.id == messageId,
+    );
+
+    if (index == -1) return;
+
+    if (!mounted) return;
+
+    setState(() {
+      _messages[index] =
+          _messages[index].copyWith(
+        seen: true,
+      );
     });
+  });
+}
+void _listenForPresence() {
+  SocketService.instance.socket?.on('presence', (data) {
+    final userId = data["userId"];
 
-    _typingSubscription =
-        (typingStream ?? Stream<bool>.empty()).listen((typing) {
-      if (!mounted) return;
+    // Update presence state for this conversation's receiver
+    if (userId != widget.receiverId) return;
 
-      setState(() {
-        _typing = typing;
-      });
+    if (!mounted) return;
+
+    setState(() {
+      _isOnline = data["online"] ?? false;
     });
-  }
-
-  @override
-  void dispose() {
-    _messageSubscription?.cancel();
-    _typingSubscription?.cancel();
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  int? _parseConversationId(String? value) {
-    if (value == null || value.isEmpty) return null;
-    return int.tryParse(value);
-  }
+  });
+}
   Future<void> _loadMessages() async {
+  if (widget.conversationId == null) return;
+
+  final conversationId =
+      int.parse(widget.conversationId!);
+
+  // Load cached messages first
+  final cached =
+      await MessageCacheService.instance
+          .getMessages(conversationId);
+
+  if (cached.isNotEmpty && mounted) {
+    setState(() {
+      _messages
+        ..clear()
+        ..addAll(cached);
+
+      _loading = false;
+    });
+  }
+
+  try {
     setState(() => _loading = true);
 
-    try {
-      final messages =
-          await (_chatService as dynamic).getMessages(
-        _parseConversationId(widget.conversationId),
-      );
+    // ==========================
+    // Load cached messages first
+    // ==========================
+    final cached = ChatCacheService.instance.loadMessages(
+      int.parse(widget.conversationId!),
+    );
 
-      if (!mounted) return;
+    if (cached.isNotEmpty && mounted) {
+      _messages
+        ..clear()
+        ..addAll(
+          cached
+              .map((e) => MessageModel.fromJson(e))
+              .toList(),
+        );
 
       setState(() {
-        _messages
-          ..clear()
-          ..addAll(messages);
-
         _loading = false;
       });
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _scrollToBottom();
       });
-    } catch (_) {
-      if (!mounted) return;
-
-      setState(() => _loading = false);
     }
+
+    // ==========================
+    // Fetch latest from server
+    // ==========================
+    final messages =
+        await ChatService.instance.getMessages(
+      int.parse(widget.conversationId!),
+    );
+    await MessageCacheService.instance.saveMessages(
+  conversationId,
+  messages,
+);
+
+    if (!mounted) return;
+
+    _messages
+      ..clear()
+      ..addAll(messages);
+
+    // ==========================
+    // Save fresh copy to cache
+    // ==========================
+    await ChatCacheService.instance.saveMessages(
+      int.parse(widget.conversationId!),
+      messages.map((e) => e.toJson()).toList(),
+    );
+
+    setState(() {
+      _loading = false;
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToBottom();
+    });
+  } catch (e) {
+    if (!mounted) return;
+
+    setState(() {
+      _loading = false;
+    });
+
+    debugPrint(e.toString());
+  }
+}
+Future<void> _loadOlderMessages() async {
+  if (_loadingOlder) return;
+
+  _loadingOlder = true;
+
+  final oldHeight =
+      _scrollController.position.maxScrollExtent;
+
+  _page++;
+
+  final older =
+      await ChatService.instance.getMessages(
+    int.parse(widget.conversationId!),
+    page: _page,
+    limit: _limit,
+  );
+
+  if (!mounted) return;
+
+  if (older.isEmpty) {
+    _hasMore = false;
+    _loadingOlder = false;
+    return;
   }
 
+  setState(() {
+    _messages.insertAll(0, older);
+
+    if (older.length < _limit) {
+      _hasMore = false;
+    }
+  });
+
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    final newHeight =
+        _scrollController.position.maxScrollExtent;
+
+    _scrollController.jumpTo(
+      newHeight - oldHeight,
+    );
+  });
+
+  _loadingOlder = false;
+}
+
+void _listenForTyping() {
+
+  SocketService.instance.listenTyping((_) {
+
+    if (!mounted) return;
+
+    setState(() {
+      _typing = true;
+    });
+
+  });
+
+  SocketService.instance.listenStopTyping((_) {
+
+    if (!mounted) return;
+
+    setState(() {
+      _typing = false;
+    });
+
+  });
+
+}
   void _scrollToBottom() {
     if (!_scrollController.hasClients) return;
 
@@ -163,40 +334,81 @@ class _ConversationScreenState
       curve: Curves.easeOut,
     );
   }
+//=============================================
+//SEND TEXT
+//============================================
+Future<void> _sendText(String text) async {
+  if (_status?.status != "friends") return;
 
-  Future<void> _sendText(String text) async {
-    if (_sending) return;
+  if (_sending) return;
 
-    setState(() => _sending = true);
+  setState(() {
+    _sending = true;
+  });
 
-    try {
-      final sent = await ChatService.instance.sendMessage(
-        conversationId: _parseConversationId(widget.conversationId),
-        receiverId: widget.receiverId,
-        message: text,
-      );
+  try {
+    await ChatService.instance.sendMessage(
+      conversationId: widget.conversationId == null
+          ? null
+          : int.parse(widget.conversationId!),
+      receiverId: widget.receiverId,
+      message: text,
+      reply: _replyMessage,
+    );
 
+    if (!mounted) return;
+
+    setState(() {
+      _replyMessage = null;
+    });
+
+    _scrollToBottom();
+  } catch (e) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(e.toString()),
+      ),
+    );
+  } finally {
+    if (mounted) {
       setState(() {
-        _messages.add(sent);
-        _replyMessage = null;
+        _sending = false;
       });
-
-      _scrollToBottom();
-    } finally {
-      if (mounted) {
-        setState(() => _sending = false);
-      }
     }
   }
-
+}
   Future<void> _sendImage(File image) async {
+    if (_status?.status != "friends") {
+      await showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Pending Request'),
+          content: Text(
+                'You cannot send another message until this request is accepted.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+
+      return;
+    }
     if (_sending) return;
 
     setState(() => _sending = true);
 
     try {
       await ChatService.instance.sendMessage(
-        conversationId: _parseConversationId(widget.conversationId),
+        conversationId:
+          widget.conversationId == null
+              ? null
+              : int.parse(widget.conversationId!),
         receiverId: widget.receiverId,
         message: "",
         messageType: "image",
@@ -218,13 +430,35 @@ class _ConversationScreenState
   }
 
   Future<void> _sendFile(File file) async {
+    if (_status?.status != "friends") {
+      await showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Pending Request'),
+          content: Text(
+                'You cannot send another message until this request is accepted.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+
+      return;
+    }
     if (_sending) return;
 
     setState(() => _sending = true);
 
     try {
       await ChatService.instance.sendMessage(
-        conversationId: _parseConversationId(widget.conversationId),
+        conversationId:
+            widget.conversationId == null
+                ? null
+                : int.parse(widget.conversationId!),
         receiverId: widget.receiverId,
         message: "",
         messageType: "file",
@@ -250,7 +484,7 @@ class _ConversationScreenState
       _replyMessage = ReplyMessageModel(
         messageId: message.id,
         sender: message.senderId.toString(),
-        message: message.message,
+        message: message.message ?? '',
       );
     });
   }
@@ -260,7 +494,7 @@ class _ConversationScreenState
   Future<void> _deleteMessage(
     int messageId,
   ) async {
-    await _chatService.deleteMessage(
+    await ChatService.instance.deleteMessage(
       messageId: messageId.toString(),
     );
 
@@ -312,14 +546,12 @@ class _ConversationScreenState
                 Text(
                   _typing
                       ? "typing..."
-                      : (widget.isOnline
+                      : (_isOnline
                           ? "Online"
                           : "Offline"),
                   style: TextStyle(
                     fontSize: 12,
-                    color: _typing
-                        ? Colors.green
-                        : Colors.grey,
+                    color: _typing ? Colors.green : Colors.grey,
                   ),
                 ),
               ],
@@ -360,25 +592,123 @@ class _ConversationScreenState
       ],
     );
   }
+  
+Widget buildPendingRequestWidget() {
+  return Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(18),
+    decoration: BoxDecoration(
+      color: Colors.grey.shade100,
+      border: const Border(
+        top: BorderSide(
+          color: Colors.grey,
+        ),
+      ),
+    ),
+    child: Row(
+      children: [
+        const Icon(
+          Icons.lock_outline,
+          color: Colors.grey,
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            _status?.pendingMessage ??
+                "You can't send more messages until this request is accepted.",
+            style: const TextStyle(
+              color: Colors.grey,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+Widget buildRelationshipBanner() {
+
+  if (_status == null) {
+    return const SizedBox.shrink();
+  }
+
+  switch (_status!.status) {
+
+    case "pending_received":
+  return RequestBanner(
+    title: "${widget.chatName} wants to be your friend",
+    subtitle: "Accept this request to continue chatting.",
+    primaryText: "Accept",
+    secondaryText: "Decline",
+
+    onPrimary: () async {
+      await ChatService.instance.acceptRequest(
+        requestId: _status!.requestId!,
+      );
+
+      await _loadConversationStatus();
+    },
+
+    onSecondary: () async {
+      await ChatService.instance.declineRequest(
+        requestId: _status!.requestId!,
+      );
+
+      await _loadConversationStatus();
+    },
+  );
+
+    case "pending_sent":
+
+      return RequestBanner(
+        title: "Request sent",
+        subtitle:
+            "Waiting for ${widget.chatName} to accept.",
+      );
+
+    case "declined":
+
+      return RequestBanner(
+        title: "Request declined",
+        subtitle:
+            "You can send another request later.",
+      );
+
+    default:
+
+      return const SizedBox.shrink();
+
+  }
+
+}
     Widget _buildMessagesList() {
     if (_loading) {
       return const Center(
         child: CircularProgressIndicator(),
       );
     }
+if (_messages.isEmpty) {
+  return Center(
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
 
-    if (_messages.isEmpty) {
-      return const Center(
-        child: Text(
-          "No messages yet.\nStart the conversation 👋",
+        if (_status != null &&
+            _status!.status != "friends")
+          buildRelationshipBanner(),
+
+        const SizedBox(height: 20),
+
+        Text(
+          widget.conversationId == null
+              ? "Start a new conversation 👋"
+              : "No messages yet",
           textAlign: TextAlign.center,
-          style: TextStyle(
-            color: Colors.grey,
-            fontSize: 16,
-          ),
         ),
-      );
-    }
+      ],
+    ),
+  );
+}
 
     return ListView.builder(
       controller: _scrollController,
@@ -386,8 +716,27 @@ class _ConversationScreenState
         horizontal: 12,
         vertical: 10,
       ),
-      itemCount: _messages.length + (_typing ? 1 : 0),
+      itemCount:
+          _messages.length +
+          (_typing ? 1 : 0) +
+          (_loadingOlder ? 1 : 0),
       itemBuilder: (context, index) {
+        if (_loadingOlder && index == 0) {
+  return const Padding(
+    padding: EdgeInsets.symmetric(vertical: 10),
+    child: Center(
+      child: SizedBox(
+        width: 18,
+        height: 18,
+        child: CircularProgressIndicator(
+          strokeWidth: 2,
+        ),
+      ),
+    ),
+  );
+}
+final messageIndex =
+    _loadingOlder ? index - 1 : index;
         if (_typing && index == _messages.length) {
           return Padding(
             padding: const EdgeInsets.only(
@@ -401,7 +750,7 @@ class _ConversationScreenState
           );
         }
 
-        final message = _messages[index];
+        final message = _messages[messageIndex];
         return _buildMessageBubble(message);
       },
     );
@@ -413,14 +762,14 @@ class _ConversationScreenState
     if (message.messageType == "image") {
       return ImageMessageBubble(
         isMe: isMe,
-        imageUrl: message.message,
+        imageUrl: message.message ?? '',
         createdAt: message.createdAt,
       );
     }
 
     if (isMe) {
       return SenderMessageBubble(
-        message: message.message,
+        message: message.message ?? '',
         createdAt: message.createdAt,
         delivered: message.delivered,
         seen: message.seen,
@@ -431,7 +780,7 @@ class _ConversationScreenState
     }
 
     return ReceiverMessageBubble(
-      message: message.message,
+      message: message.message ?? '',
       createdAt: message.createdAt,
       onReply: () => _replyToMessage(message),
     );
@@ -450,32 +799,36 @@ class _ConversationScreenState
             },
           ),
 
-        MessageInputBar(
-          visible: true,
-          reply: _replyMessage,
-          onCancelReply: () {
-            setState(() {
-              _replyMessage = null;
-            });
-          },
-          onSendText: _sendText,
-          onSendImage: (image, caption) async {
-            final file = await Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => ImagePreviewScreen(
-                  imageFile: image,
-                ),
-              ),
-            );
-
-            if (file != null) {
-              await _sendImage(file);
-            }
-          },
-          onSendFile: _sendFile,
-          onSendVoice: (audio) async {},
+        if (_status?.status == "friends")
+  MessageInputBar(
+    visible: true,
+    reply: _replyMessage,
+    onCancelReply: () {
+      setState(() {
+        _replyMessage = null;
+      });
+    },
+    onSendText: _sendText,
+    onSendImage: (image, caption) async {
+      final file = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) =>
+              ImagePreviewScreen(
+            imageFile: image,
+          ),
         ),
+      );
+
+      if (file != null) {
+        await _sendImage(file);
+      }
+    },
+    onSendFile: _sendFile,
+    onSendVoice: (audio) async {},
+  )
+else
+  const SizedBox(height: 10),
       ],
     );
   }
@@ -489,10 +842,16 @@ class _ConversationScreenState
             Expanded(
               child: _buildMessagesList(),
             ),
-            _buildBottomSection(),
+            if (_status?.status == "friends")
+
+  _buildBottomSection()
+
+else if (_status?.status != null)
+
+  buildPendingRequestWidget()
           ],
         ),
       ),
     );
   }
-}
+    }

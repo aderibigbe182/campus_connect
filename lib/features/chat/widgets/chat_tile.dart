@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-
-import '../models/chat_model.dart';
+import '../models/conversation_model.dart';
 
 
 class ChatTile extends StatelessWidget {
-  final ChatModel chat;
+  final ConversationModel chat;
   final VoidCallback onTap;
 
   const ChatTile({
@@ -34,13 +33,13 @@ class ChatTile extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 30,
-                  backgroundImage: chat.otherUserAvatar != null
-                        ? NetworkImage(chat.otherUserAvatar!)
-                        : null,
-                  child: chat.otherUserAvatar == null
+                  backgroundImage: chat.profilePicture != null
+                    ? NetworkImage(chat.profilePicture!)
+                    : null,
+                  child: chat.profilePicture == null
                       ? Text(
-                          chat.otherUserName.isNotEmpty
-                            ? chat.otherUserName[0]
+                          chat.fullName.isNotEmpty
+                            ? chat.fullName
                             : "?"
                         )
                       : null,
@@ -72,7 +71,7 @@ class ChatTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    chat.otherUserName,
+                    chat.fullName,
                     style: TextStyle(
                       fontWeight:
                           chat.unreadCount > 0
@@ -87,7 +86,8 @@ class ChatTile extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          chat.lastMessage?.message ?? "",
+                          chat.lastMessage ??
+                          "No messages yet",
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -103,40 +103,66 @@ class ChatTile extends StatelessWidget {
                 ],
               ),
             ),
-                      Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  _formatTime(chat.updatedAt),
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: Colors.grey,
-                  ),
-                ),
+          Column(
+  crossAxisAlignment: CrossAxisAlignment.end,
+  children: [
+    Text(
+      chat.lastMessageTime == null
+    ? ""
+    : _formatTime(chat.lastMessageTime!),
+      style: const TextStyle(
+        fontSize: 11,
+        color: Colors.grey,
+      ),
+    ),
 
-                const SizedBox(height: 6),
+    if (chat.relationshipStatus != "accepted")
+  Container(
+    margin: const EdgeInsets.only(top: 4),
+    padding: const EdgeInsets.symmetric(
+      horizontal: 8,
+      vertical: 2,
+    ),
+    decoration: BoxDecoration(
+      color: chat.relationshipStatus == "pending"
+          ? Colors.orange
+          : chat.relationshipStatus == "declined"
+              ? Colors.red
+              : Colors.grey,
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Text(
+      chat.relationshipStatus.toUpperCase(),
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 10,
+      ),
+    ),
+  ),
 
-                if (chat.unreadCount > 0)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 7,
-                      vertical: 3,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.blue,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      chat.unreadCount.toString(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-              ],
-            )
+    const SizedBox(height: 6),
+
+    if (chat.unreadCount > 0)
+      Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 7,
+          vertical: 3,
+        ),
+        decoration: BoxDecoration(
+          color: Colors.blue,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          chat.unreadCount.toString(),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+  ],
+)   
           ],
         ),
       ),

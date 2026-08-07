@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../widgets/avatar_widget.dart';
 
 import '../../chat/screens/conversation_screen.dart';
+import '../../chat/services/chat_service.dart';
 
 import '../models/user_profile_model.dart';
 import '../services/user_profile_service.dart';
@@ -181,23 +182,67 @@ class _UserProfileScreenState
                   child:
                       ElevatedButton.icon(
                     onPressed: () async {
-                      print("Current User: $currentUserId");
-print("Profile User: ${user!.id}");
   try {
-    final conversationId = await UserProfileService.getOrCreateConversation(user!.id);
+    final status =
+        await ChatService.instance.getConversationStatus(
+      user!.id,
+    );
 
     if (!mounted) return;
 
+    // Friend → Open existing conversation
+    if (status.status == "accepted") {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ConversationScreen(
+            conversationId:
+                status.conversationId!.toString(),
+            receiverId: user!.id,
+            currentUserId: currentUserId ?? 0,
+            chatName: user!.fullName,
+            profileImage: user!.profilePicture,
+            isOnline: user!.isOnline,
+          ),
+        ),
+      );
+
+      return;
+    }
+
+    // Pending request
+    if (status.status == "pending") {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ConversationScreen(
+            conversationId:
+                status.conversationId?.toString(),
+            receiverId: user!.id,
+            currentUserId: currentUserId ?? 0,
+            chatName: user!.fullName,
+            profileImage: user!.profilePicture,
+            isOnline: user!.isOnline,
+            isPending: true,
+          ),
+        ),
+      );
+
+      return;
+    }
+
+    // No relationship
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => ConversationScreen(
-          conversationId: conversationId.toString(),
+          conversationId: null,
           receiverId: user!.id,
           currentUserId: currentUserId ?? 0,
           chatName: user!.fullName,
           profileImage: user!.profilePicture,
           isOnline: user!.isOnline,
+          isPending: false,
         ),
       ),
     );
