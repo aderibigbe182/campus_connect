@@ -104,23 +104,34 @@ class _ConversationScreenState
     _loadOlderMessages();
   }
 }
-    Future<void> _initializeConversation() async {
-      try {
-        await _loadConversationStatus();
+Future<void> _initializeConversation() async {
+  try {
+    await _loadConversationStatus();
 
-        if (widget.conversationId != null) {
-  await _loadMessages();
+    if (widget.conversationId != null) {
+      await _loadMessages();
 
-  await ChatService.instance.markConversationAsRead(
-    conversationId: int.parse(widget.conversationId!),
-  );
-}
-      } catch (e) {
-        debugPrint(e.toString());
-      }
+      await ChatService.instance.markConversationAsRead(
+        conversationId: int.parse(widget.conversationId!),
+      );
+    } else {
+      if (!mounted) return;
+
+      setState(() {
+        _loading = false;
+      });
     }
-    
-    Future<void> _loadConversationStatus() async {
+  } catch (e) {
+    debugPrint(e.toString());
+
+    if (!mounted) return;
+
+    setState(() {
+      _loading = false;
+    });
+  }
+}    
+  Future<void> _loadConversationStatus() async {
   try {
 
     final status = await ChatService.instance.getConversationStatus(
