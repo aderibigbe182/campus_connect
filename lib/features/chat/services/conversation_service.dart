@@ -10,7 +10,10 @@ class ConversationService {
       "https://campus-connect-backend-6pwg.onrender.com/api/chat";
 
   static Future<List<MessageModel>> getMessages(
-      int conversationId) async {
+  int conversationId, {
+  int page = 1,
+  int limit = 30,
+}) async {
     final token = await StorageService.getToken();
 
     final response = await http.get(

@@ -8,7 +8,6 @@ import '../models/reply_message_model.dart';
 import '../services/chat_service.dart';
 import '/core/services/socket_service.dart';
 import '../services/chat_cache_service.dart';
-import '../services/message_cache_service.dart';
 
 import '../widgets/message_input_bar.dart';
 import '../widgets/reply_preview.dart';
@@ -20,6 +19,7 @@ import '../widgets/image_message_bubble.dart';
 import 'image_preview_screen.dart';
 import '../widgets/request_banner.dart';
 import '../models/conversation_status_model.dart';
+
 class ConversationScreen extends StatefulWidget {
   final String? conversationId;
   final int receiverId;
@@ -72,6 +72,7 @@ class _ConversationScreenState
       _listenForPresence();
       _listenForTyping();
       _listenForSeen();
+      _listenForMessages();
       _initializeConversation();
       _scrollController.addListener(_onScroll);
       _isOnline = widget.isOnline;
@@ -79,8 +80,14 @@ class _ConversationScreenState
 
     @override
     void dispose() {
+      SocketService.instance.socket?.off("new_message");
+      SocketService.instance.socket?.off("typing");
+      SocketService.instance.socket?.off("stop_typing");
+      SocketService.instance.socket?.off("message_seen");
+
       _scrollController.removeListener(_onScroll);
       _scrollController.dispose();
+
       super.dispose();
     }
     void configureStatus(
@@ -102,14 +109,12 @@ class _ConversationScreenState
         await _loadConversationStatus();
 
         if (widget.conversationId != null) {
-          await _loadMessages();
-        await _loadMessages();
+  await _loadMessages();
 
-        await ChatService.instance.markConversationAsRead(
-          conversationId:
-              int.parse(widget.conversationId!),
-        );
-        }
+  await ChatService.instance.markConversationAsRead(
+    conversationId: int.parse(widget.conversationId!),
+  );
+}
       } catch (e) {
         debugPrint(e.toString());
       }
@@ -130,7 +135,7 @@ class _ConversationScreenState
     debugPrint(e.toString());
   }
 }
-void _listenForSeen() {
+Future<void> _listenForSeen() async {
   SocketService.instance.listenMessageSeen((data) {
 
     final messageId = data["messageId"];
@@ -149,6 +154,56 @@ void _listenForSeen() {
         seen: true,
       );
     });
+  });
+  if (widget.conversationId == null) return;
+
+  final conversationId = int.parse(widget.conversationId!);
+
+  await ChatCacheService.instance.saveMessages(
+  conversationId,
+  _messages.map((e) => e.toJson()).toList(),
+);
+}
+void _listenForMessages() {
+  SocketService.instance.listenMessage((data) async {
+    final message = MessageModel.fromJson(data);
+
+    if (widget.conversationId == null) return;
+
+    // Ignore messages for other conversations
+    if (message.conversationId.toString() !=
+        widget.conversationId) {
+      return;
+    }
+
+    // Prevent duplicates
+    final exists = _messages.any(
+      (m) => m.id == message.id,
+    );
+
+    if (exists) return;
+
+    if (!mounted) return;
+
+    setState(() {
+      _messages.add(message);
+    });
+
+    await ChatCacheService.instance.saveMessages(
+      int.parse(widget.conversationId!),
+      _messages.map((e) => e.toJson()).toList(),
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+  if (_scrollController.hasClients) {
+    final distance =
+        _scrollController.position.maxScrollExtent -
+        _scrollController.position.pixels;
+
+    if (distance < 150) {
+      _scrollToBottom();
+    }
+  }
+});
   });
 }
 void _listenForPresence() {
@@ -172,31 +227,11 @@ void _listenForPresence() {
       int.parse(widget.conversationId!);
 
   // Load cached messages first
-  final cached =
-      await MessageCacheService.instance
-          .getMessages(conversationId);
+  final cached = ChatCacheService.instance
+    .loadMessages(conversationId);
 
   if (cached.isNotEmpty && mounted) {
     setState(() {
-      _messages
-        ..clear()
-        ..addAll(cached);
-
-      _loading = false;
-    });
-  }
-
-  try {
-    setState(() => _loading = true);
-
-    // ==========================
-    // Load cached messages first
-    // ==========================
-    final cached = ChatCacheService.instance.loadMessages(
-      int.parse(widget.conversationId!),
-    );
-
-    if (cached.isNotEmpty && mounted) {
       _messages
         ..clear()
         ..addAll(
@@ -205,15 +240,11 @@ void _listenForPresence() {
               .toList(),
         );
 
-      setState(() {
-        _loading = false;
-      });
+      _loading = false;
+    });
+  }
 
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _scrollToBottom();
-      });
-    }
-
+  try {
     // ==========================
     // Fetch latest from server
     // ==========================
@@ -221,25 +252,15 @@ void _listenForPresence() {
         await ChatService.instance.getMessages(
       int.parse(widget.conversationId!),
     );
-    await MessageCacheService.instance.saveMessages(
-  conversationId,
-  messages,
-);
-
+    await ChatCacheService.instance.saveMessages(
+      conversationId,
+      messages.map((e) => e.toJson()).toList(),
+    );
     if (!mounted) return;
 
     _messages
       ..clear()
       ..addAll(messages);
-
-    // ==========================
-    // Save fresh copy to cache
-    // ==========================
-    await ChatCacheService.instance.saveMessages(
-      int.parse(widget.conversationId!),
-      messages.map((e) => e.toJson()).toList(),
-    );
-
     setState(() {
       _loading = false;
     });
@@ -289,6 +310,10 @@ Future<void> _loadOlderMessages() async {
       _hasMore = false;
     }
   });
+  await ChatCacheService.instance.saveMessages(
+  int.parse(widget.conversationId!),
+  _messages.map((e) => e.toJson()).toList(),
+);
 
   WidgetsBinding.instance.addPostFrameCallback((_) {
     final newHeight =
@@ -347,7 +372,7 @@ Future<void> _sendText(String text) async {
   });
 
   try {
-    await ChatService.instance.sendMessage(
+    final message = await ChatService.instance.sendMessage(
       conversationId: widget.conversationId == null
           ? null
           : int.parse(widget.conversationId!),
@@ -355,6 +380,14 @@ Future<void> _sendText(String text) async {
       message: text,
       reply: _replyMessage,
     );
+    _messages.add(message);
+
+    if (widget.conversationId != null) {
+      await ChatCacheService.instance.saveMessages(
+  int.parse(widget.conversationId!),
+  _messages.map((e) => e.toJson()).toList(),
+);
+    }
 
     if (!mounted) return;
 
@@ -404,7 +437,7 @@ Future<void> _sendText(String text) async {
     setState(() => _sending = true);
 
     try {
-      await ChatService.instance.sendMessage(
+      final message = await ChatService.instance.sendMessage(
         conversationId:
           widget.conversationId == null
               ? null
@@ -416,6 +449,14 @@ Future<void> _sendText(String text) async {
         fileName: image.path.split(Platform.pathSeparator).last,
         fileSize: await image.length(),
       );
+      _messages.add(message);
+
+      if (widget.conversationId != null) {
+        await ChatCacheService.instance.saveMessages(
+  int.parse(widget.conversationId!),
+  _messages.map((e) => e.toJson()).toList(),
+);
+      }
 
       setState(() {
         _replyMessage = null;
@@ -454,7 +495,7 @@ Future<void> _sendText(String text) async {
     setState(() => _sending = true);
 
     try {
-      await ChatService.instance.sendMessage(
+      final message = await ChatService.instance.sendMessage(
         conversationId:
             widget.conversationId == null
                 ? null
@@ -466,6 +507,15 @@ Future<void> _sendText(String text) async {
         fileName: file.path.split(Platform.pathSeparator).last,
         fileSize: await file.length(),
       );
+
+      _messages.add(message);
+
+      if (widget.conversationId != null) {
+        await ChatCacheService.instance.saveMessages(
+  int.parse(widget.conversationId!),
+  _messages.map((e) => e.toJson()).toList(),
+);
+      }
 
       setState(() {
         _replyMessage = null;
@@ -499,6 +549,16 @@ Future<void> _sendText(String text) async {
     );
 
     await _loadMessages();
+    _messages.removeWhere((m) => m.id == messageId);
+
+    if (widget.conversationId != null) {
+      await ChatCacheService.instance.saveMessages(
+  int.parse(widget.conversationId!),
+  _messages.map((e) => e.toJson()).toList(),
+);
+    }
+
+    setState(() {});
   }
 
   PreferredSizeWidget _buildAppBar() {
@@ -737,7 +797,8 @@ if (_messages.isEmpty) {
 }
 final messageIndex =
     _loadingOlder ? index - 1 : index;
-        if (_typing && index == _messages.length) {
+        if (_typing &&
+    messageIndex == _messages.length) {
           return Padding(
             padding: const EdgeInsets.only(
               left: 12,

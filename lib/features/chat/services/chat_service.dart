@@ -79,9 +79,14 @@ Future<void> declineRequest({
   // ==========================================================
   // GET CHAT LIST
   // ==========================================================
-  Future<List<ConversationModel>> getChatList() async {
+  Future<Map<String, dynamic>> getChatList({
+  int page = 1,
+  int limit = 20,
+}) async {
   final response = await http.get(
-    Uri.parse("$_baseUrl/api/chat/conversations"),
+    Uri.parse(
+      "$_baseUrl/api/chat/conversations?page=$page&limit=$limit",
+    ),
     headers: await _headers(),
   );
 
@@ -93,9 +98,13 @@ Future<void> declineRequest({
 
   final List data = body["chats"] ?? [];
 
-  return data
-      .map((e) => ConversationModel.fromJson(e))
-      .toList();
+  return {
+    "chats": data
+        .map((e) => ConversationModel.fromJson(e))
+        .toList(),
+    "hasMore":
+        body["pagination"]?["hasMore"] ?? false,
+  };
 }
 //=================================
 //GET CONVERSATION STATUS
@@ -192,24 +201,19 @@ Future<MessageModel> sendMessage({
 
     body: jsonEncode({
 
-      if (conversationId != null)
-        "conversationId": conversationId,
+      "conversationId": ?conversationId,
 
-      if (receiverId != null)
-        "receiverId": receiverId,
+      "receiverId": ?receiverId,
 
       "message": message,
 
       "messageType": messageType,
 
-      if (fileUrl != null)
-        "fileUrl": fileUrl,
+      "fileUrl": ?fileUrl,
 
-      if (fileName != null)
-        "fileName": fileName,
+      "fileName": ?fileName,
 
-      if (fileSize != null)
-        "fileSize": fileSize,
+      "fileSize": ?fileSize,
 
       if (reply != null)
         "replyToMessageId": reply.messageId,
@@ -236,13 +240,16 @@ Future<MessageModel> sendMessage({
 // GET MESSAGES
 //============================
 Future<List<MessageModel>> getMessages(
-    int conversationId,
+    int conversationId, {
+      int page = 1,
+      int limit = 30,
+    }
 ) async {
 
   final response = await http.get(
     Uri.parse(
-      "$_baseUrl/api/chat/messages/$conversationId",
-    ),
+  "$_baseUrl/api/chat/messages/$conversationId?page=$page&limit=$limit",
+  ),
     headers: await _headers(),
   );
 

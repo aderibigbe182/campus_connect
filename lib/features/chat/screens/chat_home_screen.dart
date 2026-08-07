@@ -7,6 +7,7 @@ import '../models/conversation_model.dart';
 import '../models/message_model.dart';
 import '../widgets/chat_tile.dart';
 import 'conversation_screen.dart';
+import '../services/chat_cache_service.dart';
 class ChatsScreen extends StatefulWidget {
   const ChatsScreen({super.key});
 
@@ -26,16 +27,17 @@ final ScrollController _scrollController =
     @override
   void initState() {
     super.initState();
-    loadChats();
+    _loadCachedChats();
+    loadChats(refresh: true);
     _scrollController.addListener(() {
   if (_scrollController.position.pixels >=
       _scrollController.position.maxScrollExtent - 300) {
     loadChats();
   }
 });
-    _moveChatToTop();
-    _listenNewMessages();
-    _listenSeenUpdates();
+  _moveChatToTop();
+  _listenNewMessages();
+  _listenSeenUpdates();
   }
   @override
 void dispose() {
@@ -89,7 +91,9 @@ Future<void> loadChats({
       loading = false;
 
     });
-
+await ChatCacheService.instance.saveChats(
+  chats.map((e) => e.toJson()).toList(),
+);
   } catch (e) {
 
     debugPrint(e.toString());
@@ -108,7 +112,7 @@ Future<void> loadChats({
 }
 void _listenNewMessages() {
 
-  SocketService.instance.listenMessage((data) {
+  SocketService.instance.listenMessage((data) async {
 
     final message = MessageModel.fromJson(data);
 
@@ -132,9 +136,10 @@ void _listenNewMessages() {
       chats.removeAt(index);
 
       chats.insert(0, updated);
-
     });
-
+    await ChatCacheService.instance.saveChats(
+  chats.map((e) => e.toJson()).toList(),
+);
   });
 
 }
@@ -156,11 +161,14 @@ void _moveChatToTop([ConversationModel? chat]) {
 
   if (mounted) {
     setState(() {});
+    ChatCacheService.instance.saveChats(
+  chats.map((e) => e.toJson()).toList(),
+);
   }
 }
 void _listenSeenUpdates() {
 
-  SocketService.instance.listenMessageSeen((data) {
+  SocketService.instance.listenMessageSeen((data) async {
 
     final messageId = data["messageId"];
 
@@ -175,8 +183,28 @@ void _listenSeenUpdates() {
       );
     });
 
+    await ChatCacheService.instance.saveChats(
+      chats.map((e) => e.toJson()).toList(),
+    );
+
   });
 
+}
+Future<void> _loadCachedChats() async {
+  final cached = ChatCacheService.instance.loadChats();
+
+  if (cached.isEmpty) return;
+
+  final cachedChats = cached
+      .map((e) => ConversationModel.fromJson(e))
+      .toList();
+
+  if (!mounted) return;
+
+  setState(() {
+    chats = cachedChats;
+    loading = false;
+  });
 }
 @override
 Widget build(BuildContext context) {
@@ -230,6 +258,9 @@ Widget build(BuildContext context) {
       );
 
     });
+    await ChatCacheService.instance.saveChats(
+  chats.map((e) => e.toJson()).toList(),
+);
 
   }
 
