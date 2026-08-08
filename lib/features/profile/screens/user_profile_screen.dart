@@ -182,80 +182,70 @@ class _UserProfileScreenState
                   child:
                       ElevatedButton.icon(
                     onPressed: () async {
-  try {
-    final status =
-        await ChatService.instance.getConversationStatus(
-      user!.id,
-    );
+                      try {
+                        final status =
+                            await ChatService.instance.getConversationStatus(
+                          user!.id,
+                        );
 
-    if (!mounted) return;
+                        if (!mounted) return;
 
-    // Friend → Open existing conversation
-    if (status.status == "accepted") {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => ConversationScreen(
-            conversationId:
-                status.conversationId!.toString(),
-            receiverId: user!.id,
-            currentUserId: currentUserId ?? 0,
-            chatName: user!.fullName,
-            profileImage: user!.profilePicture,
-            isOnline: user!.isOnline,
-          ),
-        ),
-      );
+                        // ==========================================
+                        // FRIENDS
+                        // ==========================================
+                        if (status.status == "friends") {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ConversationScreen(
+                                conversationId:
+                                    status.conversationId?.toString(),
+                                receiverId: user!.id,
+                                currentUserId: currentUserId ?? 0,
+                                chatName: user!.fullName,
+                                profileImage: user!.profilePicture,
+                                isOnline: user!.isOnline,
+                              ),
+                            ),
+                          );
 
-      return;
-    }
+                          return;
+                        }
 
-    // Pending request
-    if (status.status == "pending") {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => ConversationScreen(
-            conversationId:
-                status.conversationId?.toString(),
-            receiverId: user!.id,
-            currentUserId: currentUserId ?? 0,
-            chatName: user!.fullName,
-            profileImage: user!.profilePicture,
-            isOnline: user!.isOnline,
-            isPending: true,
-          ),
-        ),
-      );
+                        // ==========================================
+                        // EVERYTHING ELSE
+                        // ==========================================
+                        // none
+                        // pending_sent
+                        // pending_received
+                        // declined
+                        //
+                        // These all open the temporary conversation.
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ConversationScreen(
+                              conversationId:
+                                  status.conversationId?.toString(),
+                              receiverId: user!.id,
+                              currentUserId: currentUserId ?? 0,
+                              chatName: user!.fullName,
+                              profileImage: user!.profilePicture,
+                              isOnline: user!.isOnline,
+                              isPending: status.pending,
+                            ),
+                          ),
+                        );
+                      } catch (e) {
+                        if (!mounted) return;
 
-      return;
-    }
-
-    // No relationship
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ConversationScreen(
-          conversationId: null,
-          receiverId: user!.id,
-          currentUserId: currentUserId ?? 0,
-          chatName: user!.fullName,
-          profileImage: user!.profilePicture,
-          isOnline: user!.isOnline,
-          isPending: false,
-        ),
-      ),
-    );
-  } catch (e) {
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(e.toString()),
-      ),
-    );
-  }
-},
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(e.toString()),
+                          ),
+                        );
+                      }
+                    },
                     icon: const Icon(
                       Icons.message,
                     ),

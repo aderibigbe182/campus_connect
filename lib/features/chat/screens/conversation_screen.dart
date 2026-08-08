@@ -374,7 +374,7 @@ void _listenForTyping() {
 //SEND TEXT
 //============================================
 Future<void> _sendText(String text) async {
-  if (_status?.status != "friends") return;
+  if (_status?.canReply != true) return;
 
   if (_sending) return;
 
@@ -399,6 +399,7 @@ Future<void> _sendText(String text) async {
   _messages.map((e) => e.toJson()).toList(),
 );
     }
+  await _loadConversationStatus();
 
     if (!mounted) return;
 
@@ -871,7 +872,7 @@ final messageIndex =
             },
           ),
 
-        if (_status?.status == "friends")
+        if (_status?.canReply == true)
   MessageInputBar(
     visible: true,
     reply: _replyMessage,
@@ -885,8 +886,7 @@ final messageIndex =
       final file = await Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) =>
-              ImagePreviewScreen(
+          builder: (_) => ImagePreviewScreen(
             imageFile: image,
           ),
         ),
