@@ -38,29 +38,53 @@ class MessageModel {
     required this.createdAt,
   });
 
-  factory MessageModel.fromJson(
-    Map<String, dynamic> json,
-  ) {
-    return MessageModel(
-      id: json["id"],
-      conversationId: json["conversation_id"],
-      senderId: json["sender_id"],
-      message: json["message"],
-      messageType:
-          json["message_type"] ?? "text",
-      fileUrl: json["file_url"],
-      fileName: json["file_name"],
-      fileSize: json["file_size"],
-      replyToMessageId:
-          json["reply_to_message_id"],
-      delivered:
-          json["delivered"] ?? false,
-      seen: json["seen"] ?? false,
-      createdAt: DateTime.parse(
-        json["created_at"],
-      ),
-    );
-  }
+factory MessageModel.fromJson(
+  Map<String, dynamic> json,
+) {
+  return MessageModel(
+    id: int.parse(json["id"].toString()),
+
+    conversationId:
+        int.parse(json["conversation_id"].toString()),
+
+    senderId:
+        int.parse(json["sender_id"].toString()),
+
+    message: json["message"],
+
+    messageType:
+        json["message_type"]?.toString() ?? "text",
+
+    fileUrl:
+        json["file_url"]?.toString(),
+
+    fileName:
+        json["file_name"]?.toString(),
+
+    fileSize:
+        json["file_size"] == null
+            ? null
+            : int.parse(json["file_size"].toString()),
+
+    replyToMessageId:
+        json["reply_to_message_id"] == null
+            ? null
+            : int.parse(
+                json["reply_to_message_id"].toString(),
+              ),
+
+    delivered:
+        json["delivered"] ?? false,
+
+    seen:
+        json["seen"] ?? false,
+
+    createdAt:
+        DateTime.parse(
+          json["created_at"].toString(),
+        ),
+  );
+}
 MessageModel copyWith({
   int? id,
   int? conversationId,

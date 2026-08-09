@@ -269,7 +269,7 @@ Widget build(BuildContext context) {
     MaterialPageRoute(
       builder: (_) => ConversationScreen(
         conversationId:
-            chat.conversationId.toString(),
+            chat.conversationId,
         receiverId: 0,
         currentUserId: 1,
         chatName:

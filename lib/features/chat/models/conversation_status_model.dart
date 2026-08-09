@@ -24,19 +24,37 @@ class ConversationStatusModel {
   });
 
   factory ConversationStatusModel.fromJson(
-    Map<String, dynamic> json,
-  ) {
-    return ConversationStatusModel(
-      status: json["status"] ?? "none",
-      canReply: json["canReply"] ?? false,
-      pending: json["pending"] ?? false,
-      isRequester:
-          json["isRequester"] ?? false,
-      pendingMessage:
-          json["pendingMessage"],
-      conversationId:
-          json["conversationId"],
-      requestId: json["requestId"],
-    );
-  }
+  Map<String, dynamic> json,
+) {
+  return ConversationStatusModel(
+    status:
+        json["status"]?.toString() ?? "none",
+
+    canReply:
+        json["canReply"] ?? false,
+
+    pending:
+        json["pending"] ?? false,
+
+    isRequester:
+        json["isRequester"] ?? false,
+
+    pendingMessage:
+        json["pendingMessage"]?.toString(),
+
+    conversationId:
+        json["conversationId"] == null
+            ? null
+            : int.parse(
+                json["conversationId"].toString(),
+              ),
+
+    requestId:
+        json["requestId"] == null
+            ? null
+            : int.parse(
+                json["requestId"].toString(),
+              ),
+  );
+}
 }

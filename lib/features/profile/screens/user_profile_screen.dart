@@ -199,7 +199,7 @@ class _UserProfileScreenState
                             MaterialPageRoute(
                               builder: (_) => ConversationScreen(
                                 conversationId:
-                                    status.conversationId?.toString(),
+                                    status.conversationId,
                                 receiverId: user!.id,
                                 currentUserId: currentUserId ?? 0,
                                 chatName: user!.fullName,
@@ -226,7 +226,7 @@ class _UserProfileScreenState
                           MaterialPageRoute(
                             builder: (_) => ConversationScreen(
                               conversationId:
-                                  status.conversationId?.toString(),
+                                  status.conversationId,
                               receiverId: user!.id,
                               currentUserId: currentUserId ?? 0,
                               chatName: user!.fullName,

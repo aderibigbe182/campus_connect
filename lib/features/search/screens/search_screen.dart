@@ -401,7 +401,7 @@ Future<void> _loadCurrentUser() async {
     context,
     MaterialPageRoute(
       builder: (_) => ConversationScreen(
-        conversationId: chat.conversationId,
+        conversationId: int.tryParse(chat.conversationId),
         receiverId: int.tryParse(chat.receiverId) ?? 0,
         currentUserId: currentUserId ?? 0,
         chatName: chat.fullName,
@@ -469,7 +469,7 @@ Future<void> _loadCurrentUser() async {
     context,
     MaterialPageRoute(
       builder: (_) => ConversationScreen(
-        conversationId: message.conversationId,
+        conversationId: int.tryParse(message.conversationId),
         receiverId: currentUserId ?? 0,
         isOnline: false,
         currentUserId: currentUserId ?? 0,

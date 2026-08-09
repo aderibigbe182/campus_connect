@@ -21,8 +21,10 @@ import '../widgets/request_banner.dart';
 import '../models/conversation_status_model.dart';
 
 class ConversationScreen extends StatefulWidget {
-  final String? conversationId;
+  final int? conversationId;
+
   final int receiverId;
+
 
   final int currentUserId;
 
@@ -58,6 +60,7 @@ class _ConversationScreenState
     ConversationStatusModel? _status;
     ReplyMessageModel? _replyMessage;
     final List<MessageModel> _messages = [];
+    int? _conversationId;
     int _page = 1;
     final int _limit = 30;
     bool _hasMore = true;
@@ -69,6 +72,7 @@ class _ConversationScreenState
     @override
     void initState() {
       super.initState();
+       _conversationId = widget.conversationId;
       _listenForPresence();
       _listenForTyping();
       _listenForSeen();
@@ -112,7 +116,7 @@ Future<void> _initializeConversation() async {
       await _loadMessages();
 
       await ChatService.instance.markConversationAsRead(
-        conversationId: int.parse(widget.conversationId!),
+        conversationId: widget.conversationId!,
       );
     } else {
       if (!mounted) return;
@@ -137,6 +141,15 @@ Future<void> _initializeConversation() async {
     final status = await ChatService.instance.getConversationStatus(
       widget.receiverId,
     );
+     debugPrint("========== CONVERSATION STATUS ==========");
+    debugPrint("status: ${status.status}");
+    debugPrint("canReply: ${status.canReply}");
+    debugPrint("pending: ${status.pending}");
+    debugPrint("isRequester: ${status.isRequester}");
+    debugPrint("pendingMessage: ${status.pendingMessage}");
+    debugPrint("conversationId: ${status.conversationId}");
+    debugPrint("requestId: ${status.requestId}");
+    debugPrint("=========================================");
 
     if (!mounted) return;
 
@@ -166,14 +179,7 @@ Future<void> _listenForSeen() async {
       );
     });
   });
-  if (widget.conversationId == null) return;
 
-  final conversationId = int.parse(widget.conversationId!);
-
-  await ChatCacheService.instance.saveMessages(
-  conversationId,
-  _messages.map((e) => e.toJson()).toList(),
-);
 }
 void _listenForMessages() {
   SocketService.instance.listenMessage((data) async {
@@ -182,7 +188,7 @@ void _listenForMessages() {
     if (widget.conversationId == null) return;
 
     // Ignore messages for other conversations
-    if (message.conversationId.toString() !=
+    if (message.conversationId !=
         widget.conversationId) {
       return;
     }
@@ -201,7 +207,7 @@ void _listenForMessages() {
     });
 
     await ChatCacheService.instance.saveMessages(
-      int.parse(widget.conversationId!),
+      widget.conversationId!,
       _messages.map((e) => e.toJson()).toList(),
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -235,7 +241,7 @@ void _listenForPresence() {
   if (widget.conversationId == null) return;
 
   final conversationId =
-      int.parse(widget.conversationId!);
+      widget.conversationId!;
 
   // Load cached messages first
   final cached = ChatCacheService.instance
@@ -261,7 +267,7 @@ void _listenForPresence() {
     // ==========================
     final messages =
         await ChatService.instance.getMessages(
-      int.parse(widget.conversationId!),
+      widget.conversationId!,
     );
     await ChatCacheService.instance.saveMessages(
       conversationId,
@@ -301,7 +307,7 @@ Future<void> _loadOlderMessages() async {
 
   final older =
       await ChatService.instance.getMessages(
-    int.parse(widget.conversationId!),
+    widget.conversationId!,
     page: _page,
     limit: _limit,
   );
@@ -322,7 +328,7 @@ Future<void> _loadOlderMessages() async {
     }
   });
   await ChatCacheService.instance.saveMessages(
-  int.parse(widget.conversationId!),
+  widget.conversationId!,
   _messages.map((e) => e.toJson()).toList(),
 );
 
@@ -383,22 +389,23 @@ Future<void> _sendText(String text) async {
   });
 
   try {
-    final message = await ChatService.instance.sendMessage(
-      conversationId: widget.conversationId == null
-          ? null
-          : int.parse(widget.conversationId!),
-      receiverId: widget.receiverId,
-      message: text,
-      reply: _replyMessage,
-    );
+   final message = await ChatService.instance.sendMessage(
+  conversationId: _conversationId,
+  receiverId: widget.receiverId,
+  message: text,
+  reply: _replyMessage,
+);
+if (_conversationId == null) {
+  _conversationId = message.conversationId;
+}
     _messages.add(message);
 
-    if (widget.conversationId != null) {
-      await ChatCacheService.instance.saveMessages(
-  int.parse(widget.conversationId!),
-  _messages.map((e) => e.toJson()).toList(),
-);
-    }
+  if (_conversationId != null) {
+  await ChatCacheService.instance.saveMessages(
+    _conversationId!,
+    _messages.map((e) => e.toJson()).toList(),
+  );
+}
   await _loadConversationStatus();
 
     if (!mounted) return;
@@ -453,7 +460,7 @@ Future<void> _sendText(String text) async {
         conversationId:
           widget.conversationId == null
               ? null
-              : int.parse(widget.conversationId!),
+              : widget.conversationId!,
         receiverId: widget.receiverId,
         message: "",
         messageType: "image",
@@ -465,7 +472,7 @@ Future<void> _sendText(String text) async {
 
       if (widget.conversationId != null) {
         await ChatCacheService.instance.saveMessages(
-  int.parse(widget.conversationId!),
+  widget.conversationId!,
   _messages.map((e) => e.toJson()).toList(),
 );
       }
@@ -511,7 +518,7 @@ Future<void> _sendText(String text) async {
         conversationId:
             widget.conversationId == null
                 ? null
-                : int.parse(widget.conversationId!),
+                : widget.conversationId!,
         receiverId: widget.receiverId,
         message: "",
         messageType: "file",
@@ -524,7 +531,7 @@ Future<void> _sendText(String text) async {
 
       if (widget.conversationId != null) {
         await ChatCacheService.instance.saveMessages(
-  int.parse(widget.conversationId!),
+  widget.conversationId!,
   _messages.map((e) => e.toJson()).toList(),
 );
       }
@@ -565,7 +572,7 @@ Future<void> _sendText(String text) async {
 
     if (widget.conversationId != null) {
       await ChatCacheService.instance.saveMessages(
-  int.parse(widget.conversationId!),
+  widget.conversationId!,
   _messages.map((e) => e.toJson()).toList(),
 );
     }
@@ -764,16 +771,9 @@ if (_messages.isEmpty) {
     child: Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-
-        if (_status != null &&
-            _status!.status != "friends")
-          buildRelationshipBanner(),
-
-        const SizedBox(height: 20),
-
         Text(
-          widget.conversationId == null
-              ? "Start a new conversation 👋"
+          _status?.status == "none"
+              ? "Start a conversation with ${widget.chatName}"
               : "No messages yet",
           textAlign: TextAlign.center,
         ),
@@ -859,71 +859,66 @@ final messageIndex =
     );
   }
     Widget _buildBottomSection() {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (_replyMessage != null)
-          ReplyPreview(
-            reply: _replyMessage!,
-            onCancel: () {
-              setState(() {
-                _replyMessage = null;
-              });
-            },
-          ),
-
-        if (_status?.canReply == true)
-  MessageInputBar(
-    visible: true,
-    reply: _replyMessage,
-    onCancelReply: () {
-      setState(() {
-        _replyMessage = null;
-      });
-    },
-    onSendText: _sendText,
-    onSendImage: (image, caption) async {
-      final file = await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => ImagePreviewScreen(
-            imageFile: image,
-          ),
+  return Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      if (_replyMessage != null)
+        ReplyPreview(
+          reply: _replyMessage!,
+          onCancel: () {
+            setState(() {
+              _replyMessage = null;
+            });
+          },
         ),
-      );
 
-      if (file != null) {
-        await _sendImage(file);
-      }
-    },
-    onSendFile: _sendFile,
-    onSendVoice: (audio) async {},
-  )
-else
-  const SizedBox(height: 10),
-      ],
-    );
-  }
-    @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: _buildAppBar(),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: _buildMessagesList(),
+      if (_status?.canReply == true)
+        MessageInputBar(
+          visible: true,
+          reply: _replyMessage,
+          onCancelReply: () {
+            setState(() {
+              _replyMessage = null;
+            });
+          },
+          onSendText: _sendText,
+          onSendImage: (image, caption) async {
+            final file = await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ImagePreviewScreen(
+                  imageFile: image,
+                ),
+              ),
+            );
+
+            if (file != null) {
+              await _sendImage(file);
+            }
+          },
+          onSendFile: _sendFile,
+          onSendVoice: (audio) async {},
+        )
+      else
+        const SizedBox(height: 10),
+    ],
+  );
+}
+      @override
+      Widget build(BuildContext context) {
+        return Scaffold(
+          appBar: _buildAppBar(),
+          body: SafeArea(
+            child: Column(
+              children: [
+                Expanded(
+                  child: _buildMessagesList(),
+                ),
+
+                _buildBottomSection(),
+              ],
             ),
-            if (_status?.status == "friends")
-
-  _buildBottomSection()
-
-else if (_status?.status != null)
-
-  buildPendingRequestWidget()
-          ],
-        ),
-      ),
-    );
-  }
+          ),
+        );
+      }
     }

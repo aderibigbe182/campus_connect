@@ -172,60 +172,36 @@ Future<List<ChatRequestModel>> getPendingRequests() async {
 // SEND MESSAGES
 //============================
 Future<MessageModel> sendMessage({
-
   int? conversationId,
-
   int? receiverId,
-
   required String message,
-
   String messageType = "text",
-
   String? fileUrl,
-
   String? fileName,
-
   int? fileSize,
-
   ReplyMessageModel? reply,
-
 }) async {
-
   final response = await http.post(
-
     Uri.parse(
       "$_baseUrl/api/chat/message",
     ),
-
     headers: await _headers(),
-
     body: jsonEncode({
-
-      "conversationId": ?conversationId,
-
-      "receiverId": ?receiverId,
-
+      "conversationId": conversationId,
+      "receiverId": receiverId,
       "message": message,
-
       "messageType": messageType,
-
-      "fileUrl": ?fileUrl,
-
-      "fileName": ?fileName,
-
-      "fileSize": ?fileSize,
-
+      "fileUrl": fileUrl,
+      "fileName": fileName,
+      "fileSize": fileSize,
       if (reply != null)
         "replyToMessageId": reply.messageId,
-
     }),
-
   );
-
   if (response.statusCode != 200 &&
       response.statusCode != 201) {
     throw Exception(
-      "Failed to send message",
+      "Failed to send message: ${response.body}",
     );
   }
 
