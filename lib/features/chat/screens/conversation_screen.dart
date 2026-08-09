@@ -389,27 +389,45 @@ Future<void> _sendText(String text) async {
   });
 
   try {
-   final message = await ChatService.instance.sendMessage(
+  final wasTemporary = _conversationId == null;
+  final sentMessage = await ChatService.instance.sendMessage(
   conversationId: _conversationId,
   receiverId: widget.receiverId,
   message: text,
   reply: _replyMessage,
 );
-if (_conversationId == null) {
-  _conversationId = message.conversationId;
-}
-    _messages.add(message);
-
-  if (_conversationId != null) {
+if (wasTemporary) {
+  _conversationId = sentMessage.conversationId;
+  _messages.add(sentMessage);
   await ChatCacheService.instance.saveMessages(
     _conversationId!,
     _messages.map((e) => e.toJson()).toList(),
   );
 }
   await _loadConversationStatus();
-
-    if (!mounted) return;
-
+if (wasTemporary && mounted) {
+  await showDialog<void>(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: const Text(
+          "Your Request Has Been Sent",
+        ),
+        content: Text(
+          "Your message has been sent to ${widget.chatName}.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+            child: const Text("OK"),
+          ),
+        ],
+      );
+    },
+  );
+}
     setState(() {
       _replyMessage = null;
     });
@@ -458,9 +476,7 @@ if (_conversationId == null) {
     try {
       final message = await ChatService.instance.sendMessage(
         conversationId:
-          widget.conversationId == null
-              ? null
-              : widget.conversationId!,
+          widget.conversationId,
         receiverId: widget.receiverId,
         message: "",
         messageType: "image",
@@ -516,9 +532,7 @@ if (_conversationId == null) {
     try {
       final message = await ChatService.instance.sendMessage(
         conversationId:
-            widget.conversationId == null
-                ? null
-                : widget.conversationId!,
+            widget.conversationId,
         receiverId: widget.receiverId,
         message: "",
         messageType: "file",

@@ -121,7 +121,10 @@ void _listenNewMessages() {
           message.conversationId.toString(),
     );
 
-    if (index == -1) return;
+    if (index == -1) {
+  await loadChats(refresh: true);
+  return;
+}
 
     final chat = chats[index];
 
@@ -270,7 +273,7 @@ Widget build(BuildContext context) {
       builder: (_) => ConversationScreen(
         conversationId:
             chat.conversationId,
-        receiverId: 0,
+        receiverId: chat.receiverId,
         currentUserId: 1,
         chatName:
             chat.fullName,
