@@ -51,9 +51,13 @@ class ConversationModel {
   Map<String, dynamic> json,
 ) {
   return ConversationModel(
-    conversationId: json["conversation_id"],
+    conversationId: int.parse(
+  json["conversation_id"].toString(),
+),
 
-    receiverId: json["receiver_id"],
+receiverId: int.parse(
+  json["receiver_id"].toString(),
+),
 
     fullName: json["full_name"] ?? "",
     username: json["username"] ?? "",
@@ -79,13 +83,25 @@ class ConversationModel {
     relationshipStatus:
         json["relationship_status"] ?? "none",
 
-    requestId: json["request_id"],
+    requestId: json["request_id"] == null
+    ? null
+    : int.tryParse(
+      json["requuest_id"].toString(),
+    ),
 
     requestSenderId:
-        json["request_sender_id"],
+        json["request_sender_id"] == null
+        ? null
+        : int.tryParse(
+          json["request_sender_id"].toString(),
+        ),
 
     requestReceiverId:
-        json["request_receiver_id"],
+        json["request_receiver_id"] == null
+        ? null
+        : int.tryParse(
+          json["request_receiver_id"].toString(),
+        ),
   );
 }
   ConversationModel copyWith({

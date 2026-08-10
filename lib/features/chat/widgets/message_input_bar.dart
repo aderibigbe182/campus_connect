@@ -90,46 +90,60 @@ class _MessageInputBarState extends State<MessageInputBar> {
       _selectedImage = null;
     });
   }
+Future<void> _sendMessage() async {
+  if (_sending) return;
 
-  Future<void> _sendMessage() async {
-    if (_sending) return;
+  final text = _controller.text.trim();
 
-    final text = _controller.text.trim();
+  if (text.isEmpty &&
+      _selectedImage == null &&
+      _selectedFile == null) {
+    return;
+  }
 
-    if (text.isEmpty &&
-        _selectedImage == null &&
-        _selectedFile == null) {
+  setState(() => _sending = true);
+
+  try {
+    if (_selectedImage != null) {
+      await widget.onSendImage(
+        _selectedImage!,
+        text.isEmpty ? null : text,
+      );
+
+      if (!mounted) return;
+
+      _selectedImage = null;
+    } else if (_selectedFile != null) {
+      await widget.onSendFile(
+        File(_selectedFile!.path!),
+      );
+
+      if (!mounted) return;
+
+      _selectedFile = null;
+    } else {
+      // Clear BEFORE calling onSendText.
+      //
+      // onSendText may cause this MessageInputBar
+      // to disappear/dispose.
+      _controller.clear();
+
+      await widget.onSendText(text);
+
       return;
     }
 
-    setState(() => _sending = true);
+    if (!mounted) return;
 
-    try {
-      if (_selectedImage != null) {
-        await widget.onSendImage(
-          _selectedImage!,
-          text.isEmpty ? null : text,
-        );
-
-        _selectedImage = null;
-      } else if (_selectedFile != null) {
-        await widget.onSendFile(
-          File(_selectedFile!.path!),
-        );
-
-        _selectedFile = null;
-      } else {
-        await widget.onSendText(text);
-      }
-
-      _controller.clear();
-      widget.onCancelReply();
-    } finally {
-      if (mounted) {
-        setState(() => _sending = false);
-      }
+    _controller.clear();
+    widget.onCancelReply();
+  } finally {
+    if (mounted) {
+      setState(() => _sending = false);
     }
   }
+}
+
 
   void _toggleEmojiKeyboard() {
     if (_showEmoji) {
@@ -137,9 +151,8 @@ class _MessageInputBarState extends State<MessageInputBar> {
     } else {
       _focusNode.unfocus();
     }
-
+   _showEmoji = !_showEmoji;
     setState(() {
-      _showEmoji = !_showEmoji;
     });
   }
 
