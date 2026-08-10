@@ -1,22 +1,16 @@
 class ConversationModel {
   final int conversationId;
-
   final int receiverId;
 
   final String fullName;
-
   final String username;
-
   final String? profilePicture;
 
   final bool isOnline;
-
   final DateTime? lastSeen;
 
   final String? lastMessage;
-
   final String? lastMessageType;
-
   final DateTime? lastMessageTime;
 
   final int unreadCount;
@@ -24,9 +18,7 @@ class ConversationModel {
   final String relationshipStatus;
 
   final int? requestId;
-
   final int? requestSenderId;
-
   final int? requestReceiverId;
 
   const ConversationModel({
@@ -46,62 +38,76 @@ class ConversationModel {
     this.requestSenderId,
     this.requestReceiverId,
   });
-
-  factory ConversationModel.fromJson(
+factory ConversationModel.fromJson(
   Map<String, dynamic> json,
 ) {
   return ConversationModel(
-    conversationId: int.parse(
-  json["conversation_id"].toString(),
-),
+    conversationId: int.tryParse(
+          json["conversation_id"].toString(),
+        ) ??
+        0,
 
-receiverId: int.parse(
-  json["receiver_id"].toString(),
-),
+    receiverId: int.tryParse(
+          json["receiver_id"].toString(),
+        ) ??
+        0,
 
-    fullName: json["full_name"] ?? "",
-    username: json["username"] ?? "",
+    fullName: json["full_name"]?.toString() ?? "",
 
-    profilePicture: json["profile_picture"],
+    username: json["username"]?.toString() ?? "",
 
-    isOnline: json["is_online"] ?? false,
+    profilePicture:
+        json["profile_picture"]?.toString(),
+
+    isOnline: json["is_online"] == true,
 
     lastSeen: json["last_seen"] == null
         ? null
-        : DateTime.parse(json["last_seen"]),
+        : DateTime.tryParse(
+            json["last_seen"].toString(),
+          ),
 
-    lastMessage: json["message"],
+    lastMessage:
+        json["message"]?.toString(),
 
-    lastMessageType: json["message_type"],
+    lastMessageType:
+        json["message_type"]?.toString(),
 
-    lastMessageTime: json["created_at"] == null
-        ? null
-        : DateTime.parse(json["created_at"]),
+    lastMessageTime:
+        json["created_at"] == null
+            ? null
+            : DateTime.tryParse(
+                json["created_at"].toString(),
+              ),
 
-    unreadCount: json["unread_count"] ?? 0,
+    unreadCount: int.tryParse(
+          json["unread_count"].toString(),
+        ) ??
+        0,
 
     relationshipStatus:
-        json["relationship_status"] ?? "none",
+        json["relationship_status"]?.toString() ??
+            "none",
 
     requestId: json["request_id"] == null
-    ? null
-    : int.tryParse(
-      json["requuest_id"].toString(),
-    ),
+        ? null
+        : int.tryParse(
+            json["request_id"].toString(),
+          ),
 
     requestSenderId:
         json["request_sender_id"] == null
-        ? null
-        : int.tryParse(
-          json["request_sender_id"].toString(),
-        ),
+            ? null
+            : int.tryParse(
+                json["request_sender_id"].toString(),
+              ),
 
     requestReceiverId:
         json["request_receiver_id"] == null
-        ? null
-        : int.tryParse(
-          json["request_receiver_id"].toString(),
-        ),
+            ? null
+            : int.tryParse(
+                json["request_receiver_id"].toString(),
+              ),
   );
 }
   ConversationModel copyWith({
