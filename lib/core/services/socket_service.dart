@@ -111,7 +111,7 @@ class SocketService {
   }
 
   void listenMessage(Function(dynamic) callback) {
-    _socket?.on('newMessage', callback);
+    _socket?.on('new_message', callback);
   }
 
   // ===========================================================

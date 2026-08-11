@@ -43,21 +43,19 @@ factory ConversationModel.fromJson(
 ) {
   return ConversationModel(
     conversationId: int.tryParse(
-          json["conversation_id"].toString(),
+          json["conversation_id"]?.toString() ?? "",
         ) ??
         0,
 
     receiverId: int.tryParse(
-          json["receiver_id"].toString(),
+          json["receiver_id"]?.toString() ?? "",
         ) ??
         0,
 
     fullName: json["full_name"]?.toString() ?? "",
-
     username: json["username"]?.toString() ?? "",
 
-    profilePicture:
-        json["profile_picture"]?.toString(),
+    profilePicture: json["profile_picture"]?.toString(),
 
     isOnline: json["is_online"] == true,
 
@@ -67,8 +65,7 @@ factory ConversationModel.fromJson(
             json["last_seen"].toString(),
           ),
 
-    lastMessage:
-        json["message"]?.toString(),
+    lastMessage: json["message"]?.toString(),
 
     lastMessageType:
         json["message_type"]?.toString(),
@@ -81,7 +78,7 @@ factory ConversationModel.fromJson(
               ),
 
     unreadCount: int.tryParse(
-          json["unread_count"].toString(),
+          json["unread_count"]?.toString() ?? "0",
         ) ??
         0,
 

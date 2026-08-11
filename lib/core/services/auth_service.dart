@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../services/storage_service.dart';
 
 class ApiConstants {
   static const baseUrl = 'https://campus-connect-backend-6pwg.onrender.com';
@@ -42,9 +43,32 @@ class AuthService {
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 201 ||
-          response.statusCode == 200) {
-        return data; // success
-      } else {
+    response.statusCode == 200) {
+
+  final user = data['user'];
+
+  if (user != null && user['id'] != null) {
+    final userId = int.tryParse(
+      user['id'].toString(),
+    );
+
+    if (userId != null) {
+      await StorageService.saveUserId(userId);
+
+      print(
+        "REGISTERED USER ID SAVED: $userId",
+      );
+    }
+  }
+
+  if (data['token'] != null) {
+    await StorageService.saveToken(
+      data['token'].toString(),
+    );
+  }
+
+  return data;
+} else {
         throw Exception(
           data['message'] ?? 'Registration failed'
           );
@@ -58,35 +82,76 @@ class AuthService {
   // LOGIN
   // =====================
   static Future<Map<String, dynamic>> login({
-    required String email,
-    required String password,
-  }) async {
-    try {
-      final url = Uri.parse('${ApiConstants.baseUrl}/api/auth/login');
+  required String email,
+  required String password,
+}) async {
+  try {
+    final url = Uri.parse(
+      '${ApiConstants.baseUrl}/api/auth/login',
+    );
 
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'email': email,
-          'password': password,
-        }),
-      );
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'email': email,
+        'password': password,
+      }),
+    );
 
-      final data = jsonDecode(response.body);
+    print("LOGIN STATUS: ${response.statusCode}");
+    print("LOGIN BODY: ${response.body}");
 
-      if (response.statusCode == 200) {
-        return data; // {token, user}
-      } else {
-        throw data['message'] ?? 'Login failed';
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode == 200) {
+
+      // ==========================
+      // SAVE TOKEN
+      // ==========================
+
+      final token = data['token'];
+
+      if (token != null) {
+        await StorageService.saveToken(
+          token.toString(),
+        );
       }
-    } catch (e) {
-      throw e.toString();
-    }
-  }
 
+      // ==========================
+      // SAVE USER ID
+      // ==========================
+
+      final user = data['user'];
+
+      if (user != null && user['id'] != null) {
+        final userId = int.tryParse(
+          user['id'].toString(),
+        );
+
+        if (userId != null) {
+          await StorageService.saveUserId(
+            userId,
+          );
+
+          print(
+            "LOGGED IN USER ID SAVED: $userId",
+          );
+        }
+      }
+
+      return data;
+    } else {
+      throw Exception(
+        data['message'] ?? 'Login failed',
+      );
+    }
+  } catch (e) {
+    throw Exception(e.toString());
+  }
+}
   // =====================
   // GOOGLE LOGIN (optional later)
   // =====================

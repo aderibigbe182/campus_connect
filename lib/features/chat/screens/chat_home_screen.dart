@@ -5,6 +5,7 @@ import '../../../core/services/socket_service.dart';
 
 import '../models/conversation_model.dart';
 import '../models/message_model.dart';
+import '../../../core/services/storage_service.dart';
 import '../widgets/chat_tile.dart';
 import 'conversation_screen.dart';
 import '../services/chat_cache_service.dart';
@@ -29,13 +30,13 @@ final ScrollController _scrollController =
     super.initState();
     _loadCachedChats();
     loadChats(refresh: true);
+    _listenRelationshipUpdates();
     _scrollController.addListener(() {
   if (_scrollController.position.pixels >=
       _scrollController.position.maxScrollExtent - 300) {
     loadChats();
   }
 });
-  _moveChatToTop();
   _listenNewMessages();
   _listenSeenUpdates();
   }
@@ -45,6 +46,18 @@ void dispose() {
   SocketService.instance.socket?.off("new_message");
   SocketService.instance.socket?.off("message_seen");
   _scrollController.dispose();
+  SocketService.instance.socket?.off(
+  "friend_request_sent",
+  );
+  SocketService.instance.socket?.off(
+    "relationship_updated",
+  );
+  SocketService.instance.socket?.off(
+    "friend_request_accepted",
+  );
+  SocketService.instance.socket?.off(
+    "friend_request_declined",
+  );
 
   super.dispose();
 }
@@ -55,7 +68,6 @@ Future<void> loadChats({
   if (refresh) {
     _page = 1;
     _hasMore = true;
-    chats.clear();
   }
 
   if (_isLoadingMore || !_hasMore) return;
@@ -65,7 +77,7 @@ Future<void> loadChats({
   try {
 
     final result =
-        await ChatService.instance.getChatList(
+      await ChatService.instance.getChatList(
       page: _page,
       limit: 20,
     );
@@ -81,10 +93,12 @@ Future<void> loadChats({
     if (!mounted) return;
 
     setState(() {
-
+       if (refresh) {
+    chats = newChats;
+  } else {
       chats.addAll(newChats);
-
-      _hasMore = result["hasMore"];
+  }
+      _hasMore = result["hasMore"] == true;
 
       _page++;
 
@@ -110,64 +124,97 @@ await ChatCacheService.instance.saveChats(
 
   }
 }
-void _listenNewMessages() {
+void _listenRelationshipUpdates() {
+  final socket = SocketService.instance.socket;
 
-  SocketService.instance.listenMessage((data) async {
-
-    final message = MessageModel.fromJson(data);
-
-    final index = chats.indexWhere(
-      (c) => c.conversationId ==
-          message.conversationId.toString(),
+  socket?.on("friend_request_sent", (data) async {
+    debugPrint(
+      "FRIEND REQUEST SENT SOCKET: $data",
     );
 
-    if (index == -1) {
-  await loadChats(refresh: true);
-  return;
-}
-
-    final chat = chats[index];
-
-    final updated = chat.copyWith(
-      lastMessage: message.id.toString(),
-      lastMessageTime: message.createdAt,
-      unreadCount: chat.unreadCount + 1,
-    );
-
-    setState(() {
-
-      chats.removeAt(index);
-
-      chats.insert(0, updated);
-    });
-    await ChatCacheService.instance.saveChats(
-  chats.map((e) => e.toJson()).toList(),
-);
+    await loadChats(refresh: true);
   });
 
+  socket?.on("relationship_updated", (data) async {
+    debugPrint(
+      "RELATIONSHIP UPDATED SOCKET: $data",
+    );
+
+    await loadChats(refresh: true);
+  });
+
+  socket?.on("friend_request_accepted", (data) async {
+    debugPrint(
+      "FRIEND REQUEST ACCEPTED SOCKET: $data",
+    );
+
+    await loadChats(refresh: true);
+  });
+
+  socket?.on("friend_request_declined", (data) async {
+    debugPrint(
+      "FRIEND REQUEST DECLINED SOCKET: $data",
+    );
+
+    await loadChats(refresh: true);
+  });
 }
-void _moveChatToTop([ConversationModel? chat]) {
-  if (chat == null) return;
+void _listenNewMessages() {
+  SocketService.instance.listenMessage((data) async {
+    try {
+      final message = MessageModel.fromJson(data);
 
-  chats.removeWhere(
-    (c) => c.conversationId == chat.conversationId,
-  );
+      debugPrint("========== NEW MESSAGE FOR CHAT LIST ==========");
+      debugPrint("Conversation ID: ${message.conversationId}");
+      debugPrint("Message ID: ${message.id}");
+      debugPrint("Message: ${message.message}");
+      debugPrint("Created At: ${message.createdAt}");
+      debugPrint("===============================================");
 
-  // If ConversationModel doesn't support pinning, insert at start
-  int insertIndex = chats.indexWhere((c) => true);
+      final index = chats.indexWhere(
+        (c) => c.conversationId == message.conversationId,
+      );
 
-  if (insertIndex == -1) {
-    insertIndex = chats.length;
-  }
+      // ==========================================
+      // NEW CONVERSATION
+      // ==========================================
+      if (index == -1) {
+        debugPrint(
+          "Conversation not currently in chat list. Refreshing chat list...",
+        );
 
-  chats.insert(insertIndex, chat);
+        await loadChats(refresh: true);
+        return;
+      }
 
-  if (mounted) {
-    setState(() {});
-    ChatCacheService.instance.saveChats(
-  chats.map((e) => e.toJson()).toList(),
-);
-  }
+      // ==========================================
+      // EXISTING CONVERSATION
+      // ==========================================
+      final chat = chats[index];
+
+      final updated = chat.copyWith(
+        lastMessage: message.message,
+        lastMessageType: message.messageType,
+        lastMessageTime: message.createdAt,
+        unreadCount: chat.unreadCount + 1,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        chats.removeAt(index);
+        chats.insert(0, updated);
+      });
+
+      await ChatCacheService.instance.saveChats(
+        chats.map((e) => e.toJson()).toList(),
+      );
+    } catch (e) {
+      debugPrint(
+        "Error processing new message in chat list: $e",
+      );
+    }
+  });
 }
 void _listenSeenUpdates() {
 
@@ -244,7 +291,6 @@ Widget build(BuildContext context) {
               return ChatTile(
                 chat: chat,
                 onTap: () async {
-
   final index = chats.indexWhere(
     (c) =>
         c.conversationId ==
@@ -252,20 +298,36 @@ Widget build(BuildContext context) {
   );
 
   if (index != -1) {
-
     setState(() {
-
       chats[index] =
           chats[index].copyWith(
         unreadCount: 0,
       );
-
     });
-    await ChatCacheService.instance.saveChats(
-  chats.map((e) => e.toJson()).toList(),
-);
 
+    await ChatCacheService.instance.saveChats(
+      chats.map((e) => e.toJson()).toList(),
+    );
   }
+
+  final currentUserId =
+      await StorageService.getUserId();
+
+  if (currentUserId == null) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          "Unable to identify the logged-in user.",
+        ),
+      ),
+    );
+
+    return;
+  }
+
+  if (!mounted) return;
 
   Navigator.push(
     context,
@@ -273,14 +335,19 @@ Widget build(BuildContext context) {
       builder: (_) => ConversationScreen(
         conversationId:
             chat.conversationId,
-        receiverId: chat.receiverId,
-        currentUserId: 1,
+        receiverId:
+            chat.receiverId,
+        currentUserId:
+            currentUserId,
         chatName:
             chat.fullName,
+        profileImage:
+            chat.profilePicture,
+        isOnline:
+            chat.isOnline,
       ),
     ),
   );
-
 },
               );
             },

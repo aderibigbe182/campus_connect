@@ -185,7 +185,7 @@ void _listenForMessages() {
   SocketService.instance.listenMessage((data) async {
     final message = MessageModel.fromJson(data);
 
-    if (widget.conversationId == null) return;
+    if (_conversationId == null) return;
 
     // Ignore messages for other conversations
     if (message.conversationId !=
@@ -207,7 +207,7 @@ void _listenForMessages() {
     });
 
     await ChatCacheService.instance.saveMessages(
-      widget.conversationId!,
+      _conversationId!,
       _messages.map((e) => e.toJson()).toList(),
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -296,52 +296,63 @@ void _listenForPresence() {
   }
 }
 Future<void> _loadOlderMessages() async {
-  if (_loadingOlder) return;
-
-  _loadingOlder = true;
-
-  final oldHeight =
-      _scrollController.position.maxScrollExtent;
-
-  _page++;
-
-  final older =
-      await ChatService.instance.getMessages(
-    widget.conversationId!,
-    page: _page,
-    limit: _limit,
-  );
-
-  if (!mounted) return;
-
-  if (older.isEmpty) {
-    _hasMore = false;
-    _loadingOlder = false;
+  if (_loadingOlder ||
+      widget.conversationId == null) {
     return;
   }
 
-  setState(() {
-    _messages.insertAll(0, older);
+  _loadingOlder = true;
 
-    if (older.length < _limit) {
-      _hasMore = false;
-    }
-  });
-  await ChatCacheService.instance.saveMessages(
-  widget.conversationId!,
-  _messages.map((e) => e.toJson()).toList(),
-);
-
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    final newHeight =
+  try {
+    final oldHeight =
         _scrollController.position.maxScrollExtent;
 
-    _scrollController.jumpTo(
-      newHeight - oldHeight,
-    );
-  });
+    _page++;
 
-  _loadingOlder = false;
+    final older =
+        await ChatService.instance.getMessages(
+      widget.conversationId!,
+      page: _page,
+      limit: _limit,
+    );
+
+    if (!mounted) return;
+
+    if (older.isEmpty) {
+      _hasMore = false;
+      return;
+    }
+
+    setState(() {
+      _messages.insertAll(0, older);
+
+      if (older.length < _limit) {
+        _hasMore = false;
+      }
+    });
+
+    await ChatCacheService.instance.saveMessages(
+      widget.conversationId!,
+      _messages.map((e) => e.toJson()).toList(),
+    );
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+
+      final newHeight =
+          _scrollController.position.maxScrollExtent;
+
+      _scrollController.jumpTo(
+        newHeight - oldHeight,
+      );
+    });
+  } catch (e) {
+    debugPrint(
+      "Error loading older messages: $e",
+    );
+  } finally {
+    _loadingOlder = false;
+  }
 }
 
 void _listenForTyping() {
@@ -389,50 +400,55 @@ Future<void> _sendText(String text) async {
   });
 
   try {
-  final wasTemporary = _conversationId == null;
-  final sentMessage = await ChatService.instance.sendMessage(
-  conversationId: _conversationId,
-  receiverId: widget.receiverId,
-  message: text,
-  reply: _replyMessage,
-);
-if (wasTemporary) {
-  _conversationId = sentMessage.conversationId;
-  _messages.add(sentMessage);
-  await ChatCacheService.instance.saveMessages(
-    _conversationId!,
-    _messages.map((e) => e.toJson()).toList(),
-  );
-}
-  await _loadConversationStatus();
-if (wasTemporary && mounted) {
-  await showDialog<void>(
-    context: context,
-    builder: (context) {
-      return AlertDialog(
-        title: const Text(
-          "Your Request Has Been Sent",
-        ),
-        content: Text(
-          "Your message has been sent to ${widget.chatName}.",
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            child: const Text("OK"),
-          ),
-        ],
+    final wasTemporary = _conversationId == null;
+
+    final sentMessage =
+        await ChatService.instance.sendMessage(
+      conversationId: _conversationId,
+      receiverId: widget.receiverId,
+      message: text,
+      reply: _replyMessage,
+    );
+
+    // ==========================================
+    // TEMPORARY CONVERSATION BECAME REAL
+    // ==========================================
+
+    if (wasTemporary) {
+      _conversationId =
+          sentMessage.conversationId;
+
+      if (mounted) {
+        setState(() {
+          _messages.add(sentMessage);
+        });
+      }
+
+      await ChatCacheService.instance.saveMessages(
+        _conversationId!,
+        _messages.map((e) => e.toJson()).toList(),
       );
-    },
-  );
-}
-    setState(() {
-      _replyMessage = null;
+    } else {
+      if (mounted) {
+        setState(() {
+          _messages.add(sentMessage);
+        });
+      }
+    }
+
+    // Update pending_sent status
+    await _loadConversationStatus();
+
+    if (mounted) {
+      setState(() {
+        _replyMessage = null;
+      });
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToBottom();
     });
 
-    _scrollToBottom();
   } catch (e) {
     if (!mounted) return;
 
@@ -928,7 +944,11 @@ final messageIndex =
                 Expanded(
                   child: _buildMessagesList(),
                 ),
-
+                // Pending request / relationship banner
+                if (_status?.status == "pending_received" ||
+                    _status?.status == "pending_sent" ||
+                    _status?.status == "declined")
+                  buildRelationshipBanner(),
                 _buildBottomSection(),
               ],
             ),
