@@ -272,4 +272,16 @@ void listenMessageSeen(
     ),
   );
 }
+//================================
+// CHAT LIST UPDATED
+//================================
+
+void listenChatListUpdated(
+  Function(dynamic) callback,
+) {
+  _socket?.on(
+    "chat_list_updated",
+    callback,
+  );
+}
 }

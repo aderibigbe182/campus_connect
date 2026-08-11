@@ -26,29 +26,33 @@ int _page = 1;
 final ScrollController _scrollController =
     ScrollController();
   StreamSubscription? chatSubscription;
-    @override
-  void initState() {
-    super.initState();
-    _loadCachedChats();
-    loadChats(refresh: true);
-    _listenRelationshipUpdates();
-    _scrollController.addListener(() {
-  if (!_scrollController.hasClients) return;
+  @override
+void initState() {
+  super.initState();
 
-  final position = _scrollController.position;
+  _loadCachedChats();
+  _initializeChats();
 
-  // Do not trigger pagination when the list
-  // does not actually have more scrollable content.
-  if (position.maxScrollExtent <= 0) return;
-
-  if (position.pixels >=
-      position.maxScrollExtent - 300) {
-    loadChats();
-  }
-});
+  _listenRelationshipUpdates();
   _listenNewMessages();
   _listenSeenUpdates();
-  }
+  _listenChatListUpdates();
+
+  loadChats(refresh: true);
+
+  _scrollController.addListener(() {
+    if (!_scrollController.hasClients) return;
+
+    final position = _scrollController.position;
+
+    if (position.maxScrollExtent <= 0) return;
+
+    if (position.pixels >=
+        position.maxScrollExtent - 300) {
+      loadChats();
+    }
+  });
+}
   @override
 void dispose() {
 
@@ -70,30 +74,80 @@ void dispose() {
 
   super.dispose();
 }
+Future<void> _initializeChats() async {
+  await _loadCachedChats();
+
+  if (!mounted) return;
+
+  await loadChats(
+    refresh: true,
+  );
+}
+Future<void> _loadCachedChats() async {
+  final cached =
+      ChatCacheService.instance.loadChats();
+
+  if (cached.isEmpty) {
+    return;
+  }
+
+  final cachedChats = cached
+      .map(
+        (e) => ConversationModel.fromJson(e),
+      )
+      .where(
+        (c) => c.relationshipStatus != "declined",
+      )
+      .toList();
+
+  if (!mounted) return;
+
+  setState(() {
+    chats = cachedChats;
+    loading = false;
+  });
+}
 Future<void> loadChats({
   bool refresh = false,
 }) async {
+  // ==========================================
+  // QUEUED REFRESH
+  // ==========================================
+  if (refresh && _isLoadingMore) {
+    _refreshQueued = true;
+    return;
+  }
+
+  // ==========================================
+  // PAGINATION GUARDS
+  // ==========================================
+  if (!refresh && (_isLoadingMore || !_hasMore)) {
+    return;
+  }
+
+  // ==========================================
+  // REFRESH RESET
+  // ==========================================
   if (refresh) {
     _page = 1;
     _hasMore = true;
-
-    // If another request is currently loading,
-    // remember that we need another refresh when it finishes.
-    if (_isLoadingMore) {
-      _refreshQueued = true;
-      return;
-    }
-  }
-
-  if (_isLoadingMore || !_hasMore) {
-    return;
   }
 
   _isLoadingMore = true;
 
+  // Only show the main loading indicator
+  // when there are no chats available yet.
+  if (mounted && chats.isEmpty) {
+    setState(() {
+      loading = true;
+    });
+  }
+
   try {
-    final result =
-        await ChatService.instance.getChatList(
+    // ==========================================
+    // LOAD FROM SERVER
+    // ==========================================
+    final result = await ChatService.instance.getChatList(
       page: _page,
       limit: 20,
     );
@@ -108,21 +162,54 @@ Future<void> loadChats({
     if (!mounted) return;
 
     setState(() {
+      // ========================================
+      // REFRESH
+      // ========================================
       if (refresh) {
         chats = newChats;
+      }
+
+      // ========================================
+      // PAGINATION
+      // ========================================
+      else {
+        final existingIds = chats
+            .map((c) => c.conversationId)
+            .toSet();
+
+        final uniqueChats = newChats
+            .where(
+              (c) => !existingIds.contains(
+                c.conversationId,
+              ),
+            )
+            .toList();
+
+        chats.addAll(uniqueChats);
+      }
+
+      // ========================================
+      // PAGINATION STATE
+      // ========================================
+      if (newChats.isEmpty) {
+        _hasMore = false;
       } else {
-        chats.addAll(newChats);
+        _hasMore = result["hasMore"] == true;
+
+        if (_hasMore) {
+          _page++;
+        }
       }
 
-      _hasMore = result["hasMore"] == true;
-
-      if (_hasMore) {
-        _page++;
-      }
-
+      // ========================================
+      // LOADING FINISHED
+      // ========================================
       loading = false;
     });
 
+    // ==========================================
+    // SAVE CACHE
+    // ==========================================
     await ChatCacheService.instance.saveChats(
       chats.map((e) => e.toJson()).toList(),
     );
@@ -133,19 +220,30 @@ Future<void> loadChats({
 
     if (mounted) {
       setState(() {
+        // IMPORTANT:
+        // Never leave the screen in loading state
+        // after an error.
         loading = false;
       });
     }
   } finally {
+    // ==========================================
+    // ALWAYS RELEASE LOADING LOCK
+    // ==========================================
     _isLoadingMore = false;
 
-    // A refresh request arrived while the previous
-    // request was still running.
+    // ==========================================
+    // RUN QUEUED REFRESH
+    // ==========================================
     if (_refreshQueued) {
       _refreshQueued = false;
 
-      // Start the queued refresh.
-      await loadChats(refresh: true);
+      // Do not await this.
+      // It can otherwise create a chain of refreshes
+      // that keeps the loading state alive.
+      Future.microtask(
+        () => loadChats(refresh: true),
+      );
     }
   }
 }
@@ -183,6 +281,23 @@ void _listenRelationshipUpdates() {
 
     await loadChats(refresh: true);
   });
+}
+void _listenChatListUpdates() {
+  SocketService.instance.listenChatListUpdated(
+    (data) async {
+      debugPrint(
+        "========== CHAT LIST UPDATED ==========",
+      );
+
+      debugPrint(
+        "DATA: $data",
+      );
+
+      await loadChats(
+        refresh: true,
+      );
+    },
+  );
 }
 void _listenNewMessages() {
   SocketService.instance.listenMessage((data) async {
@@ -265,7 +380,7 @@ void _listenSeenUpdates() {
   });
 
 }
-Future<void> _loadCachedChats() async {
+Future<void> loadCachedChats() async {
   final cached = ChatCacheService.instance.loadChats();
 
   if (cached.isEmpty) return;
