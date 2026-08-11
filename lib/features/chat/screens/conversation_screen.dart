@@ -78,6 +78,7 @@ class _ConversationScreenState
       _listenForSeen();
       _listenForMessages();
       _initializeConversation();
+      _listenForRequestUpdates();
       _scrollController.addListener(_onScroll);
       _isOnline = widget.isOnline;
     }
@@ -88,7 +89,12 @@ class _ConversationScreenState
       SocketService.instance.socket?.off("typing");
       SocketService.instance.socket?.off("stop_typing");
       SocketService.instance.socket?.off("message_seen");
-
+      SocketService.instance.socket?.off(
+          "friend_request_accepted",
+        );
+        SocketService.instance.socket?.off(
+          "friend_request_declined",
+        );
       _scrollController.removeListener(_onScroll);
       _scrollController.dispose();
 
@@ -112,11 +118,11 @@ Future<void> _initializeConversation() async {
   try {
     await _loadConversationStatus();
 
-    if (widget.conversationId != null) {
+    if (_conversationId != null) {
       await _loadMessages();
 
       await ChatService.instance.markConversationAsRead(
-        conversationId: widget.conversationId!,
+        conversationId: _conversationId!,
       );
     } else {
       if (!mounted) return;
@@ -126,7 +132,9 @@ Future<void> _initializeConversation() async {
       });
     }
   } catch (e) {
-    debugPrint(e.toString());
+    debugPrint(
+      "INITIALIZE CONVERSATION ERROR: $e",
+    );
 
     if (!mounted) return;
 
@@ -134,14 +142,17 @@ Future<void> _initializeConversation() async {
       _loading = false;
     });
   }
-}    
-  Future<void> _loadConversationStatus() async {
+}
+Future<void> _loadConversationStatus() async {
   try {
-
-    final status = await ChatService.instance.getConversationStatus(
+    final status =
+        await ChatService.instance.getConversationStatus(
       widget.receiverId,
     );
-     debugPrint("========== CONVERSATION STATUS ==========");
+
+    debugPrint(
+      "========== CONVERSATION STATUS ==========",
+    );
     debugPrint("status: ${status.status}");
     debugPrint("canReply: ${status.canReply}");
     debugPrint("pending: ${status.pending}");
@@ -149,14 +160,24 @@ Future<void> _initializeConversation() async {
     debugPrint("pendingMessage: ${status.pendingMessage}");
     debugPrint("conversationId: ${status.conversationId}");
     debugPrint("requestId: ${status.requestId}");
-    debugPrint("=========================================");
+    debugPrint(
+      "=========================================",
+    );
 
     if (!mounted) return;
 
-    configureStatus(status);
+    setState(() {
+      _status = status;
 
+      if (status.conversationId != null) {
+        _conversationId =
+            status.conversationId;
+      }
+    });
   } catch (e) {
-    debugPrint(e.toString());
+    debugPrint(
+      "CONVERSATION STATUS ERROR: $e",
+    );
   }
 }
 Future<void> _listenForSeen() async {
@@ -243,10 +264,10 @@ void _listenForPresence() {
   });
 }
   Future<void> _loadMessages() async {
-  if (widget.conversationId == null) return;
+  if (_conversationId == null) return;
 
   final conversationId =
-      widget.conversationId!;
+      _conversationId!;
 
   // Load cached messages first
   final cached = ChatCacheService.instance
@@ -272,7 +293,7 @@ void _listenForPresence() {
     // ==========================
     final messages =
         await ChatService.instance.getMessages(
-      widget.conversationId!,
+      _conversationId!,
     );
     await ChatCacheService.instance.saveMessages(
       conversationId,
@@ -316,7 +337,7 @@ Future<void> _loadOlderMessages() async {
 
     final older =
         await ChatService.instance.getMessages(
-      widget.conversationId!,
+      _conversationId!,
       page: _page,
       limit: _limit,
     );
@@ -337,7 +358,7 @@ Future<void> _loadOlderMessages() async {
     });
 
     await ChatCacheService.instance.saveMessages(
-      widget.conversationId!,
+      _conversationId!,
       _messages.map((e) => e.toJson()).toList(),
     );
 
@@ -414,7 +435,6 @@ Future<void> _sendText(String text) async {
       message: text,
       reply: _replyMessage,
     );
-
     // ==========================================
     // TEMPORARY CONVERSATION BECAME REAL
     // ==========================================
@@ -423,16 +443,27 @@ Future<void> _sendText(String text) async {
       _conversationId =
           sentMessage.conversationId;
 
-      if (mounted) {
-        setState(() {
+       if (mounted) {
+      setState(() {
+        final exists = _messages.any(
+          (m) => m.id == sentMessage.id,
+        );
+
+        if (!exists) {
           _messages.add(sentMessage);
-        });
-      }
+        }
+
+        _replyMessage = null;
+      });
+    }
 
       await ChatCacheService.instance.saveMessages(
         _conversationId!,
         _messages.map((e) => e.toJson()).toList(),
       );
+      await _loadMessages();
+      await _loadConversationStatus();
+
     } else {
       if (mounted) {
         setState(() {
@@ -440,10 +471,7 @@ Future<void> _sendText(String text) async {
         });
       }
     }
-
-    // Update pending_sent status
-    await _loadConversationStatus();
-
+    
     if (mounted) {
       setState(() {
         _replyMessage = null;
@@ -509,7 +537,7 @@ Future<void> _sendText(String text) async {
 
       if (widget.conversationId != null) {
         await ChatCacheService.instance.saveMessages(
-  widget.conversationId!,
+  _conversationId!,
   _messages.map((e) => e.toJson()).toList(),
 );
       }
@@ -566,7 +594,7 @@ Future<void> _sendText(String text) async {
 
       if (widget.conversationId != null) {
         await ChatCacheService.instance.saveMessages(
-  widget.conversationId!,
+  _conversationId!,
   _messages.map((e) => e.toJson()).toList(),
 );
       }
@@ -582,7 +610,49 @@ Future<void> _sendText(String text) async {
       }
     }
   }
+  void _listenForRequestUpdates() {
+  final socket = SocketService.instance.socket;
 
+  socket?.on(
+    "friend_request_accepted",
+    (data) async {
+      final conversationId =
+          int.tryParse(
+        data["conversationId"].toString(),
+      );
+
+      if (conversationId == null ||
+          conversationId != _conversationId) {
+        return;
+      }
+
+      await _loadConversationStatus();
+
+      if (_conversationId != null) {
+        await _loadMessages();
+      }
+    },
+  );
+
+  socket?.on(
+    "friend_request_declined",
+    (data) async {
+      final conversationId =
+          int.tryParse(
+        data["conversationId"].toString(),
+      );
+
+      if (conversationId == null ||
+          conversationId != _conversationId) {
+        return;
+      }
+
+      if (!mounted) return;
+
+      Navigator.of(context).pop();
+    },
+  );
+}
   void _replyToMessage(MessageModel message) {
     setState(() {
       _replyMessage = ReplyMessageModel(
@@ -607,7 +677,7 @@ Future<void> _sendText(String text) async {
 
     if (widget.conversationId != null) {
       await ChatCacheService.instance.saveMessages(
-  widget.conversationId!,
+  _conversationId!,
   _messages.map((e) => e.toJson()).toList(),
 );
     }
@@ -756,20 +826,58 @@ Widget buildRelationshipBanner() {
     secondaryText: "Decline",
 
     onPrimary: () async {
-      await ChatService.instance.acceptRequest(
-        requestId: _status!.requestId!,
-      );
+  if (_status?.requestId == null) return;
 
-      await _loadConversationStatus();
-    },
+  try {
+    await ChatService.instance.acceptRequest(
+      requestId: _status!.requestId!,
+    );
+
+    await _loadConversationStatus();
+
+    if (_conversationId != null) {
+      await _loadMessages();
+    }
+
+    if (mounted) {
+      setState(() {});
+    }
+  } catch (e) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          e.toString(),
+        ),
+      ),
+    );
+  }
+},
 
     onSecondary: () async {
-      await ChatService.instance.declineRequest(
-        requestId: _status!.requestId!,
-      );
+  if (_status?.requestId == null) return;
 
-      await _loadConversationStatus();
-    },
+  try {
+    await ChatService.instance.declineRequest(
+      requestId: _status!.requestId!,
+    );
+
+    if (!mounted) return;
+
+    Navigator.of(context).pop();
+  } catch (e) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          e.toString(),
+        ),
+      ),
+    );
+  }
+},
   );
 
     case "pending_sent":

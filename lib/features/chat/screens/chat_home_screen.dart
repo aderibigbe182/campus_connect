@@ -20,6 +20,7 @@ class _ChatsScreenState extends State<ChatsScreen> {
 List<ConversationModel> chats = [];
 bool loading = true;
 bool _isLoadingMore = false;
+bool _refreshQueued = false;
 bool _hasMore = true;
 int _page = 1;
 final ScrollController _scrollController =
@@ -72,20 +73,27 @@ void dispose() {
 Future<void> loadChats({
   bool refresh = false,
 }) async {
-
   if (refresh) {
     _page = 1;
     _hasMore = true;
+
+    // If another request is currently loading,
+    // remember that we need another refresh when it finishes.
+    if (_isLoadingMore) {
+      _refreshQueued = true;
+      return;
+    }
   }
 
-  if (_isLoadingMore || !_hasMore) return;
+  if (_isLoadingMore || !_hasMore) {
+    return;
+  }
 
   _isLoadingMore = true;
 
   try {
-
     final result =
-      await ChatService.instance.getChatList(
+        await ChatService.instance.getChatList(
       page: _page,
       limit: 20,
     );
@@ -93,48 +101,53 @@ Future<void> loadChats({
     final List<ConversationModel> newChats =
         (result["chats"] as List<ConversationModel>)
             .where(
-              (c) =>
-                  c.relationshipStatus != "declined",
+              (c) => c.relationshipStatus != "declined",
             )
             .toList();
 
     if (!mounted) return;
 
     setState(() {
-       if (refresh) {
-    chats = newChats;
-  } else {
-      chats.addAll(newChats);
-  }
+      if (refresh) {
+        chats = newChats;
+      } else {
+        chats.addAll(newChats);
+      }
+
       _hasMore = result["hasMore"] == true;
 
-      _page++;
+      if (_hasMore) {
+        _page++;
+      }
 
       loading = false;
-
     });
-await ChatCacheService.instance.saveChats(
-  chats.map((e) => e.toJson()).toList(),
-);
-  } catch (e) {
 
-    debugPrint(e.toString());
+    await ChatCacheService.instance.saveChats(
+      chats.map((e) => e.toJson()).toList(),
+    );
+  } catch (e) {
+    debugPrint(
+      "CHAT LIST ERROR: $e",
+    );
 
     if (mounted) {
       setState(() {
         loading = false;
       });
     }
-
   } finally {
-  if (mounted) {
-    setState(() {
-      _isLoadingMore = false;
-    });
-  } else {
     _isLoadingMore = false;
+
+    // A refresh request arrived while the previous
+    // request was still running.
+    if (_refreshQueued) {
+      _refreshQueued = false;
+
+      // Start the queued refresh.
+      await loadChats(refresh: true);
+    }
   }
-}
 }
 void _listenRelationshipUpdates() {
   final socket = SocketService.instance.socket;
