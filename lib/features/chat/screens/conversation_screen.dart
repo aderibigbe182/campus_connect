@@ -181,46 +181,51 @@ Future<void> _listenForSeen() async {
   });
 
 }
+
 void _listenForMessages() {
   SocketService.instance.listenMessage((data) async {
-    final message = MessageModel.fromJson(data);
+    try {
+      final message =
+          MessageModel.fromJson(
+        Map<String, dynamic>.from(data),
+      );
 
-    if (_conversationId == null) return;
+      if (_conversationId == null) return;
 
-    // Ignore messages for other conversations
-    if (message.conversationId !=
-        widget.conversationId) {
-      return;
+      if (message.conversationId !=
+          _conversationId) {
+        return;
+      }
+
+      final exists = _messages.any(
+        (m) => m.id == message.id,
+      );
+
+      if (exists) return;
+
+      if (!mounted) return;
+
+      setState(() {
+        _messages.add(message);
+      });
+
+      await ChatCacheService.instance.saveMessages(
+        _conversationId!,
+        _messages
+            .map((e) => e.toJson())
+            .toList(),
+      );
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scrollController.hasClients) {
+          _scrollToBottom();
+        }
+      });
+    } catch (e) {
+      debugPrint(
+        "NEW MESSAGE ERROR: $e",
+      );
     }
-
-    // Prevent duplicates
-    final exists = _messages.any(
-      (m) => m.id == message.id,
-    );
-
-    if (exists) return;
-
-    if (!mounted) return;
-
-    setState(() {
-      _messages.add(message);
-    });
-
-    await ChatCacheService.instance.saveMessages(
-      _conversationId!,
-      _messages.map((e) => e.toJson()).toList(),
-    );
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-  if (_scrollController.hasClients) {
-    final distance =
-        _scrollController.position.maxScrollExtent -
-        _scrollController.position.pixels;
-
-    if (distance < 150) {
-      _scrollToBottom();
-    }
-  }
-});
   });
 }
 void _listenForPresence() {

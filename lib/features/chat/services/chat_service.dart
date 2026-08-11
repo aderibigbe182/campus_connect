@@ -43,20 +43,22 @@ class ChatService {
     };
   }
 // ==========================================================
-  // ACCEPT / DECLINE REQUESTS
+  // ACCEPT REQUESTS
   // ========================================================== 
 Future<void> acceptRequest({
   required int requestId,
 }) async {
-  final response = await http.put(
+  final response = await http.patch(
     Uri.parse(
-      "$_baseUrl/api/chat/requests/$requestId/accept",
+      "$_baseUrl/api/chat/request/$requestId/accept",
     ),
     headers: await _headers(),
   );
 
   if (response.statusCode != 200) {
-    throw Exception("Failed to accept request");
+    throw Exception(
+      "Failed to accept request: ${response.body}",
+    );
   }
 }
 //==========================================================
@@ -65,15 +67,17 @@ Future<void> acceptRequest({
 Future<void> declineRequest({
   required int requestId,
 }) async {
-  final response = await http.put(
+  final response = await http.patch(
     Uri.parse(
-      "$_baseUrl/api/chat/requests/$requestId/decline",
+      "$_baseUrl/api/chat/request/$requestId/decline",
     ),
     headers: await _headers(),
   );
 
   if (response.statusCode != 200) {
-    throw Exception("Failed to decline request");
+    throw Exception(
+      "Failed to decline request: ${response.body}",
+    );
   }
 }
   // ==========================================================

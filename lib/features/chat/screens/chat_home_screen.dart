@@ -32,8 +32,16 @@ final ScrollController _scrollController =
     loadChats(refresh: true);
     _listenRelationshipUpdates();
     _scrollController.addListener(() {
-  if (_scrollController.position.pixels >=
-      _scrollController.position.maxScrollExtent - 300) {
+  if (!_scrollController.hasClients) return;
+
+  final position = _scrollController.position;
+
+  // Do not trigger pagination when the list
+  // does not actually have more scrollable content.
+  if (position.maxScrollExtent <= 0) return;
+
+  if (position.pixels >=
+      position.maxScrollExtent - 300) {
     loadChats();
   }
 });
@@ -119,10 +127,14 @@ await ChatCacheService.instance.saveChats(
     }
 
   } finally {
-
+  if (mounted) {
+    setState(() {
+      _isLoadingMore = false;
+    });
+  } else {
     _isLoadingMore = false;
-
   }
+}
 }
 void _listenRelationshipUpdates() {
   final socket = SocketService.instance.socket;
