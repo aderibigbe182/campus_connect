@@ -45,39 +45,61 @@ class ChatService {
 // ==========================================================
   // ACCEPT REQUESTS
   // ========================================================== 
-Future<void> acceptRequest({
-  required int requestId,
-}) async {
-  final response = await http.patch(
+Future<void> acceptRequest(int requestId) async {
+   try {
+    final token = await StorageService.getToken();
+
+    if (token == null || token.isEmpty) {
+      throw Exception("Authentication token not found.");
+    }
+  final response = await http.post(
     Uri.parse(
       "$_baseUrl/api/chat/request/$requestId/accept",
     ),
-    headers: await _headers(),
-  );
+    headers: {
+    "Content-Type": "application/json",
+    "Authorization": "Bearer $token",
+  },
+);
 
   if (response.statusCode != 200) {
+  }else {
     throw Exception(
       "Failed to accept request: ${response.body}",
     );
+  }
+} catch (e) {
+    print("ACCEPT REQUEST ERROR: $e");
   }
 }
 //==========================================================
   // DECLINE REQUESTS
   // ==========================================================
-Future<void> declineRequest({
-  required int requestId,
-}) async {
-  final response = await http.patch(
+Future<void> declineRequest(int requestId) async {
+   try {
+    final token = await StorageService.getToken();
+
+    if (token == null || token.isEmpty) {
+      throw Exception("Authentication token not found.");
+    }
+  final response = await http.post(
     Uri.parse(
       "$_baseUrl/api/chat/request/$requestId/decline",
     ),
-    headers: await _headers(),
-  );
+    headers: {
+    "Content-Type": "application/json",
+    "Authorization": "Bearer $token",
+  },
+);
 
   if (response.statusCode != 200) {
+  } else {
     throw Exception(
       "Failed to decline request: ${response.body}",
     );
+  }
+} catch (e) {
+    print("DECLINE REQUEST ERROR: $e");
   }
 }
   // ==========================================================

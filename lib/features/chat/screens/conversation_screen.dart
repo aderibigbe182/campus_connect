@@ -829,9 +829,7 @@ Widget buildRelationshipBanner() {
   if (_status?.requestId == null) return;
 
   try {
-    await ChatService.instance.acceptRequest(
-      requestId: _status!.requestId!,
-    );
+    await ChatService.instance.acceptRequest(_status!.requestId!);
 
     await _loadConversationStatus();
 
@@ -860,7 +858,7 @@ Widget buildRelationshipBanner() {
 
   try {
     await ChatService.instance.declineRequest(
-      requestId: _status!.requestId!,
+      _status!.requestId!,
     );
 
     if (!mounted) return;
