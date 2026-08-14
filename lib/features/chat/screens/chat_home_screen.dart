@@ -1,14 +1,18 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
+
 import '../services/chat_service.dart';
+import '../services/chat_cache_service.dart';
+
 import '../../../core/services/socket_service.dart';
+import '../../../core/services/socket_listener_service.dart';
+import '../../../core/services/storage_service.dart';
 
 import '../models/conversation_model.dart';
 import '../models/message_model.dart';
-import '../../../core/services/storage_service.dart';
+
 import '../widgets/chat_tile.dart';
 import 'conversation_screen.dart';
-import '../services/chat_cache_service.dart';
+
 class ChatsScreen extends StatefulWidget {
   const ChatsScreen({super.key});
 
@@ -17,481 +21,720 @@ class ChatsScreen extends StatefulWidget {
 }
 
 class _ChatsScreenState extends State<ChatsScreen> {
-List<ConversationModel> chats = [];
-bool loading = true;
-bool _isLoadingMore = false;
-bool _refreshQueued = false;
-bool _hasMore = true;
-int _page = 1;
-final ScrollController _scrollController =
-    ScrollController();
-  StreamSubscription? chatSubscription;
+  // ==========================================================
+  // DATA
+  // ==========================================================
+
+  List<ConversationModel> chats = [];
+
+  bool loading = true;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+
+  int _page = 1;
+
+  final ScrollController _scrollController =
+      ScrollController();
+
+  // ==========================================================
+  // SERVICES
+  // ==========================================================
+
+  final ChatService _chatService =
+      ChatService.instance;
+
+  final ChatCacheService _cacheService =
+      ChatCacheService.instance;
+
+  final SocketListenerService _socketListener =
+      SocketListenerService.instance;
+
+  // ==========================================================
+  // INIT
+  // ==========================================================
+
   @override
-void initState() {
-  super.initState();
+  void initState() {
+    super.initState();
 
-  _loadCachedChats();
-  _initializeChats();
-
-  _listenRelationshipUpdates();
-  _listenNewMessages();
-  _listenSeenUpdates();
-  _listenChatListUpdates();
-
-  loadChats(refresh: true);
-
-  _scrollController.addListener(() {
-    if (!_scrollController.hasClients) return;
-
-    final position = _scrollController.position;
-
-    if (position.maxScrollExtent <= 0) return;
-
-    if (position.pixels >=
-        position.maxScrollExtent - 300) {
-      loadChats();
-    }
-  });
-}
-  @override
-void dispose() {
-
-  SocketService.instance.socket?.off("new_message");
-  SocketService.instance.socket?.off("message_seen");
-  _scrollController.dispose();
-  SocketService.instance.socket?.off(
-  "friend_request_sent",
-  );
-  SocketService.instance.socket?.off(
-    "relationship_updated",
-  );
-  SocketService.instance.socket?.off(
-    "friend_request_accepted",
-  );
-  SocketService.instance.socket?.off(
-    "friend_request_declined",
-  );
-
-  super.dispose();
-}
-Future<void> _initializeChats() async {
-  await _loadCachedChats();
-
-  if (!mounted) return;
-
-  await loadChats(
-    refresh: true,
-  );
-}
-Future<void> _loadCachedChats() async {
-  final cached =
-      ChatCacheService.instance.loadChats();
-
-  if (cached.isEmpty) {
-    return;
-  }
-
-  final cachedChats = cached
-      .map(
-        (e) => ConversationModel.fromJson(e),
-      )
-      .where(
-        (c) => c.relationshipStatus != "declined",
-      )
-      .toList();
-
-  if (!mounted) return;
-
-  setState(() {
-    chats = cachedChats;
-    loading = false;
-  });
-}
-Future<void> loadChats({
-  bool refresh = false,
-}) async {
-  // ==========================================
-  // QUEUED REFRESH
-  // ==========================================
-  if (refresh && _isLoadingMore) {
-    _refreshQueued = true;
-    return;
-  }
-
-  // ==========================================
-  // PAGINATION GUARDS
-  // ==========================================
-  if (!refresh && (_isLoadingMore || !_hasMore)) {
-    return;
-  }
-
-  // ==========================================
-  // REFRESH RESET
-  // ==========================================
-  if (refresh) {
-    _page = 1;
-    _hasMore = true;
-  }
-
-  _isLoadingMore = true;
-
-  // Only show the main loading indicator
-  // when there are no chats available yet.
-  if (mounted && chats.isEmpty) {
-    setState(() {
-      loading = true;
-    });
-  }
-
-  try {
-    // ==========================================
-    // LOAD FROM SERVER
-    // ==========================================
-    final result = await ChatService.instance.getChatList(
-      page: _page,
-      limit: 20,
+    _scrollController.addListener(
+      _onScroll,
     );
 
-    final List<ConversationModel> newChats =
-        (result["chats"] as List<ConversationModel>)
-            .where(
-              (c) => c.relationshipStatus != "declined",
-            )
-            .toList();
+    _initialize();
+  }
 
-    if (!mounted) return;
+  Future<void> _initialize() async {
+    await _loadCache();
 
-    setState(() {
-      // ========================================
-      // REFRESH
-      // ========================================
-      if (refresh) {
-        chats = newChats;
+    _registerSocketListeners();
+
+    await _loadChats(
+      refresh: true,
+    );
+  }
+
+  // ==========================================================
+  // CACHE
+  // ==========================================================
+
+  Future<void> _loadCache() async {
+    try {
+      final cached =
+          _cacheService.loadChats();
+
+      if (cached.isEmpty) {
+        return;
       }
 
-      // ========================================
-      // PAGINATION
-      // ========================================
-      else {
-        final existingIds = chats
-            .map((c) => c.conversationId)
-            .toSet();
+      final cachedChats = cached
+          .map(
+            (e) =>
+                ConversationModel.fromJson(e),
+          )
+          .where(
+            (chat) =>
+                chat.relationshipStatus !=
+                "declined",
+          )
+          .toList();
 
-        final uniqueChats = newChats
-            .where(
-              (c) => !existingIds.contains(
-                c.conversationId,
-              ),
+      if (!mounted) return;
+
+      setState(() {
+        chats = cachedChats;
+        loading = false;
+      });
+    } catch (e) {
+      debugPrint(
+        "CHAT CACHE ERROR: $e",
+      );
+    }
+  }
+
+  Future<void> _saveCache() async {
+    try {
+      await _cacheService.saveChats(
+        chats
+            .map(
+              (chat) => chat.toJson(),
             )
-            .toList();
+            .toList(),
+      );
+    } catch (e) {
+      debugPrint(
+        "SAVE CHAT CACHE ERROR: $e",
+      );
+    }
+  }
 
-        chats.addAll(uniqueChats);
-      }
+  // ==========================================================
+  // LOAD CHATS
+  // ==========================================================
 
-      // ========================================
-      // PAGINATION STATE
-      // ========================================
-      if (newChats.isEmpty) {
-        _hasMore = false;
-      } else {
-        _hasMore = result["hasMore"] == true;
+  Future<void> _loadChats({
+    bool refresh = false,
+  }) async {
+    if (_isLoadingMore) {
+      return;
+    }
+
+    if (!refresh && !_hasMore) {
+      return;
+    }
+
+    if (refresh) {
+      _page = 1;
+      _hasMore = true;
+    }
+
+    _isLoadingMore = true;
+
+    if (refresh && mounted) {
+      setState(() {
+        loading = chats.isEmpty;
+      });
+    }
+
+    try {
+      final result =
+          await _chatService.getChatList(
+        page: _page,
+        limit: 20,
+      );
+
+      final List<ConversationModel>
+          newChats =
+          (result["chats"]
+                  as List<ConversationModel>)
+              .where(
+                (chat) =>
+                    chat.relationshipStatus !=
+                    "declined",
+              )
+              .toList();
+
+      if (!mounted) return;
+
+      setState(() {
+        // ==================================================
+        // REFRESH
+        // ==================================================
+
+        if (refresh) {
+          chats = newChats;
+        }
+
+        // ==================================================
+        // PAGINATION
+        // ==================================================
+
+        else {
+          final existingIds = chats
+              .map(
+                (chat) =>
+                    chat.conversationId,
+              )
+              .toSet();
+
+          final uniqueChats =
+              newChats.where(
+            (chat) =>
+                !existingIds.contains(
+              chat.conversationId,
+            ),
+          );
+
+          chats.addAll(
+            uniqueChats,
+          );
+        }
+
+        // ==================================================
+        // PAGINATION STATE
+        // ==================================================
+
+        _hasMore =
+            result["hasMore"] == true;
 
         if (_hasMore) {
           _page++;
         }
-      }
 
-      // ========================================
-      // LOADING FINISHED
-      // ========================================
-      loading = false;
-    });
-
-    // ==========================================
-    // SAVE CACHE
-    // ==========================================
-    await ChatCacheService.instance.saveChats(
-      chats.map((e) => e.toJson()).toList(),
-    );
-  } catch (e) {
-    debugPrint(
-      "CHAT LIST ERROR: $e",
-    );
-
-    if (mounted) {
-      setState(() {
-        // IMPORTANT:
-        // Never leave the screen in loading state
-        // after an error.
         loading = false;
       });
-    }
-  } finally {
-    // ==========================================
-    // ALWAYS RELEASE LOADING LOCK
-    // ==========================================
-    _isLoadingMore = false;
 
-    // ==========================================
-    // RUN QUEUED REFRESH
-    // ==========================================
-    if (_refreshQueued) {
-      _refreshQueued = false;
-
-      // Do not await this.
-      // It can otherwise create a chain of refreshes
-      // that keeps the loading state alive.
-      Future.microtask(
-        () => loadChats(refresh: true),
+      await _saveCache();
+    } catch (e, stackTrace) {
+      debugPrint(
+        "========== CHAT LIST ERROR ==========",
       );
+
+      debugPrint("$e");
+      debugPrint("$stackTrace");
+
+      if (mounted) {
+        setState(() {
+          loading = false;
+        });
+      }
+    } finally {
+      _isLoadingMore = false;
     }
   }
-}
-void _listenRelationshipUpdates() {
-  final socket = SocketService.instance.socket;
 
-  socket?.on("friend_request_sent", (data) async {
-    debugPrint(
-      "FRIEND REQUEST SENT SOCKET: $data",
+  // ==========================================================
+  // PAGINATION
+  // ==========================================================
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) {
+      return;
+    }
+
+    if (_isLoadingMore) {
+      return;
+    }
+
+    if (!_hasMore) {
+      return;
+    }
+
+    final position =
+        _scrollController.position;
+
+    if (position.maxScrollExtent <= 0) {
+      return;
+    }
+
+    if (position.pixels >=
+        position.maxScrollExtent - 300) {
+      _loadChats();
+    }
+  }
+
+  // ==========================================================
+  // SOCKET LISTENERS
+  // ==========================================================
+
+  void _registerSocketListeners() {
+    // --------------------------------------------------------
+    // NEW MESSAGE
+    // --------------------------------------------------------
+
+    _socketListener.listenNewMessage(
+      _handleNewMessage,
     );
 
-    await loadChats(refresh: true);
-  });
+    // --------------------------------------------------------
+    // MESSAGE SEEN
+    // --------------------------------------------------------
 
-  socket?.on("relationship_updated", (data) async {
-    debugPrint(
-      "RELATIONSHIP UPDATED SOCKET: $data",
+    _socketListener.listenMessageSeen(
+      _handleMessageSeen,
     );
 
-    await loadChats(refresh: true);
-  });
+    // --------------------------------------------------------
+    // MESSAGE DELIVERED
+    // --------------------------------------------------------
 
-  socket?.on("friend_request_accepted", (data) async {
-    debugPrint(
-      "FRIEND REQUEST ACCEPTED SOCKET: $data",
+    _socketListener.listenMessageDelivered(
+      _handleMessageDelivered,
     );
 
-    await loadChats(refresh: true);
-  });
+    // --------------------------------------------------------
+    // FRIEND REQUEST SENT
+    // --------------------------------------------------------
 
-  socket?.on("friend_request_declined", (data) async {
-    debugPrint(
-      "FRIEND REQUEST DECLINED SOCKET: $data",
+    _socketListener.listenFriendRequestSent(
+      (_) {
+        _loadChats(
+          refresh: true,
+        );
+      },
     );
 
-    await loadChats(refresh: true);
-  });
-}
-void _listenChatListUpdates() {
-  SocketService.instance.listenChatListUpdated(
-    (data) async {
-      debugPrint(
-        "========== CHAT LIST UPDATED ==========",
-      );
+    // --------------------------------------------------------
+    // FRIEND REQUEST ACCEPTED
+    // --------------------------------------------------------
 
-      debugPrint(
-        "DATA: $data",
-      );
+    _socketListener.listenFriendRequestAccepted(
+      (_) {
+        _loadChats(
+          refresh: true,
+        );
+      },
+    );
 
-      await loadChats(
-        refresh: true,
-      );
-    },
-  );
-}
-void _listenNewMessages() {
-  SocketService.instance.listenMessage((data) async {
+    // --------------------------------------------------------
+    // FRIEND REQUEST DECLINED
+    // --------------------------------------------------------
+
+    _socketListener.listenFriendRequestDeclined(
+      (_) {
+        _loadChats(
+          refresh: true,
+        );
+      },
+    );
+
+    // --------------------------------------------------------
+    // RELATIONSHIP UPDATED
+    // --------------------------------------------------------
+
+    _socketListener.listenRelationshipUpdated(
+      (_) {
+        _loadChats(
+          refresh: true,
+        );
+      },
+    );
+
+    // --------------------------------------------------------
+    // CHAT LIST UPDATED
+    // --------------------------------------------------------
+
+    _socketListener.listenChatListUpdated(
+      (_) {
+        _loadChats(
+          refresh: true,
+        );
+      },
+    );
+  }
+
+  // ==========================================================
+  // NEW MESSAGE
+  // ==========================================================
+
+  Future<void> _handleNewMessage(
+    dynamic data,
+  ) async {
     try {
-      final message = MessageModel.fromJson(data);
+      final message =
+          MessageModel.fromJson(data);
 
-      debugPrint("========== NEW MESSAGE FOR CHAT LIST ==========");
-      debugPrint("Conversation ID: ${message.conversationId}");
-      debugPrint("Message ID: ${message.id}");
-      debugPrint("Message: ${message.message}");
-      debugPrint("Created At: ${message.createdAt}");
-      debugPrint("===============================================");
+      debugPrint(
+        "========== NEW MESSAGE ==========",
+      );
+
+      debugPrint(
+        "Conversation: ${message.conversationId}",
+      );
+
+      debugPrint(
+        "Message: ${message.message}",
+      );
+
+      // ------------------------------------------------------
+      // FIND CONVERSATION
+      // ------------------------------------------------------
 
       final index = chats.indexWhere(
-        (c) => c.conversationId == message.conversationId,
+        (chat) =>
+            chat.conversationId ==
+            message.conversationId,
       );
 
-      // ==========================================
-      // NEW CONVERSATION
-      // ==========================================
+      // ------------------------------------------------------
+      // CONVERSATION NOT IN LIST
+      // ------------------------------------------------------
+
       if (index == -1) {
-        debugPrint(
-          "Conversation not currently in chat list. Refreshing chat list...",
+        await _loadChats(
+          refresh: true,
         );
 
-        await loadChats(refresh: true);
         return;
       }
 
-      // ==========================================
-      // EXISTING CONVERSATION
-      // ==========================================
+      // ------------------------------------------------------
+      // UPDATE EXISTING CHAT
+      // ------------------------------------------------------
+
       final chat = chats[index];
 
-      final updated = chat.copyWith(
-        lastMessage: message.message,
-        lastMessageType: message.messageType,
-        lastMessageTime: message.createdAt,
-        unreadCount: chat.unreadCount + 1,
+      final updatedChat =
+          chat.copyWith(
+        lastMessage:
+            message.message,
+
+        lastMessageType:
+            message.messageType,
+
+        lastMessageTime:
+            message.createdAt,
+
+        unreadCount:
+            chat.unreadCount + 1,
       );
 
       if (!mounted) return;
 
       setState(() {
         chats.removeAt(index);
-        chats.insert(0, updated);
+
+        chats.insert(
+          0,
+          updatedChat,
+        );
       });
 
-      await ChatCacheService.instance.saveChats(
-        chats.map((e) => e.toJson()).toList(),
-      );
+      await _saveCache();
     } catch (e) {
       debugPrint(
-        "Error processing new message in chat list: $e",
+        "NEW MESSAGE CHAT LIST ERROR: $e",
       );
     }
-  });
-}
-void _listenSeenUpdates() {
-
-  SocketService.instance.listenMessageSeen((data) async {
-
-    final messageId = data["messageId"];
-
-    final index = chats.indexWhere((c) => c.lastMessage == messageId);
-
-    if (index == -1) return;
-
-    // Mark unread count as 0 when the last message is seen
-    setState(() {
-      chats[index] = chats[index].copyWith(
-        unreadCount: 0,
-      );
-    });
-
-    await ChatCacheService.instance.saveChats(
-      chats.map((e) => e.toJson()).toList(),
-    );
-
-  });
-
-}
-Future<void> loadCachedChats() async {
-  final cached = ChatCacheService.instance.loadChats();
-
-  if (cached.isEmpty) return;
-
-  final cachedChats = cached
-      .map((e) => ConversationModel.fromJson(e))
-      .toList();
-
-  if (!mounted) return;
-
-  setState(() {
-    chats = cachedChats;
-    loading = false;
-  });
-}
-@override
-Widget build(BuildContext context) {
-  return Scaffold(
-    appBar: AppBar(
-      title: const Text("Chats"),
-      centerTitle: false,
-    ),
-
-   body: loading
-    ? const Center(
-        child: CircularProgressIndicator(),
-      )
-    : chats.isEmpty
-        ? const Center(
-            child: Text(
-              "No conversations yet",
-            ),
-          )
-        : ListView.builder(
-            controller: _scrollController,
-            itemCount: chats.length + (_isLoadingMore ? 1 : 0),
-            itemBuilder: (context, index) {
-              if (index == chats.length) {
-                return const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 16),
-                  child: Center(
-                    child: CircularProgressIndicator(),
-                  ),
-                );
-              }
-
-              final chat = chats[index];
-              return ChatTile(
-                chat: chat,
-                onTap: () async {
-  final index = chats.indexWhere(
-    (c) =>
-        c.conversationId ==
-        chat.conversationId,
-  );
-
-  if (index != -1) {
-    setState(() {
-      chats[index] =
-          chats[index].copyWith(
-        unreadCount: 0,
-      );
-    });
-
-    await ChatCacheService.instance.saveChats(
-      chats.map((e) => e.toJson()).toList(),
-    );
   }
 
-  final currentUserId =
-      await StorageService.getUserId();
+  // ==========================================================
+  // MESSAGE SEEN
+  // ==========================================================
 
-  if (currentUserId == null) {
+  Future<void> _handleMessageSeen(
+    dynamic data,
+  ) async {
+    try {
+      final conversationId =
+          data["conversationId"];
+
+      if (conversationId == null) {
+        return;
+      }
+
+      final index = chats.indexWhere(
+        (chat) =>
+            chat.conversationId ==
+            int.tryParse(
+              conversationId.toString(),
+            ),
+      );
+
+      if (index == -1) {
+        return;
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        chats[index] =
+            chats[index].copyWith(
+          unreadCount: 0,
+        );
+      });
+
+      await _saveCache();
+    } catch (e) {
+      debugPrint(
+        "MESSAGE SEEN CHAT LIST ERROR: $e",
+      );
+    }
+  }
+
+  // ==========================================================
+  // MESSAGE DELIVERED
+  // ==========================================================
+
+  Future<void> _handleMessageDelivered(
+    dynamic data,
+  ) async {
+    debugPrint(
+      "MESSAGE DELIVERED: $data",
+    );
+
+    // Chat list normally does not need
+    // to change for delivery.
+    //
+    // ConversationScreen handles
+    // individual message delivery state.
+  }
+
+  // ==========================================================
+  // OPEN CHAT
+  // ==========================================================
+
+  Future<void> _openConversation(
+    ConversationModel chat,
+  ) async {
+    // --------------------------------------------------------
+    // CLEAR LOCAL UNREAD COUNT
+    // --------------------------------------------------------
+
+    final index = chats.indexWhere(
+      (item) =>
+          item.conversationId ==
+          chat.conversationId,
+    );
+
+    if (index != -1 && mounted) {
+      setState(() {
+        chats[index] =
+            chats[index].copyWith(
+          unreadCount: 0,
+        );
+      });
+
+      await _saveCache();
+    }
+
+    // --------------------------------------------------------
+    // CURRENT USER
+    // --------------------------------------------------------
+
+    final currentUserId =
+        await StorageService.getUserId();
+
+    if (currentUserId == null) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        const SnackBar(
+          content: Text(
+            "Unable to identify the logged-in user.",
+          ),
+        ),
+      );
+
+      return;
+    }
+
+    // --------------------------------------------------------
+    // OPEN CONVERSATION
+    // --------------------------------------------------------
+
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          "Unable to identify the logged-in user.",
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            ConversationScreen(
+          conversationId:
+              chat.conversationId,
+
+          receiverId:
+              chat.receiverId,
+
+          currentUserId:
+              currentUserId,
+
+          chatName:
+              chat.fullName,
+
+          profileImage:
+              chat.profilePicture,
+
+          isOnline:
+              chat.isOnline,
         ),
       ),
     );
 
-    return;
+    // --------------------------------------------------------
+    // REFRESH AFTER RETURNING
+    // --------------------------------------------------------
+
+    if (!mounted) return;
+
+    await _loadChats(
+      refresh: true,
+    );
   }
 
-  if (!mounted) return;
+  // ==========================================================
+  // DISPOSE
+  // ==========================================================
 
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (_) => ConversationScreen(
-        conversationId:
-            chat.conversationId,
-        receiverId:
-            chat.receiverId,
-        currentUserId:
-            currentUserId,
-        chatName:
-            chat.fullName,
-        profileImage:
-            chat.profilePicture,
-        isOnline:
-            chat.isOnline,
+  @override
+  void dispose() {
+    _socketListener.removeListener(
+      "new_message",
+    );
+
+    _socketListener.removeListener(
+      "message_seen",
+    );
+
+    _socketListener.removeListener(
+      "message_delivered",
+    );
+
+    _socketListener.removeListener(
+      "friend_request_sent",
+    );
+
+    _socketListener.removeListener(
+      "friend_request_accepted",
+    );
+
+    _socketListener.removeListener(
+      "friend_request_declined",
+    );
+
+    _socketListener.removeListener(
+      "relationship_updated",
+    );
+
+    _socketListener.removeListener(
+      "chat_list_updated",
+    );
+
+    _scrollController.dispose();
+
+    super.dispose();
+  }
+
+  // ==========================================================
+  // UI
+  // ==========================================================
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          "Chats",
+        ),
+        centerTitle: false,
       ),
-    ),
-  );
-},
-              );
-            },
-          ),
-  );
-}
+
+      body: loading && chats.isEmpty
+          ? const Center(
+              child:
+                  CircularProgressIndicator(),
+            )
+          : chats.isEmpty
+              ? const Center(
+                  child: Text(
+                    "No conversations yet",
+                  ),
+                )
+              : RefreshIndicator(
+                  onRefresh: () =>
+                      _loadChats(
+                    refresh: true,
+                  ),
+
+                  child:
+                      ListView.builder(
+                    controller:
+                        _scrollController,
+
+                    physics:
+                        const AlwaysScrollableScrollPhysics(),
+
+                    itemCount:
+                        chats.length +
+                            (_isLoadingMore
+                                ? 1
+                                : 0),
+
+                    itemBuilder:
+                        (
+                      context,
+                      index,
+                    ) {
+                      // ------------------------------------------------
+                      // PAGINATION LOADER
+                      // ------------------------------------------------
+
+                      if (index ==
+                          chats.length) {
+                        return const Padding(
+                          padding:
+                              EdgeInsets.symmetric(
+                            vertical: 16,
+                          ),
+
+                          child: Center(
+                            child:
+                                CircularProgressIndicator(),
+                          ),
+                        );
+                      }
+
+                      // ------------------------------------------------
+                      // CHAT
+                      // ------------------------------------------------
+
+                      final chat =
+                          chats[index];
+
+                      return ChatTile(
+                        chat: chat,
+
+                        onTap: () =>
+                            _openConversation(
+                          chat,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+    );
+  }
 }

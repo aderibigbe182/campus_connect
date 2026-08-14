@@ -110,10 +110,6 @@ class SocketService {
     );
   }
 
-  void listenMessage(Function(dynamic) callback) {
-    _socket?.on('new_message', callback);
-  }
-
   // ===========================================================
   // DELIVERED
   // ===========================================================
@@ -128,10 +124,6 @@ class SocketService {
         'messageId': messageId,
       },
     );
-  }
-
-  void listenDelivered(Function(dynamic) callback) {
-    _socket?.on('messageDelivered', callback);
   }
 
   // ===========================================================
@@ -151,9 +143,6 @@ class SocketService {
     );
   }
 
-  void listenSeen(Function(dynamic) callback) {
-    _socket?.on('messageSeen', callback);
-  }
 
   // ===========================================================
   // TYPING
@@ -180,20 +169,6 @@ required int senderId,
     );
   }
 
-  void listenTyping(Function(dynamic) callback) {
-    _socket?.on(
-    "userTyping",
-    callback,
-);
-  }
-
-  void listenStopTyping(Function(dynamic) callback) {
-    _socket?.on(
-    "userStoppedTyping",
-    callback,
-);
-  }
-
   // ===========================================================
   // REACTIONS
   // ===========================================================
@@ -211,77 +186,4 @@ required int senderId,
       },
     );
   }
-
-  void listenReaction(Function(dynamic) callback) {
-    _socket?.on('messageReaction', callback);
-  }
-//================================
-//FRIEND REQUESTS
-//================================
-void listenFriendRequestSent(
-  Function(dynamic) callback,
-) {
-  _socket?.on(
-    "friend_request_sent",
-    callback,
-  );
-}
-//================================
-//FRIEND REQUEST ACCEPTED 
-//================================
-void listenFriendRequestAccepted(
-  Function(dynamic) callback,
-) {
-  _socket?.on(
-    "friend_request_accepted",
-    callback,
-  );
-}
-//===============================
-//FRIEND REQUEST DECLINED
-//===============================
-void listenFriendRequestDeclined(
-  Function(dynamic) callback,
-) {
-  _socket?.on(
-    "friend_request_declined",
-    callback,
-  );
-}
-//==============================
-//RELATIONSHIP UPDATED
-//==============================
-void listenRelationshipUpdated(
-  Function(dynamic) callback,
-) {
-  _socket?.on(
-    "relationship_updated",
-    callback,
-  );
-}
-//================================
-//MESSAGE SEEN
-//===================================
-void listenMessageSeen(
-  Function(Map<String, dynamic>) callback,
-) {
-  socket?.on(
-    "message_seen",
-    (data) => callback(
-      Map<String, dynamic>.from(data),
-    ),
-  );
-}
-//================================
-// CHAT LIST UPDATED
-//================================
-
-void listenChatListUpdated(
-  Function(dynamic) callback,
-) {
-  _socket?.on(
-    "chat_list_updated",
-    callback,
-  );
-}
 }
