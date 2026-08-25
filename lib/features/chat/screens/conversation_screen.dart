@@ -9,6 +9,7 @@ import '../models/conversation_status_model.dart';
 
 import '../services/chat_service.dart';
 import '../services/chat_cache_service.dart';
+import '/core/services/socket_listener_service.dart';
 
 import '/core/services/socket_service.dart';
 
@@ -49,6 +50,11 @@ class ConversationScreen extends StatefulWidget {
 
 class _ConversationScreenState
     extends State<ConversationScreen> {
+
+  // ============================================================
+  // SERVICES
+  // ============================================================
+
   final ChatService _chatService =
       ChatService.instance;
 
@@ -57,6 +63,13 @@ class _ConversationScreenState
 
   final SocketService _socketService =
       SocketService.instance;
+
+  final SocketListenerService _socketListeners =
+      SocketListenerService.instance;
+
+  // ============================================================
+  // STATE
+  // ============================================================
 
   final ScrollController _scrollController =
       ScrollController();
@@ -82,19 +95,12 @@ class _ConversationScreenState
 
   Timer? _typingTimer;
 
-  // ------------------------------------------------------------
+  // ============================================================
   // SOCKET CALLBACKS
-  //
-  // These are stored as fields so we can remove ONLY our
-  // listeners in dispose(), instead of clearing listeners
-  // belonging to ChatHomeScreen or other parts of the app.
-  // ------------------------------------------------------------
+  // ============================================================
 
   late final void Function(dynamic)
       _newMessageListener;
-
-  late final void Function(dynamic)
-      _chatListMessageListener;
 
   late final void Function(dynamic)
       _messageSeenListener;
@@ -123,6 +129,10 @@ class _ConversationScreenState
   late final void Function(dynamic)
       _relationshipUpdatedListener;
 
+  // ============================================================
+  // INIT
+  // ============================================================
+
   @override
   void initState() {
     super.initState();
@@ -130,7 +140,8 @@ class _ConversationScreenState
     _conversationId =
         widget.conversationId;
 
-    _isOnline = widget.isOnline;
+    _isOnline =
+        widget.isOnline;
 
     _createSocketCallbacks();
 
@@ -148,20 +159,10 @@ class _ConversationScreenState
   // ============================================================
 
   void _createSocketCallbacks() {
+
     _newMessageListener =
         (dynamic data) async {
-      await _handleIncomingMessage(
-        data,
-        source: "new_message",
-      );
-    };
-
-    _chatListMessageListener =
-        (dynamic data) async {
-      await _handleIncomingMessage(
-        data,
-        source: "chat_list_updated",
-      );
+      await _handleIncomingMessage(data);
     };
 
     _messageSeenListener =
@@ -191,232 +192,166 @@ class _ConversationScreenState
 
     _requestSentListener =
         (dynamic data) async {
-      await _handleRelationshipSocketEvent(
-        data,
-        "friend_request_sent",
-      );
+      await _refreshRelationship();
     };
 
     _requestAcceptedListener =
         (dynamic data) async {
-      await _handleRelationshipSocketEvent(
-        data,
-        "friend_request_accepted",
-      );
+      await _refreshRelationship();
     };
 
     _requestDeclinedListener =
         (dynamic data) async {
-      await _handleRelationshipSocketEvent(
-        data,
-        "friend_request_declined",
-      );
+      await _refreshRelationship();
+
+      if (!mounted) return;
+
+      Navigator.of(context).pop();
     };
 
     _relationshipUpdatedListener =
         (dynamic data) async {
-      await _handleRelationshipSocketEvent(
-        data,
-        "relationship_updated",
-      );
+      await _refreshRelationship();
     };
   }
 
+  // ============================================================
+  // REGISTER SOCKET LISTENERS
+  // ============================================================
+
   void _registerSocketListeners() {
-    final socket =
-        _socketService.socket;
 
-    if (socket == null) {
-      return;
-    }
-
-    // ----------------------------------------------------------
-    // MESSAGE EVENTS
-    // ----------------------------------------------------------
-
-    socket.on(
-      "new_message",
+    _socketListeners.listenNewMessage(
       _newMessageListener,
     );
 
-    // Important:
-    //
-    // The backend also sends chat_list_updated to the receiver.
-    // We listen to it here as a second delivery path.
-    //
-    // This means the receiver can still receive the message
-    // through the user room even when it wasn't received through
-    // the conversation room.
-    socket.on(
-      "chat_list_updated",
-      _chatListMessageListener,
-    );
-
-    // ----------------------------------------------------------
-    // MESSAGE STATUS
-    // ----------------------------------------------------------
-
-    socket.on(
-      "message_seen",
+    _socketListeners.listenMessageSeen(
       _messageSeenListener,
     );
 
-    socket.on(
-      "message_delivered",
+    _socketListeners.listenMessageDelivered(
       _messageDeliveredListener,
     );
 
-    // Some older SocketService versions emit these names.
-    // We don't use SocketService.listenTyping() because the
-    // current SocketService doesn't expose those methods.
-    socket.on(
-      "user_typing",
+    _socketListeners.listenTyping(
       _typingListener,
     );
 
-    socket.on(
-      "user_stopped_typing",
+    _socketListeners.listenStopTyping(
       _stopTypingListener,
     );
 
-    // ----------------------------------------------------------
-    // PRESENCE
-    // ----------------------------------------------------------
-
-    socket.on(
-      "userOnline",
+    _socketListeners.listenPresence(
       _presenceListener,
     );
 
-    // Keep compatibility with the older event name used by
-    // previous versions of this screen.
-    socket.on(
-      "presence",
-      _presenceListener,
-    );
-
-    // ----------------------------------------------------------
-    // RELATIONSHIP EVENTS
-    // ----------------------------------------------------------
-
-    socket.on(
-      "friend_request_sent",
+    _socketListeners.listenFriendRequestSent(
       _requestSentListener,
     );
 
-    socket.on(
-      "friend_request_accepted",
+    _socketListeners.listenFriendRequestAccepted(
       _requestAcceptedListener,
     );
 
-    socket.on(
-      "friend_request_declined",
+    _socketListeners.listenFriendRequestDeclined(
       _requestDeclinedListener,
     );
 
-    socket.on(
-      "relationship_updated",
+    _socketListeners.listenRelationshipUpdated(
       _relationshipUpdatedListener,
     );
   }
 
+  // ============================================================
+  // REMOVE SOCKET LISTENERS
+  // ============================================================
+
   void _removeSocketListeners() {
-    final socket =
-        _socketService.socket;
 
-    if (socket == null) {
-      return;
-    }
-
-    socket.off(
+    _socketService.socket?.off(
       "new_message",
       _newMessageListener,
     );
 
-    socket.off(
-      "chat_list_updated",
-      _chatListMessageListener,
-    );
-
-    socket.off(
+    _socketService.socket?.off(
       "message_seen",
       _messageSeenListener,
     );
 
-    socket.off(
+    _socketService.socket?.off(
       "message_delivered",
       _messageDeliveredListener,
     );
 
-    socket.off(
+    _socketService.socket?.off(
       "user_typing",
       _typingListener,
     );
 
-    socket.off(
+    _socketService.socket?.off(
       "user_stopped_typing",
       _stopTypingListener,
     );
 
-    socket.off(
+    _socketService.socket?.off(
       "userOnline",
       _presenceListener,
     );
 
-    socket.off(
-      "presence",
-      _presenceListener,
-    );
-
-    socket.off(
+    _socketService.socket?.off(
       "friend_request_sent",
       _requestSentListener,
     );
 
-    socket.off(
+    _socketService.socket?.off(
       "friend_request_accepted",
       _requestAcceptedListener,
     );
 
-    socket.off(
+    _socketService.socket?.off(
       "friend_request_declined",
       _requestDeclinedListener,
     );
 
-    socket.off(
+    _socketService.socket?.off(
       "relationship_updated",
       _relationshipUpdatedListener,
     );
   }
 
   // ============================================================
-  // INITIALIZATION
+  // INITIALIZE
   // ============================================================
 
   Future<void> _initializeConversation() async {
+
     try {
+
       await _loadConversationStatus();
 
       if (_conversationId != null) {
-        await _joinConversationRoom(
-          _conversationId!,
-        );
+
+        await _joinConversation();
 
         await _loadMessages(
           initialLoad: true,
         );
 
         await _markConversationRead();
+
       } else {
+
         if (!mounted) return;
 
         setState(() {
           _loading = false;
         });
       }
+
     } catch (e) {
+
       debugPrint(
-        "CONVERSATION INITIALIZATION ERROR: $e",
+        "CONVERSATION INIT ERROR: $e",
       );
 
       if (!mounted) return;
@@ -427,32 +362,41 @@ class _ConversationScreenState
     }
   }
 
-  Future<void> _joinConversationRoom(
-    int conversationId,
-  ) async {
-    if (!_socketService.isConnected) {
-      return;
-    }
+  // ============================================================
+  // JOIN CONVERSATION
+  // ============================================================
+ Future<void> _joinConversation() async {
+  final id = _conversationId;
 
-    _socketService.joinConversation(
-      conversationId,
+  if (id == null) return;
+
+  final connected = await _socketService.ensureConnected();
+
+  if (!connected) {
+    debugPrint(
+      '[ConversationScreen] Unable to connect socket. '
+      'Conversation room not joined.',
     );
+    return;
   }
 
-  Future<void> _leaveConversationRoom() async {
+  _socketService.joinConversation(id);
+}
+  // ============================================================
+  // LEAVE CONVERSATION
+  // ============================================================
+
+  Future<void> _leaveConversation() async {
+
     final id = _conversationId;
 
-    if (id == null) {
-      return;
-    }
+    if (id == null) return;
 
     if (!_socketService.isConnected) {
       return;
     }
 
-    _socketService.leaveConversation(
-      id,
-    );
+    _socketService.leaveConversation(id);
   }
 
   // ============================================================
@@ -460,103 +404,62 @@ class _ConversationScreenState
   // ============================================================
 
   Future<void> _loadConversationStatus() async {
+
     try {
+
       final status =
-          await _chatService
-              .getConversationStatus(
+          await _chatService.getConversationStatus(
         widget.receiverId,
       );
 
       if (!mounted) return;
 
       setState(() {
+
         _status = status;
 
-        // The status endpoint can provide the real conversation
-        // ID after a request has become a conversation.
-        if (status.conversationId != null &&
-            status.conversationId !=
-                _conversationId) {
+        if (status.conversationId != null) {
+
           _conversationId =
               status.conversationId;
         }
+
       });
+
     } catch (e) {
+
       debugPrint(
-        "CONVERSATION STATUS ERROR: $e",
+        "STATUS ERROR: $e",
       );
     }
   }
 
-  Future<void> _handleRelationshipSocketEvent(
-    dynamic data,
-    String event,
-  ) async {
-    try {
-      final map =
-          _asMap(data);
+  Future<void> _refreshRelationship() async {
 
-      final eventConversationId =
-          _readInt(
-        map,
-        "conversationId",
+    await _loadConversationStatus();
+
+    if (_conversationId != null) {
+
+      await _joinConversation();
+
+      await _loadMessages(
+        initialLoad: true,
       );
+    }
 
-      // If the event contains a conversation ID,
-      // ignore events belonging to another chat.
-      if (eventConversationId != null &&
-          _conversationId != null &&
-          eventConversationId !=
-              _conversationId) {
-        return;
-      }
-
-      await _loadConversationStatus();
-
-      // An accepted request can create/activate a conversation.
-      if (_status?.conversationId != null) {
-        final newId =
-            _status!.conversationId!;
-
-        if (newId != _conversationId) {
-          if (_conversationId != null) {
-            await _leaveConversationRoom();
-          }
-
-          _conversationId = newId;
-
-          await _joinConversationRoom(
-            newId,
-          );
-        }
-
-        await _loadMessages(
-          initialLoad: true,
-        );
-      }
-
-      if (event ==
-          "friend_request_declined") {
-        if (!mounted) return;
-
-        // The existing architecture closes the conversation
-        // after a declined request.
-        Navigator.of(context).pop();
-      }
-    } catch (e) {
-      debugPrint(
-        "$event HANDLER ERROR: $e",
-      );
+    if (mounted) {
+      setState(() {});
     }
   }
 
   // ============================================================
-  // MESSAGE LOADING
+  // LOAD MESSAGES
   // ============================================================
 
   Future<void> _loadMessages({
     bool initialLoad = false,
   }) async {
+
     final conversationId =
         _conversationId;
 
@@ -565,16 +468,16 @@ class _ConversationScreenState
     }
 
     if (initialLoad) {
+
       _page = 1;
       _hasMore = true;
-    }
 
-    // ----------------------------------------------------------
-    // CACHE FIRST
-    // ----------------------------------------------------------
+      // --------------------------------------------------------
+      // CACHE FIRST
+      // --------------------------------------------------------
 
-    if (initialLoad) {
       try {
+
         final cached =
             _cacheService.loadMessages(
           conversationId,
@@ -582,19 +485,21 @@ class _ConversationScreenState
 
         if (cached.isNotEmpty &&
             mounted) {
+
           final cachedMessages =
               cached
                   .map(
-                    (e) =>
+                    (item) =>
                         MessageModel.fromJson(
                       Map<String, dynamic>.from(
-                        e,
+                        item,
                       ),
                     ),
                   )
                   .toList();
 
           setState(() {
+
             _messages
               ..clear()
               ..addAll(
@@ -610,9 +515,11 @@ class _ConversationScreenState
             animated: false,
           );
         }
+
       } catch (e) {
+
         debugPrint(
-          "CACHE MESSAGE LOAD ERROR: $e",
+          "CACHE LOAD ERROR: $e",
         );
       }
     }
@@ -622,6 +529,7 @@ class _ConversationScreenState
     // ----------------------------------------------------------
 
     try {
+
       final messages =
           await _chatService.getMessages(
         conversationId,
@@ -631,23 +539,29 @@ class _ConversationScreenState
 
       if (!mounted) return;
 
-      final cleanMessages =
-          _deduplicateMessages(
-        messages,
-      );
-
       setState(() {
+
         _messages
           ..clear()
-          ..addAll(cleanMessages);
+          ..addAll(
+            _deduplicateMessages(
+              messages,
+            ),
+          );
 
         _loading = false;
       });
 
       await _saveMessagesToCache();
 
+      _page = 1;
+
+      _hasMore =
+          messages.length >= _limit;
+
       WidgetsBinding.instance
           .addPostFrameCallback((_) {
+
         if (!mounted) return;
 
         _scrollToBottom(
@@ -655,32 +569,26 @@ class _ConversationScreenState
         );
       });
 
-      // Reset pagination because page 1 was
-      // just loaded from the server.
-      _page = 1;
-
-      if (messages.length <
-          _limit) {
-        _hasMore = false;
-      } else {
-        _hasMore = true;
-      }
     } catch (e) {
+
       debugPrint(
         "LOAD MESSAGES ERROR: $e",
       );
 
       if (!mounted) return;
 
-      // If cached messages already exist,
-      // don't replace them with an error state.
       setState(() {
         _loading = false;
       });
     }
   }
 
+  // ============================================================
+  // LOAD OLDER MESSAGES
+  // ============================================================
+
   Future<void> _loadOlderMessages() async {
+
     if (_loadingOlder ||
         !_hasMore ||
         _conversationId == null) {
@@ -691,20 +599,25 @@ class _ConversationScreenState
       return;
     }
 
-    _loadingOlder = true;
+    setState(() {
+      _loadingOlder = true;
+    });
 
-    final oldMaxScrollExtent =
+    final oldMax =
         _scrollController
             .position
             .maxScrollExtent;
 
     final oldPixels =
-        _scrollController.position.pixels;
+        _scrollController
+            .position
+            .pixels;
 
     final nextPage =
         _page + 1;
 
     try {
+
       final older =
           await _chatService.getMessages(
         _conversationId!,
@@ -715,9 +628,9 @@ class _ConversationScreenState
       if (!mounted) return;
 
       if (older.isEmpty) {
+
         setState(() {
           _hasMore = false;
-          _loadingOlder = false;
         });
 
         return;
@@ -725,7 +638,7 @@ class _ConversationScreenState
 
       final existingIds =
           _messages
-              .map((e) => e.id)
+              .map((message) => message.id)
               .toSet();
 
       final uniqueOlder =
@@ -739,6 +652,7 @@ class _ConversationScreenState
               .toList();
 
       setState(() {
+
         _page = nextPage;
 
         _messages.insertAll(
@@ -746,8 +660,7 @@ class _ConversationScreenState
           uniqueOlder,
         );
 
-        if (older.length <
-            _limit) {
+        if (older.length < _limit) {
           _hasMore = false;
         }
       });
@@ -756,130 +669,80 @@ class _ConversationScreenState
 
       WidgetsBinding.instance
           .addPostFrameCallback((_) {
-        if (!_scrollController
-            .hasClients) {
+
+        if (!_scrollController.hasClients) {
           return;
         }
 
-        final newMaxScrollExtent =
+        final newMax =
             _scrollController
                 .position
                 .maxScrollExtent;
 
-        final heightDifference =
-            newMaxScrollExtent -
-            oldMaxScrollExtent;
+        final difference =
+            newMax - oldMax;
 
         final target =
-            oldPixels +
-            heightDifference;
-
-        final max =
-            _scrollController
-                .position
-                .maxScrollExtent;
+            oldPixels + difference;
 
         _scrollController.jumpTo(
           target.clamp(
             0.0,
-            max,
+            newMax,
           ),
         );
       });
+
     } catch (e) {
+
       debugPrint(
-        "LOAD OLDER MESSAGES ERROR: $e",
+        "LOAD OLDER ERROR: $e",
       );
+
     } finally {
+
       if (mounted) {
+
         setState(() {
           _loadingOlder = false;
         });
+
       } else {
+
         _loadingOlder = false;
       }
     }
   }
 
-  List<MessageModel>
-      _deduplicateMessages(
-    List<MessageModel> messages,
-  ) {
-    final seenIds =
-        <int>{};
-
-    final result =
-        <MessageModel>[];
-
-    for (final message
-        in messages) {
-      if (seenIds.add(
-        message.id,
-      )) {
-        result.add(message);
-      }
-    }
-
-    result.sort(
-      (a, b) =>
-          a.createdAt.compareTo(
-        b.createdAt,
-      ),
-    );
-
-    return result;
-  }
-
-  Future<void>
-      _saveMessagesToCache() async {
-    if (_conversationId == null) {
-      return;
-    }
-
-    await _cacheService.saveMessages(
-      _conversationId!,
-      _messages
-          .map(
-            (message) =>
-                message.toJson(),
-          )
-          .toList(),
-    );
-  }
-
   // ============================================================
-  // REAL-TIME MESSAGE HANDLING
+  // NEW MESSAGE
   // ============================================================
 
   Future<void> _handleIncomingMessage(
-    dynamic data, {
-    required String source,
-  }) async {
+    dynamic data,
+  ) async {
+
     try {
-      final map =
-          _asMap(data);
+
+      final map = _asMap(data);
 
       if (map.isEmpty) {
         return;
       }
 
       final message =
-          MessageModel.fromJson(
-        map,
-      );
+          MessageModel.fromJson(map);
 
       // --------------------------------------------------------
-      // If this screen doesn't know the conversation ID yet,
-      // a socket message can establish it.
+      // FIRST MESSAGE CREATED CONVERSATION
       // --------------------------------------------------------
 
       if (_conversationId == null) {
+
         _conversationId =
             message.conversationId;
 
-        await _joinConversationRoom(
-          message.conversationId,
-        );
+        await _joinConversation();
 
         if (mounted) {
           setState(() {});
@@ -887,7 +750,7 @@ class _ConversationScreenState
       }
 
       // --------------------------------------------------------
-      // Ignore messages from other conversations.
+      // WRONG CONVERSATION
       // --------------------------------------------------------
 
       if (message.conversationId !=
@@ -896,17 +759,7 @@ class _ConversationScreenState
       }
 
       // --------------------------------------------------------
-      // Prevent duplicate delivery.
-      //
-      // This is especially important because:
-      //
-      // new_message
-      //
-      // and
-      //
-      // chat_list_updated
-      //
-      // can represent the same message.
+      // DUPLICATE CHECK
       // --------------------------------------------------------
 
       final existingIndex =
@@ -916,16 +769,14 @@ class _ConversationScreenState
       );
 
       if (existingIndex != -1) {
-        // The server can send a newer version of
-        // the same message containing delivered/seen
-        // state. Replace it.
-        if (mounted) {
-          setState(() {
-            _messages[
-                existingIndex] =
-                message;
-          });
-        }
+
+        if (!mounted) return;
+
+        setState(() {
+
+          _messages[
+              existingIndex] = message;
+        });
 
         await _saveMessagesToCache();
 
@@ -935,17 +786,19 @@ class _ConversationScreenState
       final wasAtBottom =
           _isNearBottom();
 
-      if (!mounted) {
-        return;
-      }
+      // --------------------------------------------------------
+      // ADD MESSAGE
+      // --------------------------------------------------------
+
+      if (!mounted) return;
 
       setState(() {
+
         _messages.add(message);
 
         _messages.sort(
           (a, b) =>
-              a.createdAt
-                  .compareTo(
+              a.createdAt.compareTo(
             b.createdAt,
           ),
         );
@@ -954,160 +807,495 @@ class _ConversationScreenState
       await _saveMessagesToCache();
 
       // --------------------------------------------------------
-      // RECEIVER DELIVERY
-      // --------------------------------------------------------
-      //
-      // If the incoming message belongs to the other user,
-      // acknowledge delivery immediately.
-      //
-      // This does NOT depend on the user opening/reopening
-      // the conversation.
+      // RECEIVER ACKNOWLEDGEMENT
       // --------------------------------------------------------
 
       if (message.senderId !=
           widget.currentUserId) {
-        await _acknowledgeDelivery(
+
+        await _markMessageDelivered(
           message,
         );
 
-        // ------------------------------------------------------
-        // If the conversation is currently open, it is also
-        // immediately considered seen/read.
-        // ------------------------------------------------------
-
-        await _acknowledgeSeen(
+        await _markMessageSeen(
           message,
         );
       }
 
+      // --------------------------------------------------------
+      // SCROLL
+      // --------------------------------------------------------
+
       WidgetsBinding.instance
           .addPostFrameCallback((_) {
+
         if (!mounted) return;
 
         if (wasAtBottom ||
             message.senderId !=
                 widget.currentUserId) {
+
           _scrollToBottom();
         }
       });
+
     } catch (e) {
+
       debugPrint(
-        "INCOMING MESSAGE ERROR [$source]: $e",
+        "INCOMING MESSAGE ERROR: $e",
       );
-    }
-  }
-
-  Future<void>
-      _acknowledgeDelivery(
-    MessageModel message,
-  ) async {
-    if (_conversationId == null) {
-      return;
-    }
-
-    try {
-      // HTTP makes sure the database state is updated.
-      await _chatService
-          .markMessageDelivered(
-        messageId:
-            message.id.toString(),
-      );
-    } catch (e) {
-      debugPrint(
-        "HTTP DELIVERY ACK ERROR: $e",
-      );
-    }
-
-    try {
-      // Socket makes sure the sender's open conversation
-      // receives the delivered update immediately.
-      _socketService.sendDelivered(
-        conversationId:
-            message.conversationId,
-        messageId:
-            message.id,
-      );
-    } catch (e) {
-      debugPrint(
-        "SOCKET DELIVERY ACK ERROR: $e",
-      );
-    }
-
-    final index =
-        _messages.indexWhere(
-      (item) =>
-          item.id == message.id,
-    );
-
-    if (index != -1 &&
-        mounted) {
-      setState(() {
-        _messages[index] =
-            _messages[index].copyWith(
-          delivered: true,
-        );
-      });
-
-      await _saveMessagesToCache();
-    }
-  }
-
-  Future<void>
-      _acknowledgeSeen(
-    MessageModel message,
-  ) async {
-    try {
-      await _chatService
-          .markMessageSeen(
-        messageId:
-            message.id.toString(),
-      );
-    } catch (e) {
-      debugPrint(
-        "HTTP SEEN ACK ERROR: $e",
-      );
-    }
-
-    try {
-      _socketService.sendSeen(
-        conversationId:
-            message.conversationId,
-        messageId:
-            message.id,
-      );
-    } catch (e) {
-      debugPrint(
-        "SOCKET SEEN ACK ERROR: $e",
-      );
-    }
-
-    final index =
-        _messages.indexWhere(
-      (item) =>
-          item.id == message.id,
-    );
-
-    if (index != -1 &&
-        mounted) {
-      setState(() {
-        _messages[index] =
-            _messages[index].copyWith(
-          delivered: true,
-          seen: true,
-        );
-      });
-
-      await _saveMessagesToCache();
     }
   }
 
   // ============================================================
-  // SEEN / DELIVERED EVENTS
+  // SEND TEXT
+  // ============================================================
+
+  Future<void> _sendText(
+    String text,
+  ) async {
+
+    final trimmed =
+        text.trim();
+
+    if (trimmed.isEmpty) {
+      return;
+    }
+
+    if (_status?.canReply != true) {
+      return;
+    }
+
+    if (_sending) {
+      return;
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      _sending = true;
+    });
+
+    _stopTyping();
+
+    try {
+
+      final wasTemporary =
+          _conversationId == null;
+
+      // ========================================================
+      // IMPORTANT:
+      // Actual message is sent through HTTP.
+      //
+      // DO NOT call SocketService.sendMessage().
+      // Backend saves the message and emits new_message.
+      // ========================================================
+
+      final sentMessage =
+          await _chatService.sendMessage(
+        conversationId:
+            _conversationId,
+        receiverId:
+            widget.receiverId,
+        message:
+            trimmed,
+        reply:
+            _replyMessage,
+      );
+
+      // --------------------------------------------------------
+      // FIRST MESSAGE CREATED CONVERSATION
+      // --------------------------------------------------------
+
+      if (wasTemporary) {
+
+        _conversationId =
+            sentMessage.conversationId;
+
+        await _joinConversation();
+      }
+
+      // --------------------------------------------------------
+      // ADD LOCAL RESPONSE
+      //
+      // The same message will later arrive through
+      // new_message. _addOrReplaceMessage prevents duplication.
+      // --------------------------------------------------------
+
+      _addOrReplaceMessage(
+        sentMessage,
+      );
+
+      await _saveMessagesToCache();
+
+      await _loadConversationStatus();
+
+      if (!mounted) return;
+
+      setState(() {
+        _replyMessage = null;
+      });
+
+      _scrollToBottom();
+
+    } catch (e) {
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        SnackBar(
+          content: Text(
+            e.toString(),
+          ),
+        ),
+      );
+
+    } finally {
+
+      if (mounted) {
+
+        setState(() {
+          _sending = false;
+        });
+      }
+    }
+  }
+
+  // ============================================================
+  // SEND IMAGE
+  // ============================================================
+
+  Future<void> _sendImage(
+    File image,
+  ) async {
+
+    if (_status?.canReply != true) {
+      return;
+    }
+
+    if (_sending) {
+      return;
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      _sending = true;
+    });
+
+    try {
+
+      final message =
+          await _chatService.sendMessage(
+        conversationId:
+            _conversationId,
+        receiverId:
+            widget.receiverId,
+        message: "",
+        messageType:
+            "image",
+        fileUrl:
+            image.path,
+        fileName:
+            image.path.split(
+          Platform.pathSeparator,
+        ).last,
+        fileSize:
+            await image.length(),
+        reply:
+            _replyMessage,
+      );
+
+      if (_conversationId == null) {
+
+        _conversationId =
+            message.conversationId;
+
+        await _joinConversation();
+
+        await _loadConversationStatus();
+      }
+
+      _addOrReplaceMessage(
+        message,
+      );
+
+      await _saveMessagesToCache();
+
+      if (!mounted) return;
+
+      setState(() {
+        _replyMessage = null;
+      });
+
+      _scrollToBottom();
+
+    } catch (e) {
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        SnackBar(
+          content: Text(
+            e.toString(),
+          ),
+        ),
+      );
+
+    } finally {
+
+      if (mounted) {
+
+        setState(() {
+          _sending = false;
+        });
+      }
+    }
+  }
+
+  // ============================================================
+  // SEND FILE
+  // ============================================================
+
+  Future<void> _sendFile(
+    File file,
+  ) async {
+
+    if (_status?.canReply != true) {
+      return;
+    }
+
+    if (_sending) {
+      return;
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      _sending = true;
+    });
+
+    try {
+
+      final message =
+          await _chatService.sendMessage(
+        conversationId:
+            _conversationId,
+        receiverId:
+            widget.receiverId,
+        message: "",
+        messageType:
+            "file",
+        fileUrl:
+            file.path,
+        fileName:
+            file.path.split(
+          Platform.pathSeparator,
+        ).last,
+        fileSize:
+            await file.length(),
+        reply:
+            _replyMessage,
+      );
+
+      if (_conversationId == null) {
+
+        _conversationId =
+            message.conversationId;
+
+        await _joinConversation();
+
+        await _loadConversationStatus();
+      }
+
+      _addOrReplaceMessage(
+        message,
+      );
+
+      await _saveMessagesToCache();
+
+      if (!mounted) return;
+
+      setState(() {
+        _replyMessage = null;
+      });
+
+      _scrollToBottom();
+
+    } catch (e) {
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        SnackBar(
+          content: Text(
+            e.toString(),
+          ),
+        ),
+      );
+
+    } finally {
+
+      if (mounted) {
+
+        setState(() {
+          _sending = false;
+        });
+      }
+    }
+  }
+
+  // ============================================================
+  // MESSAGE ADD / REPLACE
+  // ============================================================
+
+  void _addOrReplaceMessage(
+    MessageModel message,
+  ) {
+
+    final index =
+        _messages.indexWhere(
+      (item) =>
+          item.id == message.id,
+    );
+
+    if (!mounted) return;
+
+    setState(() {
+
+      if (index == -1) {
+
+        _messages.add(message);
+
+      } else {
+
+        _messages[index] =
+            message;
+      }
+
+      _messages.sort(
+        (a, b) =>
+            a.createdAt.compareTo(
+          b.createdAt,
+        ),
+      );
+    });
+  }
+
+  // ============================================================
+  // DELIVERED
+  // ============================================================
+
+  Future<void> _markMessageDelivered(
+    MessageModel message,
+  ) async {
+
+    try {
+
+      await _chatService.markMessageDelivered(
+        messageId:
+            message.id.toString(),
+      );
+
+    } catch (e) {
+
+      debugPrint(
+        "DELIVERED HTTP ERROR: $e",
+      );
+    }
+
+    _socketService.sendDelivered(
+      conversationId:
+          message.conversationId,
+      messageId:
+          message.id,
+    );
+
+    final index =
+        _messages.indexWhere(
+      (item) =>
+          item.id == message.id,
+    );
+
+    if (index == -1 ||
+        !mounted) {
+      return;
+    }
+
+    setState(() {
+
+      _messages[index] =
+          _messages[index].copyWith(
+        delivered: true,
+      );
+    });
+
+    await _saveMessagesToCache();
+  }
+
+  // ============================================================
+  // SEEN
+  // ============================================================
+
+  Future<void> _markMessageSeen(
+    MessageModel message,
+  ) async {
+
+    try {
+
+      await _chatService.markMessageSeen(
+        messageId:
+            message.id.toString(),
+      );
+
+    } catch (e) {
+
+      debugPrint(
+        "SEEN HTTP ERROR: $e",
+      );
+    }
+
+    _socketService.sendSeen(
+      conversationId:
+          message.conversationId,
+      messageId:
+          message.id,
+    );
+
+    final index =
+        _messages.indexWhere(
+      (item) =>
+          item.id == message.id,
+    );
+
+    if (index == -1 ||
+        !mounted) {
+      return;
+    }
+
+    setState(() {
+
+      _messages[index] =
+          _messages[index].copyWith(
+        delivered: true,
+        seen: true,
+      );
+    });
+
+    await _saveMessagesToCache();
+  }
+
+  // ============================================================
+  // MESSAGE SEEN SOCKET EVENT
   // ============================================================
 
   void _handleMessageSeen(
     dynamic data,
   ) {
+
     final map =
         _asMap(data);
 
@@ -1146,19 +1334,25 @@ class _ConversationScreenState
     }
 
     setState(() {
+
       _messages[index] =
           _messages[index].copyWith(
-        seen: true,
         delivered: true,
+        seen: true,
       );
     });
 
     _saveMessagesToCache();
   }
 
+  // ============================================================
+  // MESSAGE DELIVERED SOCKET EVENT
+  // ============================================================
+
   void _handleMessageDelivered(
     dynamic data,
   ) {
+
     final map =
         _asMap(data);
 
@@ -1197,6 +1391,7 @@ class _ConversationScreenState
     }
 
     setState(() {
+
       _messages[index] =
           _messages[index].copyWith(
         delivered: true,
@@ -1213,6 +1408,7 @@ class _ConversationScreenState
   void _handleTyping(
     dynamic data,
   ) {
+
     final map =
         _asMap(data);
 
@@ -1248,6 +1444,7 @@ class _ConversationScreenState
   void _handleStopTyping(
     dynamic data,
   ) {
+
     final map =
         _asMap(data);
 
@@ -1280,7 +1477,12 @@ class _ConversationScreenState
     });
   }
 
+  // ============================================================
+  // SEND TYPING
+  // ============================================================
+
   void sendTyping() {
+
     final conversationId =
         _conversationId;
 
@@ -1288,27 +1490,26 @@ class _ConversationScreenState
       return;
     }
 
-    _socketService.socket?.emit(
-      "typing",
-      {
-        "conversationId":
-            conversationId,
-        "senderId":
-            widget.currentUserId,
-      },
+    _socketService.sendTyping(
+      conversationId:
+          conversationId,
+      senderId:
+          widget.currentUserId,
     );
 
     _typingTimer?.cancel();
 
-    _typingTimer = Timer(
+    _typingTimer =
+        Timer(
       const Duration(
         milliseconds: 1200,
       ),
-      _stopSendingTyping,
+      _stopTyping,
     );
   }
 
-  void _stopSendingTyping() {
+  void _stopTyping() {
+
     final conversationId =
         _conversationId;
 
@@ -1316,14 +1517,8 @@ class _ConversationScreenState
       return;
     }
 
-    _socketService.socket?.emit(
-      "stopTyping",
-      {
-        "conversationId":
-            conversationId,
-        "senderId":
-            widget.currentUserId,
-      },
+    _socketService.sendStopTyping(
+      conversationId,
     );
   }
 
@@ -1334,6 +1529,7 @@ class _ConversationScreenState
   void _handlePresence(
     dynamic data,
   ) {
+
     final map =
         _asMap(data);
 
@@ -1350,352 +1546,39 @@ class _ConversationScreenState
 
     if (!mounted) return;
 
-    final onlineValue =
+    final online =
         map["online"];
 
     setState(() {
-      // Current backend's userOnline event represents
-      // the user coming online and doesn't always contain
-      // an explicit "online" boolean.
+
       _isOnline =
-          onlineValue is bool
-              ? onlineValue
+          online is bool
+              ? online
               : true;
     });
   }
 
   // ============================================================
-  // SEND TEXT
+  // MARK CONVERSATION READ
   // ============================================================
 
-  Future<void> _sendText(
-    String text,
-  ) async {
-    final trimmed =
-        text.trim();
+  Future<void> _markConversationRead() async {
 
-    if (trimmed.isEmpty) {
-      return;
-    }
-
-    if (_status?.canReply !=
-        true) {
-      return;
-    }
-
-    if (_sending) {
-      return;
-    }
-
-    if (!mounted) return;
-
-    setState(() {
-      _sending = true;
-    });
-
-    _stopSendingTyping();
-
-    try {
-      final wasTemporary =
-          _conversationId == null;
-
-      final sentMessage =
-          await _chatService.sendMessage(
-        conversationId:
-            _conversationId,
-        receiverId:
-            widget.receiverId,
-        message:
-            trimmed,
-        reply:
-            _replyMessage,
-      );
-
-      // --------------------------------------------------------
-      // TEMPORARY -> REAL CONVERSATION
-      // --------------------------------------------------------
-
-      if (wasTemporary) {
-        final newConversationId =
-            sentMessage
-                .conversationId;
-
-        _conversationId =
-            newConversationId;
-
-        await _joinConversationRoom(
-          newConversationId,
-        );
-      }
-
-      _addOrReplaceMessage(
-        sentMessage,
-      );
-
-      await _saveMessagesToCache();
-
-      await _loadConversationStatus();
-
-      if (!mounted) return;
-
-      setState(() {
-        _replyMessage = null;
-      });
-
-      _scrollToBottom();
-    } catch (e) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
-        SnackBar(
-          content: Text(
-            e.toString(),
-          ),
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _sending = false;
-        });
-      }
-    }
-  }
-
-  // ============================================================
-  // SEND IMAGE
-  // ============================================================
-
-  Future<void> _sendImage(
-    File image,
-  ) async {
-    if (_status?.canReply !=
-        true) {
-      return;
-    }
-
-    if (_sending) {
-      return;
-    }
-
-    if (!mounted) return;
-
-    setState(() {
-      _sending = true;
-    });
-
-    try {
-      final message =
-          await _chatService.sendMessage(
-        conversationId:
-            _conversationId,
-        receiverId:
-            widget.receiverId,
-        message: "",
-        messageType:
-            "image",
-        fileUrl:
-            image.path,
-        fileName:
-            image.path.split(
-          Platform.pathSeparator,
-        ).last,
-        fileSize:
-            await image.length(),
-        reply:
-            _replyMessage,
-      );
-
-      // If this was the first message,
-      // the backend may have created the conversation.
-      if (_conversationId == null) {
-        _conversationId =
-            message.conversationId;
-
-        await _joinConversationRoom(
-          message.conversationId,
-        );
-
-        await _loadConversationStatus();
-      }
-
-      _addOrReplaceMessage(
-        message,
-      );
-
-      await _saveMessagesToCache();
-
-      if (!mounted) return;
-
-      setState(() {
-        _replyMessage = null;
-      });
-
-      _scrollToBottom();
-    } catch (e) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
-        SnackBar(
-          content: Text(
-            e.toString(),
-          ),
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _sending = false;
-        });
-      }
-    }
-  }
-
-  // ============================================================
-  // SEND FILE
-  // ============================================================
-
-  Future<void> _sendFile(
-    File file,
-  ) async {
-    if (_status?.canReply !=
-        true) {
-      return;
-    }
-
-    if (_sending) {
-      return;
-    }
-
-    if (!mounted) return;
-
-    setState(() {
-      _sending = true;
-    });
-
-    try {
-      final message =
-          await _chatService.sendMessage(
-        conversationId:
-            _conversationId,
-        receiverId:
-            widget.receiverId,
-        message: "",
-        messageType:
-            "file",
-        fileUrl:
-            file.path,
-        fileName:
-            file.path.split(
-          Platform.pathSeparator,
-        ).last,
-        fileSize:
-            await file.length(),
-        reply:
-            _replyMessage,
-      );
-
-      if (_conversationId == null) {
-        _conversationId =
-            message.conversationId;
-
-        await _joinConversationRoom(
-          message.conversationId,
-        );
-
-        await _loadConversationStatus();
-      }
-
-      _addOrReplaceMessage(
-        message,
-      );
-
-      await _saveMessagesToCache();
-
-      if (!mounted) return;
-
-      setState(() {
-        _replyMessage = null;
-      });
-
-      _scrollToBottom();
-    } catch (e) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
-        SnackBar(
-          content: Text(
-            e.toString(),
-          ),
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _sending = false;
-        });
-      }
-    }
-  }
-
-  void _addOrReplaceMessage(
-    MessageModel message,
-  ) {
-    final index =
-        _messages.indexWhere(
-      (item) =>
-          item.id == message.id,
-    );
-
-    if (!mounted) {
-      return;
-    }
-
-    setState(() {
-      if (index == -1) {
-        _messages.add(
-          message,
-        );
-      } else {
-        _messages[index] =
-            message;
-      }
-
-      _messages.sort(
-        (a, b) =>
-            a.createdAt.compareTo(
-          b.createdAt,
-        ),
-      );
-    });
-  }
-
-  // ============================================================
-  // MARK CONVERSATION AS READ
-  // ============================================================
-
-  Future<void>
-      _markConversationRead() async {
-    if (_conversationId ==
-        null) {
+    if (_conversationId == null) {
       return;
     }
 
     try {
-      await _chatService
-          .markConversationAsRead(
+
+      await _chatService.markConversationAsRead(
         conversationId:
             _conversationId!,
       );
+
     } catch (e) {
+
       debugPrint(
-        "MARK CONVERSATION READ ERROR: $e",
+        "MARK READ ERROR: $e",
       );
     }
   }
@@ -1707,9 +1590,11 @@ class _ConversationScreenState
   void _replyToMessage(
     MessageModel message,
   ) {
+
     if (!mounted) return;
 
     setState(() {
+
       _replyMessage =
           ReplyMessageModel(
         messageId:
@@ -1720,8 +1605,7 @@ class _ConversationScreenState
                 ? "You"
                 : widget.chatName,
         message:
-            message.message ??
-                "",
+            message.message ?? "",
       );
     });
   }
@@ -1733,9 +1617,10 @@ class _ConversationScreenState
   Future<void> _deleteMessage(
     int messageId,
   ) async {
+
     try {
-      await _chatService
-          .deleteMessage(
+
+      await _chatService.deleteMessage(
         messageId:
             messageId.toString(),
       );
@@ -1743,6 +1628,7 @@ class _ConversationScreenState
       if (!mounted) return;
 
       setState(() {
+
         _messages.removeWhere(
           (message) =>
               message.id ==
@@ -1751,12 +1637,102 @@ class _ConversationScreenState
       });
 
       await _saveMessagesToCache();
+
     } catch (e) {
+
       if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        SnackBar(
+          content: Text(
+            e.toString(),
+          ),
+        ),
+      );
+    }
+  }
+
+  // ============================================================
+  // ACCEPT REQUEST
+  // ============================================================
+
+  Future<void> _acceptRequest() async {
+
+    final requestId =
+        _status?.requestId;
+
+    if (requestId == null) {
+      return;
+    }
+
+    try {
+
+      await _chatService.acceptRequest(
+        requestId,
+      );
+
+      await _loadConversationStatus();
+
+      if (_conversationId != null) {
+
+        await _joinConversation();
+
+        await _loadMessages(
+          initialLoad: true,
+        );
+
+        await _markConversationRead();
+      }
+
+      if (mounted) {
+        setState(() {});
+      }
+
+    } catch (e) {
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        SnackBar(
+          content: Text(
+            e.toString(),
+          ),
+        ),
+      );
+    }
+  }
+
+  // ============================================================
+  // DECLINE REQUEST
+  // ============================================================
+
+  Future<void> _declineRequest() async {
+
+    final requestId =
+        _status?.requestId;
+
+    if (requestId == null) {
+      return;
+    }
+
+    try {
+
+      await _chatService.declineRequest(
+        requestId,
+      );
+
+      if (!mounted) return;
+
+      Navigator.of(context).pop();
+
+    } catch (e) {
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         SnackBar(
           content: Text(
             e.toString(),
@@ -1771,8 +1747,8 @@ class _ConversationScreenState
   // ============================================================
 
   void _onScroll() {
-    if (!_scrollController
-        .hasClients) {
+
+    if (!_scrollController.hasClients) {
       return;
     }
 
@@ -1780,13 +1756,14 @@ class _ConversationScreenState
             .position
             .pixels <=
         80) {
+
       _loadOlderMessages();
     }
   }
 
   bool _isNearBottom() {
-    if (!_scrollController
-        .hasClients) {
+
+    if (!_scrollController.hasClients) {
       return true;
     }
 
@@ -1804,8 +1781,8 @@ class _ConversationScreenState
   void _scrollToBottom({
     bool animated = true,
   }) {
-    if (!_scrollController
-        .hasClients) {
+
+    if (!_scrollController.hasClients) {
       return;
     }
 
@@ -1815,9 +1792,11 @@ class _ConversationScreenState
             .maxScrollExtent;
 
     if (!animated) {
+
       _scrollController.jumpTo(
         target,
       );
+
       return;
     }
 
@@ -1833,11 +1812,115 @@ class _ConversationScreenState
   }
 
   // ============================================================
+  // CACHE
+  // ============================================================
+
+  Future<void> _saveMessagesToCache() async {
+
+    if (_conversationId == null) {
+      return;
+    }
+
+    await _cacheService.saveMessages(
+      _conversationId!,
+      _messages
+          .map(
+            (message) =>
+                message.toJson(),
+          )
+          .toList(),
+    );
+  }
+
+  // ============================================================
+  // DEDUPLICATION
+  // ============================================================
+
+  List<MessageModel>
+      _deduplicateMessages(
+    List<MessageModel> messages,
+  ) {
+
+    final ids =
+        <int>{};
+
+    final result =
+        <MessageModel>[];
+
+    for (final message
+        in messages) {
+
+      if (ids.add(
+        message.id,
+      )) {
+
+        result.add(message);
+      }
+    }
+
+    result.sort(
+      (a, b) =>
+          a.createdAt.compareTo(
+        b.createdAt,
+      ),
+    );
+
+    return result;
+  }
+
+  // ============================================================
+  // MAP HELPERS
+  // ============================================================
+
+  Map<String, dynamic>
+      _asMap(
+    dynamic data,
+  ) {
+
+    if (data
+        is Map<String, dynamic>) {
+
+      return data;
+    }
+
+    if (data is Map) {
+
+      return Map<String, dynamic>.from(
+        data,
+      );
+    }
+
+    return {};
+  }
+
+  int? _readInt(
+    Map<String, dynamic> map,
+    String key,
+  ) {
+
+    final value =
+        map[key];
+
+    if (value == null) {
+      return null;
+    }
+
+    if (value is int) {
+      return value;
+    }
+
+    return int.tryParse(
+      value.toString(),
+    );
+  }
+
+  // ============================================================
   // APP BAR
   // ============================================================
 
   PreferredSizeWidget
       _buildAppBar() {
+
     return AppBar(
       elevation: 0,
       centerTitle: false,
@@ -1847,8 +1930,9 @@ class _ConversationScreenState
             const Icon(
           Icons.arrow_back,
         ),
-        onPressed: () =>
-            Navigator.pop(
+        onPressed:
+            () =>
+                Navigator.pop(
           context,
         ),
       ),
@@ -1856,6 +1940,7 @@ class _ConversationScreenState
       title:
           Row(
         children: [
+
           CircleAvatar(
             radius: 20,
             backgroundImage:
@@ -1878,15 +1963,18 @@ class _ConversationScreenState
                       )
                     : null,
           ),
+
           const SizedBox(
             width: 12,
           ),
+
           Expanded(
             child:
                 Column(
               crossAxisAlignment:
                   CrossAxisAlignment.start,
               children: [
+
                 Text(
                   widget.chatName,
                   maxLines: 1,
@@ -1899,9 +1987,11 @@ class _ConversationScreenState
                         FontWeight.w600,
                   ),
                 ),
+
                 const SizedBox(
                   height: 2,
                 ),
+
                 Text(
                   _typing
                       ? "typing..."
@@ -1911,9 +2001,10 @@ class _ConversationScreenState
                   style:
                       TextStyle(
                     fontSize: 12,
-                    color: _typing
-                        ? Colors.green
-                        : Colors.grey,
+                    color:
+                        _typing
+                            ? Colors.green
+                            : Colors.grey,
                   ),
                 ),
               ],
@@ -1922,6 +2013,7 @@ class _ConversationScreenState
         ],
       ),
       actions: [
+
         IconButton(
           icon:
               const Icon(
@@ -1929,6 +2021,7 @@ class _ConversationScreenState
           ),
           onPressed: () {},
         ),
+
         IconButton(
           icon:
               const Icon(
@@ -1936,34 +2029,33 @@ class _ConversationScreenState
           ),
           onPressed: () {},
         ),
-        PopupMenuButton<
-            String>(
+
+        PopupMenuButton<String>(
           onSelected:
               (value) {},
           itemBuilder:
-              (_) =>
-                  const [
+              (_) => const [
+
             PopupMenuItem(
-              value:
-                  "search",
+              value: "search",
               child:
                   Text("Search"),
             ),
+
             PopupMenuItem(
-              value:
-                  "media",
+              value: "media",
               child:
                   Text("Media"),
             ),
+
             PopupMenuItem(
-              value:
-                  "mute",
+              value: "mute",
               child:
                   Text("Mute"),
             ),
+
             PopupMenuItem(
-              value:
-                  "clear",
+              value: "clear",
               child:
                   Text("Clear Chat"),
             ),
@@ -1978,6 +2070,7 @@ class _ConversationScreenState
   // ============================================================
 
   Widget _buildRelationshipBanner() {
+
     final status =
         _status;
 
@@ -1986,7 +2079,9 @@ class _ConversationScreenState
     }
 
     switch (status.status) {
+
       case "pending_received":
+
         return RequestBanner(
           title:
               "${widget.chatName} wants to be your friend",
@@ -2003,6 +2098,7 @@ class _ConversationScreenState
         );
 
       case "pending_sent":
+
         return RequestBanner(
           title:
               "Request sent",
@@ -2011,6 +2107,7 @@ class _ConversationScreenState
         );
 
       case "declined":
+
         return RequestBanner(
           title:
               "Request declined",
@@ -2019,88 +2116,8 @@ class _ConversationScreenState
         );
 
       default:
+
         return const SizedBox.shrink();
-    }
-  }
-
-  Future<void> _acceptRequest() async {
-    final requestId =
-        _status?.requestId;
-
-    if (requestId == null) {
-      return;
-    }
-
-    try {
-      await _chatService
-          .acceptRequest(
-        requestId,
-      );
-
-      await _loadConversationStatus();
-
-      if (_conversationId !=
-          null) {
-        await _joinConversationRoom(
-          _conversationId!,
-        );
-
-        await _loadMessages(
-          initialLoad: true,
-        );
-
-        await _markConversationRead();
-      }
-
-      if (mounted) {
-        setState(() {});
-      }
-    } catch (e) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
-        SnackBar(
-          content: Text(
-            e.toString(),
-          ),
-        ),
-      );
-    }
-  }
-
-  Future<void> _declineRequest() async {
-    final requestId =
-        _status?.requestId;
-
-    if (requestId == null) {
-      return;
-    }
-
-    try {
-      await _chatService
-          .declineRequest(
-        requestId,
-      );
-
-      if (!mounted) return;
-
-      Navigator.of(
-        context,
-      ).pop();
-    } catch (e) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
-        SnackBar(
-          content: Text(
-            e.toString(),
-          ),
-        ),
-      );
     }
   }
 
@@ -2109,21 +2126,18 @@ class _ConversationScreenState
   // ============================================================
 
   Widget _buildMessagesList() {
+
     if (_loading) {
+
       return const Center(
         child:
             CircularProgressIndicator(),
       );
     }
 
-    final showTyping =
-        _typing;
-
-    final showLoadingOlder =
-        _loadingOlder;
-
     if (_messages.isEmpty &&
-        !showTyping) {
+        !_typing) {
+
       return Center(
         child: Text(
           _status?.status ==
@@ -2138,12 +2152,8 @@ class _ConversationScreenState
 
     final itemCount =
         _messages.length +
-            (showTyping
-                ? 1
-                : 0) +
-            (showLoadingOlder
-                ? 1
-                : 0);
+            (_typing ? 1 : 0) +
+            (_loadingOlder ? 1 : 0);
 
     return ListView.builder(
       controller:
@@ -2157,12 +2167,10 @@ class _ConversationScreenState
           itemCount,
       itemBuilder:
           (context, index) {
-        // ------------------------------------------------------
-        // Older-message loading indicator
-        // ------------------------------------------------------
 
-        if (showLoadingOlder &&
+        if (_loadingOlder &&
             index == 0) {
+
           return const Padding(
             padding:
                 EdgeInsets.symmetric(
@@ -2183,17 +2191,14 @@ class _ConversationScreenState
 
         final messageIndex =
             index -
-                (showLoadingOlder
+                (_loadingOlder
                     ? 1
                     : 0);
 
-        // ------------------------------------------------------
-        // Typing indicator
-        // ------------------------------------------------------
-
-        if (showTyping &&
+        if (_typing &&
             messageIndex ==
                 _messages.length) {
+
           return const Padding(
             padding:
                 EdgeInsets.only(
@@ -2208,10 +2213,10 @@ class _ConversationScreenState
           );
         }
 
-        if (messageIndex <
-                0 ||
+        if (messageIndex < 0 ||
             messageIndex >=
                 _messages.length) {
+
           return const SizedBox.shrink();
         }
 
@@ -2223,15 +2228,21 @@ class _ConversationScreenState
     );
   }
 
+  // ============================================================
+  // MESSAGE BUBBLE
+  // ============================================================
+
   Widget _buildMessageBubble(
     MessageModel message,
   ) {
+
     final isMe =
         message.senderId ==
             widget.currentUserId;
 
     if (message.messageType ==
         "image") {
+
       return ImageMessageBubble(
         isMe: isMe,
         imageUrl:
@@ -2244,6 +2255,7 @@ class _ConversationScreenState
     }
 
     if (isMe) {
+
       return SenderMessageBubble(
         message:
             message.message ??
@@ -2287,19 +2299,20 @@ class _ConversationScreenState
   // ============================================================
 
   Widget _buildBottomSection() {
+
     return Column(
       mainAxisSize:
           MainAxisSize.min,
       children: [
-        if (_replyMessage !=
-            null)
+
+        if (_replyMessage != null)
+
           ReplyPreview(
             reply:
                 _replyMessage!,
             onCancel: () {
-              if (!mounted) {
-                return;
-              }
+
+              if (!mounted) return;
 
               setState(() {
                 _replyMessage =
@@ -2310,13 +2323,15 @@ class _ConversationScreenState
 
         if (_status?.canReply ==
             true)
+
           MessageInputBar(
             visible:
                 true,
             reply:
                 _replyMessage,
-            onCancelReply:
-                () {
+
+            onCancelReply: () {
+
               if (!mounted) {
                 return;
               }
@@ -2326,14 +2341,17 @@ class _ConversationScreenState
                     null;
               });
             },
+
             onSendText:
                 _sendText,
+
             onSendImage:
                 (
               image,
               caption,
             ) async {
-              final file =
+
+              final result =
                   await Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -2350,19 +2368,23 @@ class _ConversationScreenState
                 return;
               }
 
-              if (file
-                  is File) {
+              if (result is File) {
+
                 await _sendImage(
-                  file,
+                  result,
                 );
               }
             },
+
             onSendFile:
                 _sendFile,
+
             onSendVoice:
                 (audio) async {},
           )
+
         else
+
           const SizedBox(
             height: 10,
           ),
@@ -2371,52 +2393,17 @@ class _ConversationScreenState
   }
 
   // ============================================================
-  // HELPERS
+  // DISPOSE
   // ============================================================
-
-  Map<String, dynamic>
-      _asMap(dynamic data) {
-    if (data
-        is Map<String, dynamic>) {
-      return data;
-    }
-
-    if (data is Map) {
-      return Map<String, dynamic>.from(
-        data,
-      );
-    }
-
-    return {};
-  }
-
-  int? _readInt(
-    Map<String, dynamic> map,
-    String key,
-  ) {
-    final value =
-        map[key];
-
-    if (value == null) {
-      return null;
-    }
-
-    if (value is int) {
-      return value;
-    }
-
-    return int.tryParse(
-      value.toString(),
-    );
-  }
 
   @override
   void dispose() {
+
     _typingTimer?.cancel();
 
-    _stopSendingTyping();
+    _stopTyping();
 
-    _leaveConversationRoom();
+    _leaveConversation();
 
     _removeSocketListeners();
 
@@ -2425,32 +2412,34 @@ class _ConversationScreenState
       _onScroll,
     );
 
-    _scrollController
-        .dispose();
+    _scrollController.dispose();
 
     super.dispose();
   }
+
+  // ============================================================
+  // BUILD
+  // ============================================================
 
   @override
   Widget build(
     BuildContext context,
   ) {
+
     return Scaffold(
       appBar:
           _buildAppBar(),
+
       body:
           SafeArea(
         child:
             Column(
           children: [
+
             Expanded(
               child:
                   _buildMessagesList(),
             ),
-
-            // --------------------------------------------------
-            // Relationship state
-            // --------------------------------------------------
 
             if (_status?.status ==
                     "pending_received" ||
@@ -2458,11 +2447,8 @@ class _ConversationScreenState
                     "pending_sent" ||
                 _status?.status ==
                     "declined")
-              _buildRelationshipBanner(),
 
-            // --------------------------------------------------
-            // Message composer
-            // --------------------------------------------------
+              _buildRelationshipBanner(),
 
             _buildBottomSection(),
           ],

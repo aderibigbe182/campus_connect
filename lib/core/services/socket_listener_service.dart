@@ -8,8 +8,7 @@ class SocketListenerService {
   static final SocketListenerService instance =
       SocketListenerService._();
 
-  io.Socket? get _socket =>
-      SocketService.instance.socket;
+  io.Socket? get _socket => SocketService.instance.socket;
 
   // ===========================================================
   // GENERIC LISTENER MANAGEMENT
@@ -30,14 +29,12 @@ class SocketListenerService {
   void listenNewMessage(
     Function(dynamic) callback,
   ) {
-    _socket?.on(
-      "new_message",
-      callback,
-    );
+    _socket?.off('new_message');
+    _socket?.on('new_message', callback);
   }
 
   void removeNewMessageListener() {
-    _socket?.off("new_message");
+    _socket?.off('new_message');
   }
 
   // ===========================================================
@@ -47,14 +44,12 @@ class SocketListenerService {
   void listenMessageSeen(
     Function(dynamic) callback,
   ) {
-    _socket?.on(
-      "message_seen",
-      callback,
-    );
+    _socket?.off('message_seen');
+    _socket?.on('message_seen', callback);
   }
 
   void removeMessageSeenListener() {
-    _socket?.off("message_seen");
+    _socket?.off('message_seen');
   }
 
   // ===========================================================
@@ -64,14 +59,12 @@ class SocketListenerService {
   void listenMessageDelivered(
     Function(dynamic) callback,
   ) {
-    _socket?.on(
-      "message_delivered",
-      callback,
-    );
+    _socket?.off('message_delivered');
+    _socket?.on('message_delivered', callback);
   }
 
   void removeMessageDeliveredListener() {
-    _socket?.off("message_delivered");
+    _socket?.off('message_delivered');
   }
 
   // ===========================================================
@@ -81,27 +74,28 @@ class SocketListenerService {
   void listenTyping(
     Function(dynamic) callback,
   ) {
-    _socket?.on(
-      "user_typing",
-      callback,
-    );
+    _socket?.off('user_typing');
+    _socket?.on('user_typing', callback);
   }
 
   void listenStopTyping(
     Function(dynamic) callback,
   ) {
-    _socket?.on(
-      "user_stopped_typing",
-      callback,
-    );
+    _socket?.off('user_stopped_typing');
+    _socket?.on('user_stopped_typing', callback);
   }
 
   void removeTypingListener() {
-    _socket?.off("user_typing");
+    _socket?.off('user_typing');
   }
 
   void removeStopTypingListener() {
-    _socket?.off("user_stopped_typing");
+    _socket?.off('user_stopped_typing');
+  }
+
+  void removeTypingListeners() {
+    _socket?.off('user_typing');
+    _socket?.off('user_stopped_typing');
   }
 
   // ===========================================================
@@ -111,14 +105,12 @@ class SocketListenerService {
   void listenPresence(
     Function(dynamic) callback,
   ) {
-    _socket?.on(
-      "userOnline",
-      callback,
-    );
+    _socket?.off('userOnline');
+    _socket?.on('userOnline', callback);
   }
 
   void removePresenceListener() {
-    _socket?.off("userOnline");
+    _socket?.off('userOnline');
   }
 
   // ===========================================================
@@ -128,40 +120,40 @@ class SocketListenerService {
   void listenFriendRequestSent(
     Function(dynamic) callback,
   ) {
-    _socket?.on(
-      "friend_request_sent",
-      callback,
-    );
+    _socket?.off('friend_request_sent');
+    _socket?.on('friend_request_sent', callback);
   }
 
   void listenFriendRequestAccepted(
     Function(dynamic) callback,
   ) {
-    _socket?.on(
-      "friend_request_accepted",
-      callback,
-    );
+    _socket?.off('friend_request_accepted');
+    _socket?.on('friend_request_accepted', callback);
   }
 
   void listenFriendRequestDeclined(
     Function(dynamic) callback,
   ) {
-    _socket?.on(
-      "friend_request_declined",
-      callback,
-    );
+    _socket?.off('friend_request_declined');
+    _socket?.on('friend_request_declined', callback);
   }
 
   void removeFriendRequestSentListener() {
-    _socket?.off("friend_request_sent");
+    _socket?.off('friend_request_sent');
   }
 
   void removeFriendRequestAcceptedListener() {
-    _socket?.off("friend_request_accepted");
+    _socket?.off('friend_request_accepted');
   }
 
   void removeFriendRequestDeclinedListener() {
-    _socket?.off("friend_request_declined");
+    _socket?.off('friend_request_declined');
+  }
+
+  void removeFriendRequestListeners() {
+    _socket?.off('friend_request_sent');
+    _socket?.off('friend_request_accepted');
+    _socket?.off('friend_request_declined');
   }
 
   // ===========================================================
@@ -171,14 +163,12 @@ class SocketListenerService {
   void listenRelationshipUpdated(
     Function(dynamic) callback,
   ) {
-    _socket?.on(
-      "relationship_updated",
-      callback,
-    );
+    _socket?.off('relationship_updated');
+    _socket?.on('relationship_updated', callback);
   }
 
   void removeRelationshipUpdatedListener() {
-    _socket?.off("relationship_updated");
+    _socket?.off('relationship_updated');
   }
 
   // ===========================================================
@@ -188,14 +178,12 @@ class SocketListenerService {
   void listenChatListUpdated(
     Function(dynamic) callback,
   ) {
-    _socket?.on(
-      "chat_list_updated",
-      callback,
-    );
+    _socket?.off('chat_list_updated');
+    _socket?.on('chat_list_updated', callback);
   }
 
   void removeChatListUpdatedListener() {
-    _socket?.off("chat_list_updated");
+    _socket?.off('chat_list_updated');
   }
 
   // ===========================================================
@@ -205,14 +193,12 @@ class SocketListenerService {
   void listenUnreadUpdated(
     Function(dynamic) callback,
   ) {
-    _socket?.on(
-      "unreadUpdated",
-      callback,
-    );
+    _socket?.off('unreadUpdated');
+    _socket?.on('unreadUpdated', callback);
   }
 
   void removeUnreadUpdatedListener() {
-    _socket?.off("unreadUpdated");
+    _socket?.off('unreadUpdated');
   }
 
   // ===========================================================
@@ -222,27 +208,28 @@ class SocketListenerService {
   void listenMessageReaction(
     Function(dynamic) callback,
   ) {
-    _socket?.on(
-      "messageReaction",
-      callback,
-    );
+    _socket?.off('messageReaction');
+    _socket?.on('messageReaction', callback);
   }
 
   void listenMessageUnreaction(
     Function(dynamic) callback,
   ) {
-    _socket?.on(
-      "removeReaction",
-      callback,
-    );
+    _socket?.off('removeReaction');
+    _socket?.on('removeReaction', callback);
   }
 
   void removeMessageReactionListener() {
-    _socket?.off("messageReaction");
+    _socket?.off('messageReaction');
   }
 
   void removeMessageUnreactionListener() {
-    _socket?.off("removeReaction");
+    _socket?.off('removeReaction');
+  }
+
+  void removeReactionListeners() {
+    _socket?.off('messageReaction');
+    _socket?.off('removeReaction');
   }
 
   // ===========================================================
@@ -252,19 +239,23 @@ class SocketListenerService {
   void listenNewMediaMessage(
     Function(dynamic) callback,
   ) {
-    _socket?.on(
-      "newMediaMessage",
-      callback,
-    );
+    _socket?.off('newMediaMessage');
+    _socket?.on('newMediaMessage', callback);
   }
 
   void listenMediaUploaded(
     Function(dynamic) callback,
   ) {
-    _socket?.on(
-      "mediaUploaded",
-      callback,
-    );
+    _socket?.off('mediaUploaded');
+    _socket?.on('mediaUploaded', callback);
+  }
+
+  void removeNewMediaMessageListener() {
+    _socket?.off('newMediaMessage');
+  }
+
+  void removeMediaUploadedListener() {
+    _socket?.off('mediaUploaded');
   }
 
   // ===========================================================
@@ -274,19 +265,23 @@ class SocketListenerService {
   void listenMessageStarred(
     Function(dynamic) callback,
   ) {
-    _socket?.on(
-      "messageStarred",
-      callback,
-    );
+    _socket?.off('messageStarred');
+    _socket?.on('messageStarred', callback);
   }
 
   void listenMessageUnstarred(
     Function(dynamic) callback,
   ) {
-    _socket?.on(
-      "messageUnstarred",
-      callback,
-    );
+    _socket?.off('messageUnstarred');
+    _socket?.on('messageUnstarred', callback);
+  }
+
+  void removeMessageStarredListener() {
+    _socket?.off('messageStarred');
+  }
+
+  void removeMessageUnstarredListener() {
+    _socket?.off('messageUnstarred');
   }
 
   // ===========================================================
@@ -296,55 +291,67 @@ class SocketListenerService {
   void listenIncomingCall(
     Function(dynamic) callback,
   ) {
-    _socket?.on(
-      "incomingCall",
-      callback,
-    );
+    _socket?.off('incomingCall');
+    _socket?.on('incomingCall', callback);
   }
 
   void listenCallAccepted(
     Function(dynamic) callback,
   ) {
-    _socket?.on(
-      "callAccepted",
-      callback,
-    );
+    _socket?.off('callAccepted');
+    _socket?.on('callAccepted', callback);
   }
 
   void listenCallRejected(
     Function(dynamic) callback,
   ) {
-    _socket?.on(
-      "callRejected",
-      callback,
-    );
+    _socket?.off('callRejected');
+    _socket?.on('callRejected', callback);
   }
 
   void listenCallEnded(
     Function(dynamic) callback,
   ) {
-    _socket?.on(
-      "callEnded",
-      callback,
-    );
+    _socket?.off('callEnded');
+    _socket?.on('callEnded', callback);
   }
 
   void listenCallBusy(
     Function(dynamic) callback,
   ) {
-    _socket?.on(
-      "callBusy",
-      callback,
-    );
+    _socket?.off('callBusy');
+    _socket?.on('callBusy', callback);
   }
 
   void listenMissedCall(
     Function(dynamic) callback,
   ) {
-    _socket?.on(
-      "missedCall",
-      callback,
-    );
+    _socket?.off('missedCall');
+    _socket?.on('missedCall', callback);
+  }
+
+  void removeIncomingCallListener() {
+    _socket?.off('incomingCall');
+  }
+
+  void removeCallAcceptedListener() {
+    _socket?.off('callAccepted');
+  }
+
+  void removeCallRejectedListener() {
+    _socket?.off('callRejected');
+  }
+
+  void removeCallEndedListener() {
+    _socket?.off('callEnded');
+  }
+
+  void removeCallBusyListener() {
+    _socket?.off('callBusy');
+  }
+
+  void removeMissedCallListener() {
+    _socket?.off('missedCall');
   }
 
   // ===========================================================
@@ -354,28 +361,34 @@ class SocketListenerService {
   void listenWebRTCOffer(
     Function(dynamic) callback,
   ) {
-    _socket?.on(
-      "webrtcOffer",
-      callback,
-    );
+    _socket?.off('webrtcOffer');
+    _socket?.on('webrtcOffer', callback);
   }
 
   void listenWebRTCAnswer(
     Function(dynamic) callback,
   ) {
-    _socket?.on(
-      "webrtcAnswer",
-      callback,
-    );
+    _socket?.off('webrtcAnswer');
+    _socket?.on('webrtcAnswer', callback);
   }
 
   void listenIceCandidate(
     Function(dynamic) callback,
   ) {
-    _socket?.on(
-      "iceCandidate",
-      callback,
-    );
+    _socket?.off('iceCandidate');
+    _socket?.on('iceCandidate', callback);
+  }
+
+  void removeWebRTCOfferListener() {
+    _socket?.off('webrtcOffer');
+  }
+
+  void removeWebRTCAnswerListener() {
+    _socket?.off('webrtcAnswer');
+  }
+
+  void removeIceCandidateListener() {
+    _socket?.off('iceCandidate');
   }
 
   // ===========================================================
@@ -385,46 +398,56 @@ class SocketListenerService {
   void listenVideoEnabled(
     Function(dynamic) callback,
   ) {
-    _socket?.on(
-      "videoEnabled",
-      callback,
-    );
+    _socket?.off('videoEnabled');
+    _socket?.on('videoEnabled', callback);
   }
 
   void listenVideoDisabled(
     Function(dynamic) callback,
   ) {
-    _socket?.on(
-      "videoDisabled",
-      callback,
-    );
+    _socket?.off('videoDisabled');
+    _socket?.on('videoDisabled', callback);
   }
 
   void listenUpgradeToVideoCall(
     Function(dynamic) callback,
   ) {
-    _socket?.on(
-      "upgradeToVideoCall",
-      callback,
-    );
+    _socket?.off('upgradeToVideoCall');
+    _socket?.on('upgradeToVideoCall', callback);
   }
 
   void listenCameraStateChanged(
     Function(dynamic) callback,
   ) {
-    _socket?.on(
-      "cameraStateChanged",
-      callback,
-    );
+    _socket?.off('cameraStateChanged');
+    _socket?.on('cameraStateChanged', callback);
   }
 
   void listenToggleCamera(
     Function(dynamic) callback,
   ) {
-    _socket?.on(
-      "toggleCamera",
-      callback,
-    );
+    _socket?.off('toggleCamera');
+    _socket?.on('toggleCamera', callback);
+  }
+
+  void removeVideoEnabledListener() {
+    _socket?.off('videoEnabled');
+  }
+
+  void removeVideoDisabledListener() {
+    _socket?.off('videoDisabled');
+  }
+
+  void removeUpgradeToVideoCallListener() {
+    _socket?.off('upgradeToVideoCall');
+  }
+
+  void removeCameraStateChangedListener() {
+    _socket?.off('cameraStateChanged');
+  }
+
+  void removeToggleCameraListener() {
+    _socket?.off('toggleCamera');
   }
 
   // ===========================================================
@@ -434,19 +457,23 @@ class SocketListenerService {
   void listenScreenShareStarted(
     Function(dynamic) callback,
   ) {
-    _socket?.on(
-      "screenShareStarted",
-      callback,
-    );
+    _socket?.off('screenShareStarted');
+    _socket?.on('screenShareStarted', callback);
   }
 
   void listenScreenShareStopped(
     Function(dynamic) callback,
   ) {
-    _socket?.on(
-      "screenShareStopped",
-      callback,
-    );
+    _socket?.off('screenShareStopped');
+    _socket?.on('screenShareStopped', callback);
+  }
+
+  void removeScreenShareStartedListener() {
+    _socket?.off('screenShareStarted');
+  }
+
+  void removeScreenShareStoppedListener() {
+    _socket?.off('screenShareStopped');
   }
 
   // ===========================================================
@@ -456,19 +483,23 @@ class SocketListenerService {
   void listenRecordingStarted(
     Function(dynamic) callback,
   ) {
-    _socket?.on(
-      "recordingStarted",
-      callback,
-    );
+    _socket?.off('recordingStarted');
+    _socket?.on('recordingStarted', callback);
   }
 
   void listenRecordingStopped(
     Function(dynamic) callback,
   ) {
-    _socket?.on(
-      "recordingStopped",
-      callback,
-    );
+    _socket?.off('recordingStopped');
+    _socket?.on('recordingStopped', callback);
+  }
+
+  void removeRecordingStartedListener() {
+    _socket?.off('recordingStarted');
+  }
+
+  void removeRecordingStoppedListener() {
+    _socket?.off('recordingStopped');
   }
 
   // ===========================================================
@@ -478,18 +509,22 @@ class SocketListenerService {
   void listenVideoPermissionRequest(
     Function(dynamic) callback,
   ) {
-    _socket?.on(
-      "requestVideoPermission",
-      callback,
-    );
+    _socket?.off('requestVideoPermission');
+    _socket?.on('requestVideoPermission', callback);
   }
 
   void listenVideoPermissionResponse(
     Function(dynamic) callback,
   ) {
-    _socket?.on(
-      "respondVideoPermission",
-      callback,
-    );
+    _socket?.off('respondVideoPermission');
+    _socket?.on('respondVideoPermission', callback);
+  }
+
+  void removeVideoPermissionRequestListener() {
+    _socket?.off('requestVideoPermission');
+  }
+
+  void removeVideoPermissionResponseListener() {
+    _socket?.off('respondVideoPermission');
   }
 }
