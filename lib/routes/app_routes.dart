@@ -21,7 +21,11 @@ class AppRoutes {
     onboarding: (_) => const OnboardingScreen(),
     login: (_) => const LoginScreen(),
     register: (_) => const RegisterScreen(),
-    home: (_) => const HomeScreen(),
+    home: (context) {
+      final args = ModalRoute.of(context)?.settings.arguments;
+      final currentUserId = args is int ? args : 0;
+      return HomeScreen(currentUserId: currentUserId);
+    },
     profile: (context) => const ProfilePage(),
     search: (context) => const SearchScreen(),
   };

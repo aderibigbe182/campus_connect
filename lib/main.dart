@@ -79,7 +79,8 @@ class _StartScreenState extends State<StartScreen> {
     final token = await StorageService.getToken();
 
     if (token != null && token.isNotEmpty) {
-      return const HomeScreen();
+      final userId = int.tryParse(token) ?? 0;
+      return HomeScreen(currentUserId: userId);
     }
 
     return const LoginScreen();

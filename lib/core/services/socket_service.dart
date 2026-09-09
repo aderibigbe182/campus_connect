@@ -2,86 +2,99 @@ import 'dart:async';
 
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
-import '../../features/chat/models/reply_message_model.dart';
-
 class SocketService {
   SocketService._();
 
   static final SocketService instance = SocketService._();
 
-  // ===========================================================
-  // CONFIGURATION
-  // ===========================================================
+  // ============================================================
+  // CONFIG
+  // ============================================================
 
-  static const String _serverUrl =
+  static const String _baseUrl =
       'https://campus-connect-backend-6pwg.onrender.com';
 
-  // ===========================================================
+  // ============================================================
   // SOCKET
-  // ===========================================================
+  // ============================================================
 
   io.Socket? _socket;
 
   String? _token;
 
-  bool _connecting = false;
-
-  // ===========================================================
-  // CONNECTION STATE
-  // ===========================================================
+  Future<bool>? _connectionFuture;
 
   final StreamController<bool> _connectionController =
       StreamController<bool>.broadcast();
 
-  Stream<bool> get connectionStream =>
-      _connectionController.stream;
+  // ============================================================
+  // PUBLIC GETTERS
+  // ============================================================
 
   io.Socket? get socket => _socket;
 
-  bool get isConnected =>
-      _socket?.connected ?? false;
+  bool get isConnected => _socket?.connected ?? false;
 
-  bool get isConnecting =>
-      _connecting;
+  Stream<bool> get connectionStream => _connectionController.stream;
 
-  // ===========================================================
-  // CONNECTION
-  // ===========================================================
+  // ============================================================
+  // CONNECT
+  // ============================================================
 
-  void connect(String token) {
-    // Always remember the newest token.
-    _token = token;
+  Future<bool> connect(String token) async {
+    final cleanToken = token.trim();
 
-    // ---------------------------------------------------------
-    // Already connected
-    // ---------------------------------------------------------
+    if (cleanToken.isEmpty) {
+      print('[SocketService] Cannot connect: token is empty.');
+      return false;
+    }
+
+    _token = cleanToken;
+
+    // Already connected.
     if (_socket != null && _socket!.connected) {
-      return;
+      return true;
     }
 
-    // ---------------------------------------------------------
-    // Connection already being established
-    // ---------------------------------------------------------
-    if (_connecting) {
-      return;
+    // Another connection attempt is already running.
+    final existingConnection = _connectionFuture;
+
+    if (existingConnection != null) {
+      return existingConnection;
     }
 
-    _connecting = true;
+    final connection = _connectInternal();
 
-    // ---------------------------------------------------------
-    // If an old socket exists but is disconnected, completely
-    // remove it before creating the new connection.
-    // ---------------------------------------------------------
-    if (_socket != null) {
-      _disposeSocket();
+    _connectionFuture = connection;
+
+    try {
+      return await connection;
+    } finally {
+      if (identical(_connectionFuture, connection)) {
+        _connectionFuture = null;
+      }
+    }
+  }
+
+  // ============================================================
+  // INTERNAL CONNECT
+  // ============================================================
+
+  Future<bool> _connectInternal() async {
+    final token = _token;
+
+    if (token == null || token.trim().isEmpty) {
+      print('[SocketService] Cannot connect: token is missing.');
+      return false;
     }
 
-    // ---------------------------------------------------------
-    // Create socket
-    // ---------------------------------------------------------
+    // Remove old socket before creating a new one.
+    _disposeSocket();
+
+    final completer = Completer<bool>();
 
     final socket = io.io(
-      _serverUrl,
+      _baseUrl,
       io.OptionBuilder()
           .setTransports(['websocket'])
           .disableAutoConnect()
@@ -89,191 +102,185 @@ class SocketService {
             'token': token,
           })
           .enableReconnection()
-          .setReconnectionAttempts(double.infinity)
+          .setReconnectionAttempts(10)
           .setReconnectionDelay(1000)
           .setReconnectionDelayMax(5000)
-          .setTimeout(10000)
           .build(),
     );
 
     _socket = socket;
 
-    // ---------------------------------------------------------
-    // CONNECT
-    // ---------------------------------------------------------
+    // ==========================================================
+    // CONNECTED
+    // ==========================================================
 
     socket.onConnect((_) {
-      _connecting = false;
+      print('[SocketService] Connected.');
 
-      _connectionController.add(true);
+      if (!_connectionController.isClosed) {
+        _connectionController.add(true);
+      }
 
-      print(
-        '[SocketService] Connected. Socket ID: ${socket.id}',
-      );
+      if (!completer.isCompleted) {
+        completer.complete(true);
+      }
     });
 
-    // ---------------------------------------------------------
-    // DISCONNECT
-    // ---------------------------------------------------------
+    // ==========================================================
+    // DISCONNECTED
+    // ==========================================================
 
     socket.onDisconnect((reason) {
-      _connecting = false;
+      print('[SocketService] Disconnected: $reason');
 
-      _connectionController.add(false);
-
-      print(
-        '[SocketService] Disconnected: $reason',
-      );
+      if (!_connectionController.isClosed) {
+        _connectionController.add(false);
+      }
     });
 
-    // ---------------------------------------------------------
+    // ==========================================================
     // CONNECT ERROR
-    // ---------------------------------------------------------
+    // ==========================================================
 
     socket.onConnectError((error) {
-      _connecting = false;
+      print('[SocketService] Connection error: $error');
 
-      _connectionController.add(false);
-
-      print(
-        '[SocketService] Connection error: $error',
-      );
+      if (!completer.isCompleted) {
+        completer.complete(false);
+      }
     });
 
-    // ---------------------------------------------------------
+    // ==========================================================
     // GENERAL SOCKET ERROR
-    // ---------------------------------------------------------
+    // ==========================================================
 
     socket.onError((error) {
-      print(
-        '[SocketService] Socket error: $error',
-      );
+      print('[SocketService] Socket error: $error');
     });
 
-    // ---------------------------------------------------------
-    // RECONNECTING
-    // ---------------------------------------------------------
+    // ==========================================================
+    // RECONNECT ATTEMPT
+    // ==========================================================
 
-    socket.on('reconnect_attempt', (attempt) {
-      print(
-        '[SocketService] Reconnect attempt: $attempt',
-      );
-    });
+    socket.io.on(
+      'reconnect_attempt',
+      (_) {
+        print('[SocketService] Reconnection attempt...');
+      },
+    );
 
-    // ---------------------------------------------------------
+    // ==========================================================
     // RECONNECTED
-    // ---------------------------------------------------------
+    // ==========================================================
 
-    socket.on('reconnect', (attempt) {
-      _connecting = false;
+    socket.io.on(
+      'reconnect',
+      (_) {
+        print('[SocketService] Reconnected.');
 
-      _connectionController.add(true);
+        if (!_connectionController.isClosed) {
+          _connectionController.add(true);
+        }
+      },
+    );
 
-      print(
-        '[SocketService] Reconnected after attempt: $attempt',
-      );
-    });
-
-    // ---------------------------------------------------------
+    // ==========================================================
     // RECONNECT ERROR
-    // ---------------------------------------------------------
+    // ==========================================================
 
-    socket.on('reconnect_error', (error) {
-      print(
-        '[SocketService] Reconnect error: $error',
-      );
-    });
+    socket.io.on(
+      'reconnect_error',
+      (error) {
+        print('[SocketService] Reconnect error: $error');
+      },
+    );
 
-    // ---------------------------------------------------------
-    // RECONNECT FAILED
-    // ---------------------------------------------------------
-
-    socket.on('reconnect_failed', (_) {
-      _connecting = false;
-
-      _connectionController.add(false);
-
-      print(
-        '[SocketService] Reconnection failed.',
-      );
-    });
-
-    // ---------------------------------------------------------
+    // ==========================================================
     // START CONNECTION
-    // ---------------------------------------------------------
+    // ==========================================================
+
+    print('[SocketService] Connecting...');
 
     socket.connect();
+
+    // ==========================================================
+    // WAIT FOR INITIAL CONNECTION
+    // ==========================================================
+
+    try {
+      return await completer.future.timeout(
+        const Duration(seconds: 15),
+        onTimeout: () {
+          print('[SocketService] Connection timeout.');
+
+          return false;
+        },
+      );
+    } catch (e) {
+      print('[SocketService] Connection failed: $e');
+
+      return false;
+    }
   }
 
-  // ===========================================================
-  // ENSURE CONNECTION
-  // ===========================================================
+  // ============================================================
+  // ENSURE CONNECTED
+  // ============================================================
 
-  Future<bool> ensureConnected({
-    Duration timeout = const Duration(seconds: 5),
-  }) async {
+  Future<bool> ensureConnected() async {
     if (isConnected) {
       return true;
     }
 
     final token = _token;
 
-    if (token == null || token.isEmpty) {
+    if (token == null || token.trim().isEmpty) {
+      print('[SocketService] ensureConnected failed: token missing.');
+
       return false;
     }
 
-    connect(token);
+    return connect(token);
+  }
+
+  // ============================================================
+  // UPDATE TOKEN
+  // ============================================================
+
+  Future<bool> updateToken(String token) async {
+    final cleanToken = token.trim();
+
+    if (cleanToken.isEmpty) {
+      return false;
+    }
+
+    _token = cleanToken;
 
     if (isConnected) {
       return true;
     }
 
-    try {
-      await connectionStream
-          .firstWhere((connected) => connected)
-          .timeout(timeout);
-
-      return isConnected;
-    } on TimeoutException {
-      return false;
-    }
+    return connect(cleanToken);
   }
 
-  // ===========================================================
-  // UPDATE TOKEN
-  // ===========================================================
-
-  void updateToken(String token) {
-    _token = token;
-
-    if (_socket == null) {
-      return;
-    }
-
-    if (_socket!.connected) {
-      return;
-    }
-
-    connect(token);
-  }
-
-  // ===========================================================
+  // ============================================================
   // DISCONNECT
-  // ===========================================================
+  // ============================================================
 
   void disconnect() {
-    print('[SocketService] Manual disconnect.');
-
     _token = null;
+    _connectionFuture = null;
 
     _disposeSocket();
 
-    _connectionController.add(false);
+    if (!_connectionController.isClosed) {
+      _connectionController.add(false);
+    }
   }
 
-  // ===========================================================
+  // ============================================================
   // INTERNAL SOCKET DISPOSAL
-  // ===========================================================
+  // ============================================================
 
   void _disposeSocket() {
     final socket = _socket;
@@ -293,22 +300,21 @@ class SocketService {
     }
 
     _socket = null;
-
-    _connecting = false;
   }
 
-  // ===========================================================
-  // CONVERSATIONS
-  // ===========================================================
+  // ============================================================
+  // CONVERSATION ROOM
+  // ============================================================
 
   void joinConversation(int conversationId) {
     final socket = _socket;
 
     if (socket == null || !socket.connected) {
       print(
-        '[SocketService] Cannot join conversation $conversationId. '
-        'Socket is not connected.',
+        '[SocketService] Cannot join conversation '
+        '$conversationId. Socket is not connected.',
       );
+
       return;
     }
 
@@ -318,9 +324,14 @@ class SocketService {
     );
 
     print(
-      '[SocketService] Joining conversation: $conversationId',
+      '[SocketService] Joined conversation request: '
+      '$conversationId',
     );
   }
+
+  // ============================================================
+  // LEAVE CONVERSATION ROOM
+  // ============================================================
 
   void leaveConversation(int conversationId) {
     final socket = _socket;
@@ -335,120 +346,14 @@ class SocketService {
     );
 
     print(
-      '[SocketService] Leaving conversation: $conversationId',
+      '[SocketService] Left conversation request: '
+      '$conversationId',
     );
   }
 
-  // ===========================================================
-  // ROOM JOINED
-  // ===========================================================
-
-  void listenRoomJoined(
-    Function(dynamic) callback,
-  ) {
-    _socket?.on(
-      'roomJoined',
-      callback,
-    );
-  }
-
-  void removeRoomJoinedListener() {
-    _socket?.off('roomJoined');
-  }
-
-  // ===========================================================
-  // SEND MESSAGE
-  // ===========================================================
-
-  void sendMessage({
-    required int conversationId,
-    required int receiverId,
-    required String message,
-    ReplyMessageModel? replyTo,
-  }) {
-    final socket = _socket;
-
-    if (socket == null || !socket.connected) {
-      print(
-        '[SocketService] Cannot send message. '
-        'Socket is not connected.',
-      );
-      return;
-    }
-
-    final Map<String, dynamic> payload = {
-      'conversation_id': conversationId,
-      'receiverId': receiverId,
-      'message': message,
-      'replyTo': replyTo == null
-          ? null
-          : {
-              'messageId': replyTo.messageId,
-              'sender': replyTo.sender,
-              'message': replyTo.message,
-            },
-    };
-
-    socket.emit(
-      'sendMessage',
-      payload,
-    );
-
-    print(
-      '[SocketService] Message emitted '
-      '(conversation: $conversationId)',
-    );
-  }
-
-  // ===========================================================
-  // MESSAGE DELIVERED
-  // ===========================================================
-
-  void sendDelivered({
-    required int conversationId,
-    required int messageId,
-  }) {
-    final socket = _socket;
-
-    if (socket == null || !socket.connected) {
-      return;
-    }
-
-    socket.emit(
-      'messageDelivered',
-      {
-        'conversationId': conversationId,
-        'messageId': messageId,
-      },
-    );
-  }
-
-  // ===========================================================
-  // MESSAGE SEEN
-  // ===========================================================
-
-  void sendSeen({
-    required int conversationId,
-    required int messageId,
-  }) {
-    final socket = _socket;
-
-    if (socket == null || !socket.connected) {
-      return;
-    }
-
-    socket.emit(
-      'messageSeen',
-      {
-        'conversationId': conversationId,
-        'messageId': messageId,
-      },
-    );
-  }
-
-  // ===========================================================
+  // ============================================================
   // TYPING
-  // ===========================================================
+  // ============================================================
 
   void sendTyping({
     required int conversationId,
@@ -469,13 +374,14 @@ class SocketService {
     );
   }
 
-  // ===========================================================
+  // ============================================================
   // STOP TYPING
-  // ===========================================================
+  // ============================================================
 
   void sendStopTyping(
-    int conversationId,
-  ) {
+    int conversationId, {
+    int? senderId,
+  }) {
     final socket = _socket;
 
     if (socket == null || !socket.connected) {
@@ -486,18 +392,18 @@ class SocketService {
       'stopTyping',
       {
         'conversationId': conversationId,
+        if (senderId != null) 'senderId': senderId,
       },
     );
   }
 
-  // ===========================================================
-  // REACTIONS
-  // ===========================================================
+  // ============================================================
+  // MESSAGE DELIVERED
+  // ============================================================
 
-  void sendReaction({
+  void sendDelivered({
     required int conversationId,
     required int messageId,
-    required String emoji,
   }) {
     final socket = _socket;
 
@@ -506,85 +412,70 @@ class SocketService {
     }
 
     socket.emit(
-      'messageReaction',
+      'messageDelivered',
       {
         'conversationId': conversationId,
         'messageId': messageId,
-        'emoji': emoji,
       },
     );
   }
 
-  // ===========================================================
-  // GENERIC EMIT
-  // ===========================================================
-  //
-  // This is intentionally generic so future socket events can
-  // be added without bypassing the central SocketService.
-  //
-  // IMPORTANT:
-  // Only use event names that actually exist on the backend.
-  // ===========================================================
+  // ============================================================
+  // MESSAGE SEEN
+  // ============================================================
 
-  void emit(
-    String event,
-    dynamic data,
-  ) {
+  void sendSeen({
+    required int conversationId,
+    required int messageId,
+  }) {
     final socket = _socket;
 
     if (socket == null || !socket.connected) {
-      print(
-        '[SocketService] Cannot emit "$event". '
-        'Socket is not connected.',
-      );
       return;
     }
 
     socket.emit(
-      event,
-      data,
+      'messageSeen',
+      {
+        'conversationId': conversationId,
+        'messageId': messageId,
+      },
     );
   }
 
-  // ===========================================================
-  // LISTENER HELPERS
-  // ===========================================================
+  // ============================================================
+  // ROOM JOINED LISTENER
+  // ============================================================
 
-  void on(
-    String event,
+  void listenRoomJoined(
     Function(dynamic) callback,
   ) {
     _socket?.on(
-      event,
+      'roomJoined',
       callback,
     );
   }
 
-  void off(
-    String event,
-  ) {
-    _socket?.off(event);
+  // ============================================================
+  // REMOVE ROOM JOINED LISTENER
+  // ============================================================
+
+  void removeRoomJoinedListener() {
+    _socket?.off('roomJoined');
   }
 
-  void offCallback(
-    String event,
-    Function(dynamic) callback,
-  ) {
-    _socket?.off(
-      event,
-      callback,
-    );
-  }
-
-  // ===========================================================
+  // ============================================================
   // DISPOSE
-  // ===========================================================
+  // ============================================================
 
   void dispose() {
-    _disposeSocket();
-
     if (!_connectionController.isClosed) {
       _connectionController.close();
     }
+
+    _token = null;
+    _connectionFuture = null;
+
+    _disposeSocket();
   }
 }
