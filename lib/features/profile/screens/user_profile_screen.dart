@@ -2,13 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../../../widgets/avatar_widget.dart';
 
-import '../../chat/screens/conversation_screen.dart';
-import '../../chat/services/chat_service.dart';
-
 import '../models/user_profile_model.dart';
 import '../services/user_profile_service.dart';
 
 import '../../../core/services/storage_service.dart';
+import 'package:campus_connect/features/chat/services/chat_service.dart';
+import 'package:campus_connect/features/chat/screens/conversation_screen.dart';
 
 class UserProfileScreen extends StatefulWidget {
   final int userId;

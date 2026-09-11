@@ -1,11 +1,9 @@
-import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 
-import '../../../core/services/storage_service.dart';
+import '../features/profile/services/user_profile_service.dart';
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -15,77 +13,98 @@ class EditProfilePage extends StatefulWidget {
 }
 
 class _EditProfilePageState extends State<EditProfilePage> {
-  final TextEditingController nameController = TextEditingController();
-  final TextEditingController usernameController = TextEditingController();
-  final TextEditingController bioController = TextEditingController();
-  final TextEditingController departmentController = TextEditingController();
-  final TextEditingController levelController = TextEditingController();
+  final nameController = TextEditingController();
+  final usernameController = TextEditingController();
+  final bioController = TextEditingController();
+  final departmentController = TextEditingController();
+  final levelController = TextEditingController();
 
   Uint8List? imageBytes;
-  bool loading = false;
+
+  bool loading = true;
+  bool saving = false;
 
   List<String> interests = [];
-  String searchInterest = "";
-
-  static const baseUrl =
-      "https://campus-connect-backend-6pwg.onrender.com";
+  String searchInterest = '';
 
   final Map<String, List<String>> availableInterests = {
-    "Entertainment": ["Movies", "TV Shows", "Anime", "Music", "Netflix / Streaming", "Comedy", "Celebrity News"],
-    "Gaming": ["Mobile Games", "Console Gaming", "PC Gaming", "Esports", "Game Development"],
-    "Tech & Internet": ["Artificial Intelligence", "Programming / Coding", "Gadgets", "Social Media", "Startups", "Cybersecurity"],
-    "Creativity": ["Photography", "Graphic Design", "Drawing / Art", "Fashion Design", "Writing / Blogging", "Video Editing"],
-    "Sports & Fitness": ["Football", "Basketball", "Gym / Fitness", "Running", "Martial Arts", "Yoga"],
-    "Lifestyle": ["Travel", "Food & Cooking", "Fashion", "Relationships", "Self Improvement", "Motivation"],
-    "Education & Career": ["Business", "Entrepreneurship", "Finance / Investing", "Science", "Engineering", "Medicine"],
-    "Hobbies": ["Reading", "Gardening", "Music Production", "Dancing", "Cars & Bikes", "Nature / Wildlife"],
-    "Other": ["Memes", "News & Politics", "Spirituality", "Psychology", "DIY / Crafts"],
+    'Entertainment': [
+      'Movies',
+      'TV Shows',
+      'Anime',
+      'Music',
+      'Netflix / Streaming',
+      'Comedy',
+      'Celebrity News',
+    ],
+    'Gaming': [
+      'Mobile Games',
+      'Console Gaming',
+      'PC Gaming',
+      'Esports',
+      'Game Development',
+    ],
+    'Tech & Internet': [
+      'Artificial Intelligence',
+      'Programming / Coding',
+      'Gadgets',
+      'Social Media',
+      'Startups',
+      'Cybersecurity',
+    ],
+    'Creativity': [
+      'Photography',
+      'Graphic Design',
+      'Drawing / Art',
+      'Fashion Design',
+      'Writing / Blogging',
+      'Video Editing',
+    ],
+    'Sports & Fitness': [
+      'Football',
+      'Basketball',
+      'Gym / Fitness',
+      'Running',
+      'Martial Arts',
+      'Yoga',
+    ],
+    'Lifestyle': [
+      'Travel',
+      'Food & Cooking',
+      'Fashion',
+      'Relationships',
+      'Self Improvement',
+      'Motivation',
+    ],
+    'Education & Career': [
+      'Business',
+      'Entrepreneurship',
+      'Finance / Investing',
+      'Science',
+      'Engineering',
+      'Medicine',
+    ],
+    'Hobbies': [
+      'Reading',
+      'Gardening',
+      'Music Production',
+      'Dancing',
+      'Cars & Bikes',
+      'Nature / Wildlife',
+    ],
+    'Other': [
+      'Memes',
+      'News & Politics',
+      'Spirituality',
+      'Psychology',
+      'DIY / Crafts',
+    ],
   };
-
-  Future<void> loadCurrentProfile() async {
-    final token = await StorageService.getToken();
-    if (token == null) return;
-
-    try {
-      final response = await http.get(
-        Uri.parse("$baseUrl/api/users/profile"),
-        headers: {"Authorization": "Bearer $token"},
-      );
-      print("PROFILE STATUS = ${response.statusCode}");
-print("PROFILE BODY = ${response.body}");
-
-      if (!mounted) return;
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-
-        setState(() {
-          nameController.text = data["full_name"] ?? "";
-          usernameController.text = data["username"] ?? "";
-          bioController.text = data["bio"] ?? "";
-          departmentController.text = data["department"] ?? "";
-          levelController.text = data["level"] ?? "";
-
-          final raw = data["interests"];
-
-          if (raw is List) {
-            interests = List<String>.from(raw);
-          } else if (raw is String && raw.isNotEmpty) {
-            interests = raw.split(",").map((e) => e.trim()).toList();
-          } else {
-            interests = [];
-          }
-        });
-      }
-    } catch (e) {
-      debugPrint("LOAD PROFILE ERROR = $e");
-    }
-  }
 
   @override
   void initState() {
     super.initState();
-    loadCurrentProfile();
+    _loadProfile();
   }
 
   @override
@@ -98,9 +117,55 @@ print("PROFILE BODY = ${response.body}");
     super.dispose();
   }
 
-  Future<void> pickImage() async {
+  Future<void> _loadProfile() async {
+    try {
+      final profile =
+          await UserProfileService.getCurrentProfile();
+
+      final rawInterests =
+          profile.interests ?? '';
+
+      setState(() {
+        nameController.text = profile.fullName;
+        usernameController.text = profile.username;
+        bioController.text = profile.bio ?? '';
+        departmentController.text =
+            profile.department ?? '';
+        levelController.text = profile.level ?? '';
+
+        interests = rawInterests
+            .split(',')
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toList();
+
+        loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() => loading = false);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            e.toString().replaceFirst('Exception: ', ''),
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _pickImage() async {
     final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery);
+
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+      maxWidth: 1200,
+      maxHeight: 1200,
+    );
+
     if (picked == null) return;
 
     final bytes = await picked.readAsBytes();
@@ -112,207 +177,336 @@ print("PROFILE BODY = ${response.body}");
     });
   }
 
-  void toggleInterest(String interest) {
+  void _toggleInterest(String interest) {
     setState(() {
       if (interests.contains(interest)) {
         interests.remove(interest);
       } else {
         interests.add(interest);
       }
-      interests.sort();
     });
   }
 
-  Future<void> saveProfile() async {
-    setState(() => loading = true);
+  Future<void> _saveProfile() async {
+    if (saving) return;
+
+    if (nameController.text.trim().isEmpty) {
+      _showError('Full name is required.');
+      return;
+    }
+
+    if (usernameController.text.trim().isEmpty) {
+      _showError('Username is required.');
+      return;
+    }
+
+    setState(() => saving = true);
 
     try {
-      final token = await StorageService.getToken();
-      if (token == null) throw Exception("Not authenticated");
-
-      final response = await http.put(
-        Uri.parse("$baseUrl/api/users/profile"),
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer $token",
-        },
-        body: jsonEncode({
-          "full_name": nameController.text.trim(),
-          "username": usernameController.text.trim(),
-          "bio": bioController.text.trim(),
-          "department": departmentController.text.trim(),
-          "level": levelController.text.trim(),
-          "interests": interests.join(","),
-        }),
+      await UserProfileService.updateProfile(
+        fullName: nameController.text,
+        username: usernameController.text,
+        bio: bioController.text,
+        department: departmentController.text,
+        level: levelController.text,
+        interests: interests,
       );
 
-      if (response.statusCode != 200) {
-        throw Exception(response.body);
-      }
-
       if (imageBytes != null) {
-        final request = http.MultipartRequest(
-          "POST",
-          Uri.parse("$baseUrl/api/users/profile_picture"),
+        await UserProfileService.uploadProfilePicture(
+          imageBytes: imageBytes!,
+          fileName: 'profile.jpg',
         );
-
-        request.headers["Authorization"] = "Bearer $token";
-        request.files.add(
-          http.MultipartFile.fromBytes(
-            "image",
-            imageBytes!,
-            filename: "profile.jpg",
-          ),
-        );
-
-        final res = await request.send();
-
-        final body =
-            await res.stream.bytesToString();
-        print("UPLOAD STATUS = ${res.statusCode}");
-        print("UPLOAD BODY = $body");
-
-        if (res.statusCode != 200) {
-          throw Exception("Image upload failed: $body");
-        }
       }
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Profile updated successfully")),
-      );
-
       Navigator.pop(context, true);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
+      if (!mounted) return;
+
+      _showError(
+        e.toString().replaceFirst('Exception: ', ''),
       );
     } finally {
-      if (mounted) setState(() => loading = false);
+      if (mounted) {
+        setState(() => saving = false);
+      }
     }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    if (loading) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Edit Profile'),
+        ),
+        body: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     return Scaffold(
-      appBar: AppBar(title: const Text("Edit Profile")),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            const SizedBox(height: 20),
-
-            GestureDetector(
-              onTap: pickImage,
-              child: CircleAvatar(
-                radius: 60,
-                backgroundColor: Colors.grey.shade300,
-                backgroundImage:
-                    imageBytes != null ? MemoryImage(imageBytes!) : null,
-                child: imageBytes == null
-                    ? const Icon(Icons.camera_alt, size: 35)
-                    : null,
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            TextField(controller: nameController, decoration: const InputDecoration(labelText: "Full Name", border: OutlineInputBorder())),
-            const SizedBox(height: 10),
-
-            TextField(controller: usernameController, decoration: const InputDecoration(labelText: "Username", border: OutlineInputBorder())),
-            const SizedBox(height: 10),
-
-            TextField(controller: bioController, maxLines: 3, decoration: const InputDecoration(labelText: "Bio", border: OutlineInputBorder())),
-            const SizedBox(height: 10),
-
-            TextField(controller: departmentController, decoration: const InputDecoration(labelText: "Department", border: OutlineInputBorder())),
-            const SizedBox(height: 10),
-
-            TextField(controller: levelController, decoration: const InputDecoration(labelText: "Level", border: OutlineInputBorder())),
-
-            const SizedBox(height: 20),
-
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: Text("Interests", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            ),
-
-            const SizedBox(height: 10),
-
-            TextField(
-              decoration: const InputDecoration(
-                hintText: "Search interests...",
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
-              ),
-              onChanged: (value) {
-                setState(() {
-                  searchInterest = value.toLowerCase();
-                });
-              },
-            ),
-
-            const SizedBox(height: 15),
-
-            if (interests.isNotEmpty)
-              Wrap(
-                spacing: 8,
-                children: interests.map((e) {
-                  return Chip(
-                    label: Text(e),
-                    deleteIcon: const Icon(Icons.close),
-                    onDeleted: () => toggleInterest(e),
-                  );
-                }).toList(),
-              ),
-
-            const SizedBox(height: 20),
-
-            ...availableInterests.entries.map((category) {
-              final filtered = category.value.where(
-                (i) => i.toLowerCase().contains(searchInterest),
-              );
-
-              if (filtered.isEmpty) return const SizedBox();
-
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(category.key,
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 10),
-
-                  Wrap(
-                    spacing: 8,
-                    children: filtered.map((i) {
-                      return FilterChip(
-                        label: Text(i),
-                        selected: interests.contains(i),
-                        onSelected: (_) => toggleInterest(i),
-                      );
-                    }).toList(),
+      appBar: AppBar(
+        title: const Text('Edit Profile'),
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment:
+                CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: GestureDetector(
+                  onTap: _pickImage,
+                  child: Stack(
+                    alignment: Alignment.bottomRight,
+                    children: [
+                      CircleAvatar(
+                        radius: 62,
+                        backgroundColor:
+                            Colors.grey.shade300,
+                        backgroundImage:
+                            imageBytes != null
+                                ? MemoryImage(imageBytes!)
+                                : null,
+                        child: imageBytes == null
+                            ? const Icon(
+                                Icons.person,
+                                size: 55,
+                              )
+                            : null,
+                      ),
+                      Container(
+                        padding:
+                            const EdgeInsets.all(9),
+                        decoration: BoxDecoration(
+                          color:
+                              Theme.of(context)
+                                  .colorScheme
+                                  .primary,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.camera_alt,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                    ],
                   ),
-
-                  const SizedBox(height: 20),
-                ],
-              );
-            }),
-
-            const SizedBox(height: 20),
-
-            SizedBox(
-              width: double.infinity,
-              height: 55,
-              child: ElevatedButton(
-                onPressed: loading ? null : saveProfile,
-                child: loading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text("Save Changes"),
+                ),
               ),
-            ),
-          ],
+
+              const SizedBox(height: 28),
+
+              TextField(
+                controller: nameController,
+                textInputAction:
+                    TextInputAction.next,
+                decoration:
+                    const InputDecoration(
+                  labelText: 'Full Name',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+
+              const SizedBox(height: 14),
+
+              TextField(
+                controller: usernameController,
+                textInputAction:
+                    TextInputAction.next,
+                decoration:
+                    const InputDecoration(
+                  labelText: 'Username',
+                  prefixText: '@',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+
+              const SizedBox(height: 14),
+
+              TextField(
+                controller: bioController,
+                maxLines: 4,
+                maxLength: 160,
+                decoration:
+                    const InputDecoration(
+                  labelText: 'Bio',
+                  border: OutlineInputBorder(),
+                  alignLabelWithHint: true,
+                ),
+              ),
+
+              const SizedBox(height: 4),
+
+              TextField(
+                controller: departmentController,
+                textInputAction:
+                    TextInputAction.next,
+                decoration:
+                    const InputDecoration(
+                  labelText: 'Department',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+
+              const SizedBox(height: 14),
+
+              TextField(
+                controller: levelController,
+                textInputAction:
+                    TextInputAction.done,
+                decoration:
+                    const InputDecoration(
+                  labelText: 'Level',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              const Text(
+                'Interests',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              TextField(
+                decoration:
+                    const InputDecoration(
+                  hintText: 'Search interests...',
+                  prefixIcon:
+                      Icon(Icons.search),
+                  border: OutlineInputBorder(),
+                ),
+                onChanged: (value) {
+                  setState(() {
+                    searchInterest =
+                        value.toLowerCase().trim();
+                  });
+                },
+              ),
+
+              if (interests.isNotEmpty) ...[
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children:
+                      interests.map((interest) {
+                    return Chip(
+                      label: Text(interest),
+                      deleteIcon:
+                          const Icon(Icons.close),
+                      onDeleted: () =>
+                          _toggleInterest(
+                            interest,
+                          ),
+                    );
+                  }).toList(),
+                ),
+              ],
+
+              const SizedBox(height: 20),
+
+              ...availableInterests.entries.map(
+                (entry) {
+                  final filtered =
+                      entry.value.where(
+                    (interest) =>
+                        interest
+                            .toLowerCase()
+                            .contains(
+                              searchInterest,
+                            ),
+                  ).toList();
+
+                  if (filtered.isEmpty) {
+                    return const SizedBox.shrink();
+                  }
+
+                  return Column(
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        entry.key,
+                        style:
+                            const TextStyle(
+                          fontSize: 16,
+                          fontWeight:
+                              FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children:
+                            filtered.map(
+                          (interest) {
+                            return FilterChip(
+                              label:
+                                  Text(interest),
+                              selected:
+                                  interests.contains(
+                                interest,
+                              ),
+                              onSelected: (_) =>
+                                  _toggleInterest(
+                                interest,
+                              ),
+                            );
+                          },
+                        ).toList(),
+                      ),
+                      const SizedBox(height: 18),
+                    ],
+                  );
+                },
+              ),
+
+              const SizedBox(height: 10),
+
+              SizedBox(
+                height: 54,
+                child: ElevatedButton(
+                  onPressed:
+                      saving ? null : _saveProfile,
+                  child: saving
+                      ? const SizedBox(
+                          height: 24,
+                          width: 24,
+                          child:
+                              CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'Save Changes',
+                        ),
+                ),
+              ),
+
+              const SizedBox(height: 20),
+            ],
+          ),
         ),
       ),
     );

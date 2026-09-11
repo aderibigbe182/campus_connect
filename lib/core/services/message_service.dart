@@ -2,25 +2,25 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
-import '../constants/api_constants.dart';
 import 'storage_service.dart';
 import '/features/chat/models/message_model.dart';
 
 class MessageService {
+
+  String get _baseUrl => 'https://campus-connect-api.onrender.com';
 
   Future<List<MessageModel>> getMessages(
   int conversationId, {
   int page = 1,
   int limit = 30,
 }) async {
-
     final token = await StorageService.getToken();
 
     final response = await http.get(
 
       Uri.parse(
 
-        "${ApiConstants.baseUrl}/api/messages/$conversationId",
+        "$_baseUrl/api/messages/$conversationId",
 
       ),
 
@@ -76,7 +76,7 @@ class MessageService {
 
       Uri.parse(
 
-        "${ApiConstants.baseUrl}/api/messages",
+        "$_baseUrl/api/messages",
 
       ),
 
@@ -130,7 +130,7 @@ class MessageService {
 
       Uri.parse(
 
-        "${ApiConstants.baseUrl}/api/messages/$messageId",
+        "$_baseUrl/api/messages/$messageId",
 
       ),
 

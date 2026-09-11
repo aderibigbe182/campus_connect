@@ -13,7 +13,6 @@ import 'screens/auth/login_screen.dart';
 import 'screens/home/home_screen.dart';
 
 import 'features/auth/providers/auth_provider.dart';
-import 'features/search/providers/search_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,11 +21,9 @@ Future<void> main() async {
     DeviceOrientation.portraitUp,
   ]);
 
-  // Initialize Hive
   await Hive.initFlutter();
 
-  // Open chat cache box
-  await Hive.openBox("chat_cache");
+  await Hive.openBox('chat_cache');
 
   runApp(
     MultiProvider(
@@ -34,16 +31,14 @@ Future<void> main() async {
         ChangeNotifierProvider(
           create: (_) => AuthProvider(),
         ),
-        ChangeNotifierProvider(
-          create: (_) => SearchProvider(),
-        ),
       ],
       child: const CampusConnectApp(),
     ),
   );
 }
 
-class CampusConnectApp extends StatelessWidget {
+class CampusConnectApp
+    extends StatelessWidget {
   const CampusConnectApp({super.key});
 
   @override
@@ -60,27 +55,36 @@ class CampusConnectApp extends StatelessWidget {
   }
 }
 
-class StartScreen extends StatefulWidget {
+class StartScreen
+    extends StatefulWidget {
   const StartScreen({super.key});
 
   @override
-  State<StartScreen> createState() => _StartScreenState();
+  State<StartScreen> createState() =>
+      _StartScreenState();
 }
 
-class _StartScreenState extends State<StartScreen> {
+class _StartScreenState
+    extends State<StartScreen> {
   Future<Widget> _getStartScreen() async {
     final hasSeenOnboarding =
-        await LocalStorageService.hasSeenOnboarding();
+        await LocalStorageService
+            .hasSeenOnboarding();
 
     if (!hasSeenOnboarding) {
       return const OnboardingScreen();
     }
 
-    final token = await StorageService.getToken();
+    final token =
+        await StorageService.getToken();
 
     if (token != null && token.isNotEmpty) {
-      final userId = int.tryParse(token) ?? 0;
-      return HomeScreen(currentUserId: userId);
+      final userId =
+          await StorageService.getUserId();
+
+      return HomeScreen(
+        currentUserId: userId ?? 0,
+      );
     }
 
     return const LoginScreen();
@@ -94,7 +98,8 @@ class _StartScreenState extends State<StartScreen> {
         if (!snapshot.hasData) {
           return const Scaffold(
             body: Center(
-              child: CircularProgressIndicator(),
+              child:
+                  CircularProgressIndicator(),
             ),
           );
         }

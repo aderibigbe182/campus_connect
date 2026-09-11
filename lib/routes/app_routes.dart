@@ -1,32 +1,89 @@
 import 'package:flutter/material.dart';
 
-import '../screens/auth/login_screen.dart';
-import '../screens/auth/register_screen.dart';
-import '../screens/home/home_screen.dart';
-import '../screens/onboarding/onboarding_screen.dart';
-import '/screens/main/pages/profile_page.dart';
-import '/features/search/screens/search_screen.dart';
+import '../features/chat/screens/chat_list_screen.dart';
+import '../features/chat/screens/conversation_screen.dart';
+import '../features/friends/screens/friend_requests_screen.dart';
+import '../features/friends/screens/friends_screen.dart';
+import '../features/search/screens/search_screen.dart';
+import '../features/groups/screens/groups_screen.dart';
+import '../features/groups/screens/create_group_screen.dart';
 
 class AppRoutes {
   AppRoutes._();
 
-  static const onboarding = '/onboarding';
-  static const login = '/login';
-  static const register = '/register';
-  static const home = '/home';
-  static const profile = '/profile';
-  static const search = '/search';
+  static const String search = '/search';
+  static const String friends = '/friends';
+  static const String friendRequests =
+      '/friend-requests';
+  static const String chats = '/chats';
+  static const String groups = '/groups';
+  static const String createGroup =
+    '/create-group';
 
-  static final Map<String, WidgetBuilder> routes = {
-    onboarding: (_) => const OnboardingScreen(),
-    login: (_) => const LoginScreen(),
-    register: (_) => const RegisterScreen(),
-    home: (context) {
-      final args = ModalRoute.of(context)?.settings.arguments;
-      final currentUserId = args is int ? args : 0;
-      return HomeScreen(currentUserId: currentUserId);
-    },
-    profile: (context) => const ProfilePage(),
-    search: (context) => const SearchScreen(),
-  };
+  static const String conversation =
+      '/conversation';
+
+  static Route<dynamic>? onGenerateRoute(
+    RouteSettings settings,
+  ) {
+    switch (settings.name) {
+      case search:
+        return MaterialPageRoute(
+          builder: (_) =>
+              const SearchScreen(),
+        );
+
+      case friends:
+        return MaterialPageRoute(
+          builder: (_) =>
+              const FriendsScreen(),
+        );
+
+      case friendRequests:
+        return MaterialPageRoute(
+          builder: (_) =>
+              const FriendRequestsScreen(),
+        );
+      case groups:
+  return MaterialPageRoute(
+    builder: (_) => const GroupsScreen(),
+  );
+
+case createGroup:
+  return MaterialPageRoute(
+    builder: (_) =>
+        const CreateGroupScreen(),
+  );
+
+      case chats:
+        return MaterialPageRoute(
+          builder: (_) =>
+              const ChatListScreen(),
+        );
+
+      case conversation:
+        final args =
+            settings.arguments
+                as Map<String, dynamic>;
+      
+
+        return MaterialPageRoute(
+          builder: (_) =>
+              ConversationScreen(
+            conversationId:
+                args['conversationId'] as int,
+            recipientId:
+                args['recipientId'] as int,
+            name:
+                args['name'] as String,
+            profilePicture:
+                args['profilePicture']
+                    as String?,
+          ),
+        );
+
+      default:
+        return null;
+    }
+  }
 }

@@ -1,88 +1,60 @@
-import 'dart:typed_data';
-import 'package:http/http.dart' as http;
-import 'package:http_parser/http_parser.dart';
-import 'package:mime/mime.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../constants/api_constants.dart';
-
 class StorageService {
+  StorageService._();
 
-  // =========================
-  // 🔐 TOKEN STORAGE (LOGIN SYSTEM)
-  // =========================
+  static const String _tokenKey = 'token';
+  static const String _userIdKey = 'user_id';
 
-  static Future<void> saveToken(String token) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('token', token);
+  static Future<void> saveToken(
+    String token,
+  ) async {
+    final prefs =
+        await SharedPreferences.getInstance();
+
+    await prefs.setString(
+      _tokenKey,
+      token,
+    );
   }
 
   static Future<String?> getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('token');
+    final prefs =
+        await SharedPreferences.getInstance();
+
+    return prefs.getString(_tokenKey);
   }
 
   static Future<void> deleteToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('token');
+    final prefs =
+        await SharedPreferences.getInstance();
+
+    await prefs.remove(_tokenKey);
   }
 
-// ====================================
-// 🧑‍💻 USER ID STORAGE (LOGIN SYSTEM)
-// =======================================
-  static Future<void> saveUserId(int id) async {
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.setInt("user_id", id);
-}
+  static Future<void> saveUserId(
+    int userId,
+  ) async {
+    final prefs =
+        await SharedPreferences.getInstance();
 
-static Future<int?> getUserId() async {
-  final prefs = await SharedPreferences.getInstance();
-  return prefs.getInt("user_id");
-}
+    await prefs.setInt(
+      _userIdKey,
+      userId,
+    );
+  }
 
-static Future<void> deleteUserId() async {
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.remove("user_id");
-}
+  static Future<int?> getUserId() async {
+    final prefs =
+        await SharedPreferences.getInstance();
 
-  // =========================
-  // 📤 FILE UPLOAD (BACKEND)
-  // =========================
+    return prefs.getInt(_userIdKey);
+  }
 
-  static Future<String?> uploadFile({
-    required Uint8List fileBytes,
-    required String fileName,
-  }) async {
+  static Future<void> deleteUserId() async {
+    final prefs =
+        await SharedPreferences.getInstance();
 
-    try {
-      final uri = Uri.parse('${ApiConstants.baseUrl}/api/upload');
-
-      final request = http.MultipartRequest('POST', uri);
-
-      // detect file type
-      final mimeType = lookupMimeType(fileName) ?? 'image/jpeg';
-      final mimeSplit = mimeType.split('/');
-
-      request.files.add(
-        http.MultipartFile.fromBytes(
-          'file',
-          fileBytes,
-          filename: fileName,
-          contentType: MediaType(mimeSplit[0], mimeSplit[1]),
-        ),
-      );
-
-      final response = await request.send();
-      final responseBody = await response.stream.bytesToString();
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return responseBody; // backend should return URL or JSON
-      } else {
-        throw 'Upload failed: $responseBody';
-      }
-
-    } catch (e) {
-      throw 'File upload error: $e';
-    }
+    await prefs.remove(_userIdKey);
   }
 }

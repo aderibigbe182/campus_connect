@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
-
 import '../../core/services/presence_service.dart';
-
+import '../../features/friends/screens/friends_screen.dart';
 import '/screens/main/pages/profile_page.dart';
-import '/features/chat/screens/chat_home_screen.dart';
+import '../../features/chat/screens/chat_list_screen.dart';
+import '../../features/groups/screens/groups_screen.dart';
+
+
 
 class HomeScreen extends StatefulWidget {
   final int currentUserId;
@@ -189,10 +191,8 @@ class _HomeScreenState extends State<HomeScreen>
           // ====================================================
           // CHAT LIST
           // ====================================================
-
-          ChatListScreen(
-            currentUserId: widget.currentUserId,
-          ),
+            const ChatListScreen(),
+            const GroupsScreen(),
 
           // ====================================================
           // PROFILE
@@ -202,20 +202,29 @@ class _HomeScreenState extends State<HomeScreen>
         ],
       ),
 
+
       // ========================================================
       // FLOATING ACTION BUTTON
       // ========================================================
 
       floatingActionButton: currentIndex == 3
-          ? FloatingActionButton(
-              backgroundColor: Colors.blue,
-              foregroundColor: Colors.white,
-              onPressed: _openSearch,
-              child: const Icon(
-                Icons.add,
-              ),
-            )
-          : null,
+    ? FloatingActionButton(
+        backgroundColor: Colors.blue,
+        foregroundColor: Colors.white,
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) =>
+                  const FriendsScreen(),
+            ),
+          );
+        },
+        child: const Icon(
+          Icons.person_add,
+        ),
+      )
+    : null,
 
       // ========================================================
       // BOTTOM NAVIGATION
