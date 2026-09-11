@@ -190,7 +190,7 @@ class _GroupsScreenState
       physics:
           const AlwaysScrollableScrollPhysics(),
       itemCount: _groups.length,
-      separatorBuilder: (_, __) =>
+      separatorBuilder: (_, _) =>
           const Divider(height: 1),
       itemBuilder: (context, index) {
         final group = _groups[index];

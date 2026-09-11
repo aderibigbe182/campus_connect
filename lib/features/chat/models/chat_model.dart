@@ -6,6 +6,8 @@ class ChatModel {
   final String? lastMessage;
   final DateTime? lastMessageTime;
   final int unreadCount;
+  final String accessState;
+  final int? requestSenderId;
 
   const ChatModel({
     required this.conversationId,
@@ -15,6 +17,8 @@ class ChatModel {
     this.lastMessage,
     this.lastMessageTime,
     this.unreadCount = 0,
+    this.accessState = 'accepted',
+    this.requestSenderId,
   });
 
   factory ChatModel.fromJson(Map<String, dynamic> json) {
@@ -37,6 +41,9 @@ class ChatModel {
           : null,
       unreadCount:
           (json['unread_count'] as num?)?.toInt() ?? 0,
+      accessState: json['access_state']?.toString() ?? 'accepted',
+      requestSenderId:
+          (json['request_sender_id'] as num?)?.toInt(),
     );
   }
 }

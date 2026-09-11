@@ -25,9 +25,6 @@ class _CreateGroupScreenState
   final GroupService _groupService =
       GroupService.instance;
 
-  final FriendsService friendsService =
-      FriendsService();
-
   List<FriendModel> _friends = [];
   final Set<int> _selectedUsers = {};
 

@@ -139,7 +139,7 @@ class _SearchScreenState extends State<SearchScreen> {
         vertical: 8,
       ),
       itemCount: users.length,
-      separatorBuilder: (_, __) =>
+      separatorBuilder: (_, _) =>
           const Divider(height: 1),
       itemBuilder: (context, index) {
         final user = users[index];

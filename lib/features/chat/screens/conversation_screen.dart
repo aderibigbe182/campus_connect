@@ -9,6 +9,8 @@ class ConversationScreen extends StatefulWidget {
   final int recipientId;
   final String name;
   final String? profilePicture;
+  final String requestState;
+  final int? requestSenderId;
 
   const ConversationScreen({
     super.key,
@@ -16,6 +18,8 @@ class ConversationScreen extends StatefulWidget {
     required this.recipientId,
     required this.name,
     this.profilePicture,
+    this.requestState = 'accepted',
+    this.requestSenderId,
   });
 
   @override
@@ -42,10 +46,18 @@ class _ConversationScreenState
   bool _sending = false;
 
   String? _error;
+  late String _requestState;
+  late int? _requestSenderId;
+
+  bool get _canSend => _requestState == 'accepted';
+  bool get _isRequestRecipient =>
+      _requestState == 'pending' && _requestSenderId != _currentUserId;
 
   @override
   void initState() {
     super.initState();
+    _requestState = widget.requestState;
+    _requestSenderId = widget.requestSenderId;
     _initialize();
   }
 
@@ -110,7 +122,7 @@ class _ConversationScreenState
   Future<void> _sendMessage() async {
     final text = _controller.text.trim();
 
-    if (text.isEmpty ||
+    if (!_canSend || text.isEmpty ||
         _sending ||
         _currentUserId == null) {
       return;
@@ -154,6 +166,21 @@ class _ConversationScreenState
           ),
         ),
       );
+    }
+  }
+
+  Future<void> _resolveRequest(bool accept) async {
+    try {
+      await _chatService.resolveMessageRequest(
+        conversationId: widget.conversationId,
+        accept: accept,
+      );
+      if (!mounted) return;
+      setState(() => _requestState = accept ? 'accepted' : 'declined');
+      if (!accept) Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
     }
   }
 
@@ -435,6 +462,7 @@ class _ConversationScreenState
       ),
       body: Column(
         children: [
+          if (_requestState == 'pending') _buildRequestBanner(),
           Expanded(
             child: _buildMessages(),
           ),
@@ -529,6 +557,22 @@ class _ConversationScreenState
   }
 
   Widget _buildComposer() {
+    if (!_canSend) {
+      return SafeArea(
+        top: false,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          child: Text(
+            _isRequestRecipient
+                ? 'Accept this request to reply.'
+                : 'Message request sent. You can chat when it is accepted.',
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
     return SafeArea(
       top: false,
       child: Padding(
@@ -595,6 +639,38 @@ class _ConversationScreenState
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildRequestBanner() {
+    final recipient = _isRequestRecipient;
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(12, 10, 12, 2),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.primaryContainer,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(recipient ? 'Message request' : 'Message request pending',
+              style: const TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 4),
+          Text(recipient
+              ? 'The first message is a request. Accept it to open this chat.'
+              : 'The recipient must accept your first message before the chat opens.'),
+          if (recipient) ...[
+            const SizedBox(height: 10),
+            Row(children: [
+              OutlinedButton(onPressed: () => _resolveRequest(false), child: const Text('Decline')),
+              const SizedBox(width: 8),
+              ElevatedButton(onPressed: () => _resolveRequest(true), child: const Text('Accept')),
+            ]),
+          ],
+        ],
       ),
     );
   }

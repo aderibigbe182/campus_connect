@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../features/chat/screens/chat_list_screen.dart';
 import '../features/chat/screens/conversation_screen.dart';
-import '../features/friends/screens/friend_requests_screen.dart';
+import '../features/friends/screens/friend_requests_screen.dart'
+  as friend_requests;
 import '../features/friends/screens/friends_screen.dart';
 import '../features/search/screens/search_screen.dart';
 import '../features/groups/screens/groups_screen.dart';
@@ -42,7 +43,7 @@ class AppRoutes {
       case friendRequests:
         return MaterialPageRoute(
           builder: (_) =>
-              const FriendRequestsScreen(),
+              const friend_requests.FriendRequestsScreen(),
         );
       case groups:
   return MaterialPageRoute(

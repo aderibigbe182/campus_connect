@@ -133,8 +133,7 @@ class ChatService {
       body: jsonEncode({
         'receiver_id': receiverId,
         'content': content,
-        if (replyToMessageId != null)
-          'reply_to_message_id': replyToMessageId,
+        'reply_to_message_id': ?replyToMessageId,
       }),
     );
 
@@ -150,6 +149,22 @@ class ChatService {
         jsonDecode(response.body),
       ),
     );
+  }
+
+  Future<void> resolveMessageRequest({
+    required int conversationId,
+    required bool accept,
+  }) async {
+    final action = accept ? 'accept' : 'decline';
+    final response = await http.post(
+      Uri.parse(
+        '${ApiConstants.pythonApi}/conversations/$conversationId/request/$action',
+      ),
+      headers: await _headers(),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('Failed to respond to message request: ${response.body}');
+    }
   }
 
   Future<MessageModel> editMessage({

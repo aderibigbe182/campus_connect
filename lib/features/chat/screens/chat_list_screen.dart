@@ -183,7 +183,7 @@ class _ChatListScreenState
     return ListView.separated(
       physics: const AlwaysScrollableScrollPhysics(),
       itemCount: _chats.length,
-      separatorBuilder: (_, __) =>
+      separatorBuilder: (_, _) =>
           const Divider(height: 1),
       itemBuilder: (context, index) {
         final chat = _chats[index];
@@ -288,6 +288,8 @@ class _ChatListScreenState
                         name: user.fullName,
                         profilePicture:
                             user.profilePicture,
+                        requestState: chat.accessState,
+                        requestSenderId: chat.requestSenderId,
                       ),
                     ),
                   );

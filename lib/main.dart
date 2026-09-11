@@ -3,7 +3,6 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
-import 'routes/app_routes.dart';
 import 'core/services/storage_service.dart';
 import 'core/services/local_storage_service.dart';
 import 'core/theme/app_theme.dart';
@@ -49,7 +48,6 @@ class CampusConnectApp
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.system,
-      routes: AppRoutes.routes,
       home: const StartScreen(),
     );
   }

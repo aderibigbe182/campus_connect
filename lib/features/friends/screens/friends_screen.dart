@@ -213,7 +213,7 @@ class _FriendsScreenState
         vertical: 8,
       ),
       itemCount: friends.length,
-      separatorBuilder: (_, __) =>
+      separatorBuilder: (_, _) =>
           const Divider(height: 1),
       itemBuilder: (context, index) {
         final friend = friends[index];
@@ -525,7 +525,7 @@ class _FriendRequestsScreenState
         vertical: 8,
       ),
       itemCount: requests.length,
-      separatorBuilder: (_, __) =>
+      separatorBuilder: (_, _) =>
           const Divider(height: 1),
       itemBuilder: (context, index) {
         final item = requests[index];

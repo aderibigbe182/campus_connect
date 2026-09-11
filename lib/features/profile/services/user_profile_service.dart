@@ -38,7 +38,7 @@ class UserProfileService {
     final token = await _token();
 
     final response = await http.get(
-      Uri.parse('${ApiConstants.baseUrl}/api/users/profile'),
+      Uri.parse('${ApiConstants.pythonBaseUrl}/api/users/profile'),
       headers: _headers(token),
     );
 
@@ -55,7 +55,7 @@ class UserProfileService {
     final token = await _token();
 
     final response = await http.get(
-      Uri.parse('${ApiConstants.baseUrl}/api/users/$userId'),
+      Uri.parse('${ApiConstants.pythonBaseUrl}/api/users/$userId'),
       headers: _headers(token),
     );
 
@@ -79,7 +79,7 @@ class UserProfileService {
     final token = await _token();
 
     final response = await http.put(
-      Uri.parse('${ApiConstants.baseUrl}/api/users/profile'),
+      Uri.parse('${ApiConstants.pythonBaseUrl}/api/users/profile'),
       headers: _jsonHeaders(token),
       body: jsonEncode({
         'full_name': fullName.trim(),
@@ -110,7 +110,7 @@ class UserProfileService {
     final request = http.MultipartRequest(
       'POST',
       Uri.parse(
-        '${ApiConstants.baseUrl}/api/users/profile_picture',
+        '${ApiConstants.pythonBaseUrl}/api/users/profile_picture',
       ),
     );
 
@@ -141,7 +141,7 @@ class UserProfileService {
     final token = await _token();
 
     final response = await http.put(
-      Uri.parse('${ApiConstants.baseUrl}/api/users/online'),
+      Uri.parse('${ApiConstants.pythonBaseUrl}/api/users/online'),
       headers: _headers(token),
     );
 
@@ -154,7 +154,7 @@ class UserProfileService {
     final token = await _token();
 
     final response = await http.put(
-      Uri.parse('${ApiConstants.baseUrl}/api/users/offline'),
+      Uri.parse('${ApiConstants.pythonBaseUrl}/api/users/offline'),
       headers: _headers(token),
     );
 

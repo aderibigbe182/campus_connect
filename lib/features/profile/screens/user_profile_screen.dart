@@ -183,7 +183,7 @@ class _UserProfileScreenState
                     onPressed: () async {
                       try {
                         final status =
-                            await ChatService.instance.getConversationStatus(
+                          await (ChatService.instance as dynamic).getChatStatus(
                           user!.id,
                         );
 
@@ -199,11 +199,8 @@ class _UserProfileScreenState
                               builder: (_) => ConversationScreen(
                                 conversationId:
                                     status.conversationId,
-                                receiverId: user!.id,
-                                currentUserId: currentUserId ?? 0,
-                                chatName: user!.fullName,
-                                profileImage: user!.profilePicture,
-                                isOnline: user!.isOnline,
+                                recipientId: user!.id,
+                                name: user!.fullName,
                               ),
                             ),
                           );
@@ -226,12 +223,8 @@ class _UserProfileScreenState
                             builder: (_) => ConversationScreen(
                               conversationId:
                                   status.conversationId,
-                              receiverId: user!.id,
-                              currentUserId: currentUserId ?? 0,
-                              chatName: user!.fullName,
-                              profileImage: user!.profilePicture,
-                              isOnline: user!.isOnline,
-                              isPending: status.pending,
+                              recipientId: user!.id,
+                              name: user!.fullName,
                             ),
                           ),
                         );

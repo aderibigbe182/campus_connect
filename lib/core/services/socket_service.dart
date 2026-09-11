@@ -392,7 +392,7 @@ class SocketService {
       'stopTyping',
       {
         'conversationId': conversationId,
-        if (senderId != null) 'senderId': senderId,
+        'senderId': ?senderId,
       },
     );
   }

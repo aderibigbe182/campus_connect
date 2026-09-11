@@ -1,16 +1,12 @@
 import 'dart:convert';
+
 import 'package:http/http.dart' as http;
-import '../services/storage_service.dart';
 
-class ApiConstants {
-  static const baseUrl = 'https://campus-connect-backend-6pwg.onrender.com';
-}
+import '../constants/api_constants.dart';
+import 'storage_service.dart';
 
+/// Authentication now uses the same FastAPI service as conversations.
 class AuthService {
-
-  // =====================
-  // REGISTER
-  // =====================
   static Future<Map<String, dynamic>> register({
     required String fullName,
     required String username,
@@ -19,143 +15,64 @@ class AuthService {
     required String password,
     required String university,
   }) async {
-    try {
-      final url = Uri.parse('${ApiConstants.baseUrl}/api/auth/register');
-
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'full_name': fullName.trim(),
-          'username': username.trim(),
-          'phone': phone.trim(),
-          'email': email.trim(),
-          'password': password.trim(),
-          'university': university.trim(),
-        }),
-      );
-      
-      print("STATUS CODE: ${response.statusCode}");
-      print("BODY: ${response.body}");
-      
-      final data = jsonDecode(response.body);
-
-      if (response.statusCode == 201 ||
-    response.statusCode == 200) {
-
-  final user = data['user'];
-
-  if (user != null && user['id'] != null) {
-    final userId = int.tryParse(
-      user['id'].toString(),
-    );
-
-    if (userId != null) {
-      await StorageService.saveUserId(userId);
-
-      print(
-        "REGISTERED USER ID SAVED: $userId",
-      );
-    }
-  }
-
-  if (data['token'] != null) {
-    await StorageService.saveToken(
-      data['token'].toString(),
-    );
-  }
-
-  return data;
-} else {
-        throw Exception(
-          data['message'] ?? 'Registration failed'
-          );
-      }
-    } catch (e) {
-      throw Exception(e.toString());
-    }
-  }
-
-  // =====================
-  // LOGIN
-  // =====================
-  static Future<Map<String, dynamic>> login({
-  required String email,
-  required String password,
-}) async {
-  try {
-    final url = Uri.parse(
-      '${ApiConstants.baseUrl}/api/auth/login',
-    );
-
     final response = await http.post(
-      url,
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      Uri.parse('${ApiConstants.pythonApi}/auth/register'),
+      headers: const {'Content-Type': 'application/json'},
       body: jsonEncode({
-        'email': email,
+        'full_name': fullName.trim(),
+        'username': username.trim(),
+        'email': email.trim(),
         'password': password,
+        'university': university.trim(),
       }),
     );
-
-    print("LOGIN STATUS: ${response.statusCode}");
-    print("LOGIN BODY: ${response.body}");
-
-    final data = jsonDecode(response.body);
-
-    if (response.statusCode == 200) {
-
-      // ==========================
-      // SAVE TOKEN
-      // ==========================
-
-      final token = data['token'];
-
-      if (token != null) {
-        await StorageService.saveToken(
-          token.toString(),
-        );
-      }
-
-      // ==========================
-      // SAVE USER ID
-      // ==========================
-
-      final user = data['user'];
-
-      if (user != null && user['id'] != null) {
-        final userId = int.tryParse(
-          user['id'].toString(),
-        );
-
-        if (userId != null) {
-          await StorageService.saveUserId(
-            userId,
-          );
-
-          print(
-            "LOGGED IN USER ID SAVED: $userId",
-          );
-        }
-      }
-
-      return data;
-    } else {
-      throw Exception(
-        data['message'] ?? 'Login failed',
-      );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(_error(response));
     }
-  } catch (e) {
-    throw Exception(e.toString());
+    return login(email: email, password: password);
   }
-}
-  // =====================
-  // GOOGLE LOGIN (optional later)
-  // =====================
+
+  static Future<Map<String, dynamic>> login({
+    required String email,
+    required String password,
+  }) async {
+    final response = await http.post(
+      Uri.parse('${ApiConstants.pythonApi}/auth/login'),
+      headers: const {'Content-Type': 'application/x-www-form-urlencoded'},
+      body: {'username': email.trim(), 'password': password},
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(_error(response));
+    }
+    final tokenData = Map<String, dynamic>.from(jsonDecode(response.body));
+    final token = tokenData['access_token']?.toString();
+    if (token == null || token.isEmpty) {
+      throw Exception('The server did not return an access token.');
+    }
+    final meResponse = await http.get(
+      Uri.parse('${ApiConstants.pythonApi}/auth/me'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (meResponse.statusCode < 200 || meResponse.statusCode >= 300) {
+      throw Exception(_error(meResponse));
+    }
+    final user = Map<String, dynamic>.from(jsonDecode(meResponse.body));
+    final userId = (user['id'] as num?)?.toInt();
+    if (userId != null) await StorageService.saveUserId(userId);
+    await StorageService.saveToken(token);
+    return {'token': token, 'user': user};
+  }
+
+  static String _error(http.Response response) {
+    try {
+      final body = jsonDecode(response.body);
+      return body['detail']?.toString() ?? body['message']?.toString() ?? 'Request failed.';
+    } catch (_) {
+      return 'Request failed (${response.statusCode}).';
+    }
+  }
+
   static Future<void> signInWithGoogle() async {
-    // implement later (Google OAuth backend or Firebase hybrid)
+    throw UnimplementedError('Google sign-in has not been configured for the unified backend.');
   }
 }
