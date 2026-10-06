@@ -6,24 +6,20 @@ import '../models/user_profile_model.dart';
 import '../services/user_profile_service.dart';
 
 import '../../../core/services/storage_service.dart';
+
 import 'package:campus_connect/features/chat/services/chat_service.dart';
 import 'package:campus_connect/features/chat/screens/conversation_screen.dart';
 
 class UserProfileScreen extends StatefulWidget {
   final int userId;
 
-  const UserProfileScreen({
-    super.key,
-    required this.userId,
-  });
+  const UserProfileScreen({super.key, required this.userId});
 
   @override
-  State<UserProfileScreen> createState() =>
-      _UserProfileScreenState();
+  State<UserProfileScreen> createState() => _UserProfileScreenState();
 }
 
-class _UserProfileScreenState
-    extends State<UserProfileScreen> {
+class _UserProfileScreenState extends State<UserProfileScreen> {
   UserProfileModel? user;
 
   bool loading = true;
@@ -38,14 +34,9 @@ class _UserProfileScreenState
 
   Future<void> _loadProfile() async {
     try {
-      currentUserId =
-          await StorageService.getUserId();
+      currentUserId = await StorageService.getUserId();
 
-      final profile =
-          await UserProfileService
-              .getUserProfile(
-        widget.userId,
-      );
+      final profile = await UserProfileService.getUserProfile(widget.userId);
 
       if (!mounted) return;
 
@@ -65,129 +56,81 @@ class _UserProfileScreenState
   @override
   Widget build(BuildContext context) {
     if (loading) {
-      return const Scaffold(
-        body: Center(
-          child:
-              CircularProgressIndicator(),
-        ),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     if (user == null) {
-      return const Scaffold(
-        body: Center(
-          child: Text(
-            "User not found",
-          ),
-        ),
-      );
+      return const Scaffold(body: Center(child: Text("User not found")));
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Profile"),
-      ),
+      appBar: AppBar(title: const Text("Profile")),
       body: SingleChildScrollView(
-        padding:
-            const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-
             AvatarWidget(
               radius: 60,
-              imageUrl:
-                  user!.profilePicture,
-              fullName:
-                  user!.fullName,
-              isOnline:
-                  user!.isOnline,
+              imageUrl: user!.profilePicture,
+              fullName: user!.fullName,
+              isOnline: user!.isOnline,
             ),
 
             const SizedBox(height: 15),
 
             Text(
               user!.fullName,
-              style:
-                  const TextStyle(
-                fontSize: 24,
-                fontWeight:
-                    FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
 
             const SizedBox(height: 5),
 
             Text(
               "@${user!.username}",
-              style:
-                  const TextStyle(
-                color: Colors.grey,
-              ),
+              style: const TextStyle(color: Colors.grey),
             ),
 
             const SizedBox(height: 10),
 
             Text(
-              user!.isOnline
-                  ? "Online"
-                  : "Offline",
+              user!.isOnline ? "Online" : "Offline",
               style: TextStyle(
-                color: user!.isOnline
-                    ? Colors.green
-                    : Colors.grey,
-                fontWeight:
-                    FontWeight.w600,
+                color: user!.isOnline ? Colors.green : Colors.grey,
+                fontWeight: FontWeight.w600,
               ),
             ),
 
             const SizedBox(height: 30),
 
-            _infoTile(
-              "University",
-              user!.university ??
-                  "Not set",
-            ),
+            _infoTile("University", user!.university ?? "Not set"),
 
-            _infoTile(
-              "Department",
-              user!.department ??
-                  "Not set",
-            ),
+            _infoTile("Department", user!.department ?? "Not set"),
 
-            _infoTile(
-              "Level",
-              user!.level ??
-                  "Not set",
-            ),
+            _infoTile("Level", user!.level ?? "Not set"),
 
-            _infoTile(
-              "Bio",
-              user!.bio ??
-                  "No bio",
-            ),
+            _infoTile("Bio", user!.bio ?? "No bio"),
 
-            _infoTile(
-              "Interests",
-              user!.interests ??
-                  "None",
-            ),
+            _infoTile("Interests", user!.interests ?? "None"),
 
             const SizedBox(height: 30),
 
             Row(
               children: [
-
                 Expanded(
-                  child:
-                      ElevatedButton.icon(
+                  child: ElevatedButton.icon(
                     onPressed: () async {
                       try {
-                        var status = await ChatService.instance.getChatStatus(user!.id);
-                        if (status.conversationId == 0 || status.status == 'declined') {
-                          status = await ChatService.instance.startConversation(userId: user!.id);
+                        var status = await ChatService.instance.getChatStatus(
+                          user!.id,
+                        );
+                        if (status.conversationId == 0 ||
+                            status.status == 'declined') {
+                          status = await ChatService.instance.startConversation(
+                            userId: user!.id,
+                          );
                         }
 
-                        if (!mounted) return;
+                        if (!context.mounted) return;
 
                         // ==========================================
                         // FRIENDS
@@ -197,8 +140,7 @@ class _UserProfileScreenState
                             context,
                             MaterialPageRoute(
                               builder: (_) => ConversationScreen(
-                                conversationId:
-                                    status.conversationId,
+                                conversationId: status.conversationId,
                                 recipientId: user!.id,
                                 name: user!.fullName,
                               ),
@@ -221,64 +163,48 @@ class _UserProfileScreenState
                           context,
                           MaterialPageRoute(
                             builder: (_) => ConversationScreen(
-                              conversationId:
-                                  status.conversationId,
+                              conversationId: status.conversationId,
                               recipientId: user!.id,
                               name: user!.fullName,
-                              requestState: status.status == 'pending_received' ? 'pending' : 'accepted',
+                              requestState: status.status == 'pending_received'
+                                  ? 'pending'
+                                  : 'accepted',
                               requestSenderId: status.requestSenderId,
                             ),
                           ),
                         );
                       } catch (e) {
-                        if (!mounted) return;
+                        if (!context.mounted) return;
 
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(e.toString()),
-                          ),
-                        );
+                        ScaffoldMessenger.of(
+                          context,
+                        ).showSnackBar(SnackBar(content: Text(e.toString())));
                       }
                     },
-                    icon: const Icon(
-                      Icons.message,
-                    ),
-                    label: const Text(
-                      "Message",
-                    ),
+                    icon: const Icon(Icons.message),
+                    label: const Text("Message"),
                   ),
                 ),
 
                 const SizedBox(width: 10),
 
                 Expanded(
-                  child:
-                      OutlinedButton.icon(
+                  child: OutlinedButton.icon(
                     onPressed: () {},
-                    icon: const Icon(
-                      Icons.call,
-                    ),
-                    label: const Text(
-                      "Call",
-                    ),
+                    icon: const Icon(Icons.call),
+                    label: const Text("Call"),
                   ),
                 ),
 
                 const SizedBox(width: 10),
 
                 Expanded(
-                  child:
-                      OutlinedButton.icon(
+                  child: OutlinedButton.icon(
                     onPressed: () {},
-                    icon: const Icon(
-                      Icons.videocam,
-                    ),
-                    label: const Text(
-                      "Video",
-                    ),
+                    icon: const Icon(Icons.videocam),
+                    label: const Text("Video"),
                   ),
                 ),
-
               ],
             ),
           ],
@@ -287,19 +213,10 @@ class _UserProfileScreenState
     );
   }
 
-  Widget _infoTile(
-    String title,
-    String value,
-  ) {
+  Widget _infoTile(String title, String value) {
     return Card(
-      margin:
-          const EdgeInsets.only(
-        bottom: 12,
-      ),
-      child: ListTile(
-        title: Text(title),
-        subtitle: Text(value),
-      ),
+      margin: const EdgeInsets.only(bottom: 12),
+      child: ListTile(title: Text(title), subtitle: Text(value)),
     );
   }
 }

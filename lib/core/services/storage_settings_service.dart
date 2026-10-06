@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -16,9 +17,7 @@ class StorageSettingsService {
       if (token == null) return null;
 
       final response = await http.get(
-        Uri.parse(
-          "$baseUrl/api/users/storage-settings",
-        ),
+        Uri.parse("$baseUrl/api/users/storage-settings"),
         headers: {
           "Authorization": "Bearer $token",
           "Content-Type": "application/json",
@@ -33,35 +32,29 @@ class StorageSettingsService {
 
       return null;
     } catch (e) {
-      print("Storage GET Error: $e");
+      developer.log("Storage GET Error: $e");
       return null;
     }
   }
 
-  static Future<bool> updateSettings(
-    StorageSettings settings,
-  ) async {
+  static Future<bool> updateSettings(StorageSettings settings) async {
     try {
       final token = await StorageService.getToken();
 
       if (token == null) return false;
 
       final response = await http.put(
-        Uri.parse(
-          "$baseUrl/api/users/storage-settings",
-        ),
+        Uri.parse("$baseUrl/api/users/storage-settings"),
         headers: {
           "Authorization": "Bearer $token",
           "Content-Type": "application/json",
         },
-        body: jsonEncode(
-          settings.toJson(),
-        ),
+        body: jsonEncode(settings.toJson()),
       );
 
       return response.statusCode == 200;
     } catch (e) {
-      print("Storage PUT Error: $e");
+      developer.log("Storage PUT Error: $e");
       return false;
     }
   }
@@ -73,9 +66,7 @@ class StorageSettingsService {
       if (token == null) return false;
 
       final response = await http.post(
-        Uri.parse(
-          "$baseUrl/api/users/storage-settings/clear-cache",
-        ),
+        Uri.parse("$baseUrl/api/users/storage-settings/clear-cache"),
         headers: {
           "Authorization": "Bearer $token",
           "Content-Type": "application/json",
@@ -84,7 +75,7 @@ class StorageSettingsService {
 
       return response.statusCode == 200;
     } catch (e) {
-      print("Clear Cache Error: $e");
+      developer.log("Clear Cache Error: $e");
       return false;
     }
   }
@@ -96,9 +87,7 @@ class StorageSettingsService {
       if (token == null) return false;
 
       final response = await http.put(
-        Uri.parse(
-          "$baseUrl/api/users/storage-settings/reset",
-        ),
+        Uri.parse("$baseUrl/api/users/storage-settings/reset"),
         headers: {
           "Authorization": "Bearer $token",
           "Content-Type": "application/json",
@@ -107,7 +96,7 @@ class StorageSettingsService {
 
       return response.statusCode == 200;
     } catch (e) {
-      print("Storage Reset Error: $e");
+      developer.log("Storage Reset Error: $e");
       return false;
     }
   }
@@ -119,12 +108,8 @@ class StorageSettingsService {
       if (token == null) return false;
 
       final response = await http.get(
-        Uri.parse(
-          "$baseUrl/api/users/storage-settings",
-        ),
-        headers: {
-          "Authorization": "Bearer $token",
-        },
+        Uri.parse("$baseUrl/api/users/storage-settings"),
+        headers: {"Authorization": "Bearer $token"},
       );
 
       return response.statusCode == 200;

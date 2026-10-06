@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -16,9 +17,7 @@ class PrivacySettingsService {
       if (token == null) return null;
 
       final response = await http.get(
-        Uri.parse(
-          "$baseUrl/api/users/privacy-settings",
-        ),
+        Uri.parse("$baseUrl/api/users/privacy-settings"),
         headers: {
           "Authorization": "Bearer $token",
           "Content-Type": "application/json",
@@ -33,35 +32,29 @@ class PrivacySettingsService {
 
       return null;
     } catch (e) {
-      print("Privacy GET Error: $e");
+      developer.log("Privacy GET Error: $e");
       return null;
     }
   }
 
-  static Future<bool> updateSettings(
-    PrivacySettings settings,
-  ) async {
+  static Future<bool> updateSettings(PrivacySettings settings) async {
     try {
       final token = await StorageService.getToken();
 
       if (token == null) return false;
 
       final response = await http.put(
-        Uri.parse(
-          "$baseUrl/api/users/privacy-settings",
-        ),
+        Uri.parse("$baseUrl/api/users/privacy-settings"),
         headers: {
           "Authorization": "Bearer $token",
           "Content-Type": "application/json",
         },
-        body: jsonEncode(
-          settings.toJson(),
-        ),
+        body: jsonEncode(settings.toJson()),
       );
 
       return response.statusCode == 200;
     } catch (e) {
-      print("Privacy PUT Error: $e");
+      developer.log("Privacy PUT Error: $e");
       return false;
     }
   }
@@ -73,9 +66,7 @@ class PrivacySettingsService {
       if (token == null) return false;
 
       final response = await http.put(
-        Uri.parse(
-          "$baseUrl/api/users/privacy-settings/reset",
-        ),
+        Uri.parse("$baseUrl/api/users/privacy-settings/reset"),
         headers: {
           "Authorization": "Bearer $token",
           "Content-Type": "application/json",
@@ -84,7 +75,7 @@ class PrivacySettingsService {
 
       return response.statusCode == 200;
     } catch (e) {
-      print("Privacy Reset Error: $e");
+      developer.log("Privacy Reset Error: $e");
       return false;
     }
   }
@@ -96,12 +87,8 @@ class PrivacySettingsService {
       if (token == null) return false;
 
       final response = await http.get(
-        Uri.parse(
-          "$baseUrl/api/users/privacy-settings",
-        ),
-        headers: {
-          "Authorization": "Bearer $token",
-        },
+        Uri.parse("$baseUrl/api/users/privacy-settings"),
+        headers: {"Authorization": "Bearer $token"},
       );
 
       return response.statusCode == 200;

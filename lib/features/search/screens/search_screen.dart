@@ -10,13 +10,11 @@ class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
 
   @override
-  State<SearchScreen> createState() =>
-      _SearchScreenState();
+  State<SearchScreen> createState() => _SearchScreenState();
 }
 
 class _SearchScreenState extends State<SearchScreen> {
-  final TextEditingController controller =
-      TextEditingController();
+  final TextEditingController controller = TextEditingController();
 
   Timer? _debounce;
 
@@ -37,10 +35,7 @@ class _SearchScreenState extends State<SearchScreen> {
   void _onSearchChanged(String value) {
     _debounce?.cancel();
 
-    _debounce = Timer(
-      const Duration(milliseconds: 450),
-      () => _search(value),
-    );
+    _debounce = Timer(const Duration(milliseconds: 450), () => _search(value));
   }
 
   Future<void> _search(String value) async {
@@ -61,8 +56,7 @@ class _SearchScreenState extends State<SearchScreen> {
     });
 
     try {
-      final result =
-          await FriendsService.searchUsers(query);
+      final result = await FriendsService.searchUsers(query);
 
       if (!mounted) return;
 
@@ -75,10 +69,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
       setState(() {
         loading = false;
-        error = e.toString().replaceFirst(
-              'Exception: ',
-              '',
-            );
+        error = e.toString().replaceFirst('Exception: ', '');
       });
     }
   }
@@ -105,104 +96,98 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Widget _buildBody() {
     if (loading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     if (error != null) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Text(
-            error!,
-            textAlign: TextAlign.center,
-          ),
+          child: Text(error!, textAlign: TextAlign.center),
         ),
       );
     }
 
     if (controller.text.trim().isEmpty) {
       return const Center(
-        child: Text(
-          'Search for students by name or username.',
-        ),
+        child: Text('Search for students by name or username.'),
       );
     }
 
     if (users.isEmpty) {
-      return const Center(
-        child: Text('No students found.'),
-      );
+      return const Center(child: Text('No students found.'));
     }
 
     return ListView.separated(
-      padding: const EdgeInsets.symmetric(
-        vertical: 8,
-      ),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       itemCount: users.length,
-      separatorBuilder: (_, _) =>
-          const Divider(height: 1),
+      separatorBuilder: (_, _) => const Divider(height: 1),
       itemBuilder: (context, index) {
         final user = users[index];
 
         return ListTile(
-          contentPadding:
-              const EdgeInsets.symmetric(
+          contentPadding: const EdgeInsets.symmetric(
             horizontal: 16,
             vertical: 6,
           ),
           leading: CircleAvatar(
             radius: 26,
             backgroundImage:
-                user.profilePicture != null &&
-                        user.profilePicture!
-                            .isNotEmpty
-                    ? NetworkImage(
-                        user.profilePicture!,
-                      )
-                    : null,
-            child:
-                user.profilePicture == null ||
-                        user.profilePicture!.isEmpty
-                    ? Text(
-                        user.fullName.isEmpty
-                            ? '?'
-                            : user.fullName[0]
-                                .toUpperCase(),
-                      )
-                    : null,
+                user.profilePicture != null && user.profilePicture!.isNotEmpty
+                ? NetworkImage(user.profilePicture!)
+                : null,
+            child: user.profilePicture == null || user.profilePicture!.isEmpty
+                ? Text(
+                    user.fullName.isEmpty
+                        ? '?'
+                        : user.fullName[0].toUpperCase(),
+                  )
+                : null,
           ),
           title: Text(
             user.fullName,
-            style: const TextStyle(
-              fontWeight: FontWeight.w600,
-            ),
+            style: const TextStyle(fontWeight: FontWeight.w600),
           ),
-          subtitle: Text(
-            '@${user.username}',
-          ),
+          subtitle: Text('@${user.username}'),
           trailing: IconButton(
-            tooltip: _requestedUserIds.contains(user.id) ? 'Request sent' : 'Add friend',
-            icon: Icon(_requestedUserIds.contains(user.id) ? Icons.person_add_disabled : Icons.person_add_alt_1),
-            onPressed: _requestedUserIds.contains(user.id) || _sendingRequestIds.contains(user.id)
+            tooltip: _requestedUserIds.contains(user.id)
+                ? 'Request sent'
+                : 'Add friend',
+            icon: Icon(
+              _requestedUserIds.contains(user.id)
+                  ? Icons.person_add_disabled
+                  : Icons.person_add_alt_1,
+            ),
+            onPressed:
+                _requestedUserIds.contains(user.id) ||
+                    _sendingRequestIds.contains(user.id)
                 ? null
                 : () async {
                     setState(() => _sendingRequestIds.add(user.id));
                     try {
                       await FriendsService.sendRequest(user.id);
-                      if (!mounted) return;
+                      if (!context.mounted) return;
                       setState(() => _requestedUserIds.add(user.id));
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Friend request sent to ${user.fullName}.')),
+                        SnackBar(
+                          content: Text(
+                            'Friend request sent to ${user.fullName}.',
+                          ),
+                        ),
                       );
                     } catch (e) {
-                      if (!mounted) return;
+                      if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+                        SnackBar(
+                          content: Text(
+                            e.toString().replaceFirst('Exception: ', ''),
+                          ),
+                        ),
                       );
                     } finally {
-                      if (mounted) setState(() => _sendingRequestIds.remove(user.id));
+                      if (mounted) {
+                        setState(() => _sendingRequestIds.remove(user.id));
+                      }
                     }
                   },
           ),
@@ -210,10 +195,7 @@ class _SearchScreenState extends State<SearchScreen> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) =>
-                    UserProfileScreen(
-                  userId: user.id,
-                ),
+                builder: (_) => UserProfileScreen(userId: user.id),
               ),
             );
           },

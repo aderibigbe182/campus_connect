@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -16,9 +17,7 @@ class NotificationSettingsService {
       if (token == null) return null;
 
       final response = await http.get(
-        Uri.parse(
-          "$baseUrl/api/users/notification-settings",
-        ),
+        Uri.parse("$baseUrl/api/users/notification-settings"),
         headers: {
           "Authorization": "Bearer $token",
           "Content-Type": "application/json",
@@ -33,35 +32,29 @@ class NotificationSettingsService {
 
       return null;
     } catch (e) {
-      print("Notification GET Error: $e");
+      developer.log("Notification GET Error: $e");
       return null;
     }
   }
 
-  static Future<bool> updateSettings(
-    NotificationSettings settings,
-  ) async {
+  static Future<bool> updateSettings(NotificationSettings settings) async {
     try {
       final token = await StorageService.getToken();
 
       if (token == null) return false;
 
       final response = await http.put(
-        Uri.parse(
-          "$baseUrl/api/users/notification-settings",
-        ),
+        Uri.parse("$baseUrl/api/users/notification-settings"),
         headers: {
           "Authorization": "Bearer $token",
           "Content-Type": "application/json",
         },
-        body: jsonEncode(
-          settings.toJson(),
-        ),
+        body: jsonEncode(settings.toJson()),
       );
 
       return response.statusCode == 200;
     } catch (e) {
-      print("Notification PUT Error: $e");
+      developer.log("Notification PUT Error: $e");
       return false;
     }
   }
@@ -73,9 +66,7 @@ class NotificationSettingsService {
       if (token == null) return false;
 
       final response = await http.put(
-        Uri.parse(
-          "$baseUrl/api/users/notification-settings/reset",
-        ),
+        Uri.parse("$baseUrl/api/users/notification-settings/reset"),
         headers: {
           "Authorization": "Bearer $token",
           "Content-Type": "application/json",
@@ -84,7 +75,7 @@ class NotificationSettingsService {
 
       return response.statusCode == 200;
     } catch (e) {
-      print("Notification Reset Error: $e");
+      developer.log("Notification Reset Error: $e");
       return false;
     }
   }
@@ -96,12 +87,8 @@ class NotificationSettingsService {
       if (token == null) return false;
 
       final response = await http.get(
-        Uri.parse(
-          "$baseUrl/api/users/notification-settings",
-        ),
-        headers: {
-          "Authorization": "Bearer $token",
-        },
+        Uri.parse("$baseUrl/api/users/notification-settings"),
+        headers: {"Authorization": "Bearer $token"},
       );
 
       return response.statusCode == 200;

@@ -10,15 +10,11 @@ class InviteFriendPage extends StatefulWidget {
   const InviteFriendPage({super.key});
 
   @override
-  State<InviteFriendPage> createState() =>
-      _InviteFriendPageState();
+  State<InviteFriendPage> createState() => _InviteFriendPageState();
 }
 
-class _InviteFriendPageState
-    extends State<InviteFriendPage> {
-
-  InviteFriendSettings settings =
-      InviteFriendSettings.defaults();
+class _InviteFriendPageState extends State<InviteFriendPage> {
+  InviteFriendSettings settings = InviteFriendSettings.defaults();
 
   bool isLoading = true;
   bool isSaving = false;
@@ -41,8 +37,6 @@ class _InviteFriendPageState
       isLoading = true;
       errorMessage = null;
     });
-
-   
 
     if (!mounted) return;
 
@@ -68,26 +62,16 @@ class _InviteFriendPageState
 
     setState(() {
       isSaving = false;
-      syncStatus = success
-          ? "All changes saved"
-          : "Failed to sync";
+      syncStatus = success ? "All changes saved" : "Failed to sync";
     });
 
-    ScaffoldMessenger.of(context)
-        .hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
-    ScaffoldMessenger.of(context)
-        .showSnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        backgroundColor:
-            success ? Colors.green : Colors.red,
-        duration:
-            const Duration(milliseconds: 900),
-        content: Text(
-          success
-              ? "Settings saved"
-              : "Couldn't sync settings",
-        ),
+        backgroundColor: success ? Colors.green : Colors.red,
+        duration: const Duration(milliseconds: 900),
+        content: Text(success ? "Settings saved" : "Couldn't sync settings"),
       ),
     );
   }
@@ -95,15 +79,10 @@ class _InviteFriendPageState
   void debounceSave() {
     saveTimer?.cancel();
 
-    saveTimer = Timer(
-      const Duration(milliseconds: 600),
-      saveSettings,
-    );
+    saveTimer = Timer(const Duration(milliseconds: 600), saveSettings);
   }
 
-  void updateSettings(
-    InviteFriendSettings newSettings,
-  ) {
+  void updateSettings(InviteFriendSettings newSettings) {
     setState(() {
       settings = newSettings;
     });
@@ -131,19 +110,14 @@ class _InviteFriendPageState
       isGenerating = false;
 
       if (link != null) {
-        settings = settings.copyWith(
-          inviteLink: link,
-        );
+        settings = settings.copyWith(inviteLink: link);
       }
     });
 
-    ScaffoldMessenger.of(context)
-        .showSnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          link != null
-              ? "Invite link generated"
-              : "Unable to generate link",
+          link != null ? "Invite link generated" : "Unable to generate link",
         ),
       ),
     );
@@ -152,22 +126,12 @@ class _InviteFriendPageState
   Future<void> copyInviteLink() async {
     if (settings.inviteLink.isEmpty) return;
 
-    await Clipboard.setData(
-      ClipboardData(
-        text: settings.inviteLink,
-      ),
-    );
+    await Clipboard.setData(ClipboardData(text: settings.inviteLink));
 
     if (!mounted) return;
 
     ScaffoldMessenger.of(context)
-        .showSnackBar(
-      const SnackBar(
-        content: Text(
-          "Invite link copied",
-        ),
-      ),
-    );
+        .showSnackBar(const SnackBar(content: Text("Invite link copied")));
   }
 
   Future<void> shareInvite() async {
@@ -177,8 +141,10 @@ class _InviteFriendPageState
 
     if (settings.inviteLink.isEmpty) return;
 
-    await Share.share(
-      '''
+    await SharePlus.instance.share(
+      ShareParams(
+        text:
+            '''
 Join me on Campus Connect!
 
 Referral Code:
@@ -187,9 +153,8 @@ ${settings.referralCode}
 Download here:
 ${settings.inviteLink}
 ''',
+      ),
     );
-
-  
   }
 
   @override
@@ -197,6 +162,7 @@ ${settings.inviteLink}
     saveTimer?.cancel();
     super.dispose();
   }
+
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
@@ -205,20 +171,13 @@ ${settings.inviteLink}
         appBar: AppBar(
           backgroundColor: Colors.white,
           elevation: 0,
-          iconTheme: const IconThemeData(
-            color: Colors.blue,
-          ),
+          iconTheme: const IconThemeData(color: Colors.blue),
           title: const Text(
             "Invite a Friend",
-            style: TextStyle(
-              color: Colors.black,
-              fontWeight: FontWeight.w600,
-            ),
+            style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
           ),
         ),
-        body: const Center(
-          child: CircularProgressIndicator(),
-        ),
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
 
@@ -228,9 +187,7 @@ ${settings.inviteLink}
         appBar: AppBar(
           backgroundColor: Colors.white,
           elevation: 0,
-          iconTheme: const IconThemeData(
-            color: Colors.blue,
-          ),
+          iconTheme: const IconThemeData(color: Colors.blue),
           title: const Text(
             "Invite a Friend",
             style: TextStyle(color: Colors.black),
@@ -240,10 +197,8 @@ ${settings.inviteLink}
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
-              mainAxisAlignment:
-                  MainAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-
                 const Icon(
                   Icons.group_add_outlined,
                   size: 70,
@@ -254,18 +209,12 @@ ${settings.inviteLink}
 
                 const Text(
                   "Couldn't load invite information",
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
 
                 const SizedBox(height: 10),
 
-                Text(
-                  errorMessage!,
-                  textAlign: TextAlign.center,
-                ),
+                Text(errorMessage!, textAlign: TextAlign.center),
 
                 const SizedBox(height: 24),
 
@@ -286,15 +235,10 @@ ${settings.inviteLink}
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        iconTheme: const IconThemeData(
-          color: Colors.blue,
-        ),
+        iconTheme: const IconThemeData(color: Colors.blue),
         title: const Text(
           "Invite a Friend",
-          style: TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.w600,
-          ),
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
         ),
       ),
 
@@ -302,36 +246,26 @@ ${settings.inviteLink}
         onRefresh: initializePage,
 
         child: SingleChildScrollView(
-          physics:
-              const AlwaysScrollableScrollPhysics(),
+          physics: const AlwaysScrollableScrollPhysics(),
 
           child: Column(
             children: [
-
               if (isSaving)
                 Container(
                   width: double.infinity,
-                  padding:
-                      const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(12),
                   color: Colors.blue.shade50,
                   child: const Row(
                     children: [
-
                       SizedBox(
                         width: 18,
                         height: 18,
-                        child:
-                            CircularProgressIndicator(
-                          strokeWidth: 2,
-                        ),
+                        child: CircularProgressIndicator(strokeWidth: 2),
                       ),
 
                       SizedBox(width: 12),
 
-                      Text(
-                        "Saving settings...",
-                      ),
-
+                      Text("Saving settings..."),
                     ],
                   ),
                 ),
@@ -341,10 +275,7 @@ ${settings.inviteLink}
               Center(
                 child: Text(
                   syncStatus,
-                  style: const TextStyle(
-                    color: Colors.grey,
-                    fontSize: 12,
-                  ),
+                  style: const TextStyle(color: Colors.grey, fontSize: 12),
                 ),
               ),
 
@@ -358,12 +289,9 @@ ${settings.inviteLink}
               const SizedBox(height: 16),
 
               buildStatisticsCard(
-                totalInvites:
-                    settings.totalInvites,
-                successfulInvites:
-                    settings.successfulInvites,
-                rewardPoints:
-                    settings.rewardPoints,
+                totalInvites: settings.totalInvites,
+                successfulInvites: settings.successfulInvites,
+                rewardPoints: settings.rewardPoints,
               ),
 
               const SizedBox(height: 16),
@@ -373,10 +301,7 @@ ${settings.inviteLink}
                 settings.notificationsEnabled,
                 (value) {
                   updateSettings(
-                    settings.copyWith(
-                      notificationsEnabled:
-                          value,
-                    ),
+                    settings.copyWith(notificationsEnabled: value),
                   );
                 },
               ),
@@ -384,44 +309,26 @@ ${settings.inviteLink}
               const SizedBox(height: 20),
 
               Padding(
-                padding:
-                    const EdgeInsets.symmetric(
-                  horizontal: 16,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
-                    onPressed:
-                        isGenerating
-                            ? null
-                            : generateInviteLink,
-                    icon:
-                        isGenerating
-                            ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child:
-                                  CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color:
-                                    Colors.white,
-                              ),
-                            )
-                            : const Icon(
-                              Icons.refresh,
+                    onPressed: isGenerating ? null : generateInviteLink,
+                    icon: isGenerating
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
                             ),
-                    label: const Text(
-                      "Generate Invite Link",
-                    ),
+                          )
+                        : const Icon(Icons.refresh),
+                    label: const Text("Generate Invite Link"),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor:
-                          Colors.blue,
-                      foregroundColor:
-                          Colors.white,
-                      padding:
-                          const EdgeInsets.symmetric(
-                        vertical: 14,
-                      ),
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
                   ),
                 ),
@@ -430,50 +337,30 @@ ${settings.inviteLink}
               const SizedBox(height: 12),
 
               Padding(
-                padding:
-                    const EdgeInsets.symmetric(
-                  horizontal: 16,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Row(
                   children: [
-
                     Expanded(
-                      child:
-                          OutlinedButton.icon(
-                        onPressed:
-                            copyInviteLink,
-                        icon: const Icon(
-                          Icons.copy,
-                        ),
-                        label: const Text(
-                          "Copy Link",
-                        ),
+                      child: OutlinedButton.icon(
+                        onPressed: copyInviteLink,
+                        icon: const Icon(Icons.copy),
+                        label: const Text("Copy Link"),
                       ),
                     ),
 
                     const SizedBox(width: 12),
 
                     Expanded(
-                      child:
-                          ElevatedButton.icon(
-                        onPressed:
-                            shareInvite,
-                        icon: const Icon(
-                          Icons.share,
-                        ),
-                        label: const Text(
-                          "Share",
-                        ),
-                        style:
-                            ElevatedButton.styleFrom(
-                          backgroundColor:
-                              Colors.blue,
-                          foregroundColor:
-                              Colors.white,
+                      child: ElevatedButton.icon(
+                        onPressed: shareInvite,
+                        icon: const Icon(Icons.share),
+                        label: const Text("Share"),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
                         ),
                       ),
                     ),
-
                   ],
                 ),
               ),
@@ -485,30 +372,21 @@ ${settings.inviteLink}
       ),
     );
   }
+
   Widget buildSwitchTile(
     String title,
     bool value,
     ValueChanged<bool> onChanged,
   ) {
     return Card(
-      margin: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 4,
-      ),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: SwitchListTile(
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
         title: Text(
           title,
-          style: const TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 16,
-          ),
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
         ),
         value: value,
         activeThumbColor: Colors.blue,
@@ -517,36 +395,22 @@ ${settings.inviteLink}
     );
   }
 
-  Widget buildReferralCard({
-    required String code,
-    required String link,
-  }) {
+  Widget buildReferralCard({required String code, required String link}) {
     return Card(
-      margin: const EdgeInsets.symmetric(
-        horizontal: 16,
-      ),
+      margin: const EdgeInsets.symmetric(horizontal: 16),
       elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-
-            const Icon(
-              Icons.card_giftcard,
-              size: 48,
-              color: Colors.blue,
-            ),
+            const Icon(Icons.card_giftcard, size: 48, color: Colors.blue),
 
             const SizedBox(height: 16),
 
             const Text(
               "Your Referral Code",
-              style: TextStyle(
-                color: Colors.grey,
-              ),
+              style: TextStyle(color: Colors.grey),
             ),
 
             const SizedBox(height: 8),
@@ -567,20 +431,14 @@ ${settings.inviteLink}
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Colors.grey.shade100,
-                borderRadius:
-                    BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(10),
               ),
               child: SelectableText(
-                link.isEmpty
-                    ? "No invite link generated"
-                    : link,
+                link.isEmpty ? "No invite link generated" : link,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 13,
-                ),
+                style: const TextStyle(fontSize: 13),
               ),
             ),
-
           ],
         ),
       ),
@@ -593,48 +451,28 @@ ${settings.inviteLink}
     required int rewardPoints,
   }) {
     return Card(
-      margin: const EdgeInsets.symmetric(
-        horizontal: 16,
-      ),
+      margin: const EdgeInsets.symmetric(horizontal: 16),
       elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(18),
         child: Row(
-          mainAxisAlignment:
-              MainAxisAlignment.spaceAround,
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
+            buildStatItem("Invites", totalInvites.toString()),
 
-            buildStatItem(
-              "Invites",
-              totalInvites.toString(),
-            ),
+            buildStatItem("Joined", successfulInvites.toString()),
 
-            buildStatItem(
-              "Joined",
-              successfulInvites.toString(),
-            ),
-
-            buildStatItem(
-              "Rewards",
-              rewardPoints.toString(),
-            ),
-
+            buildStatItem("Rewards", rewardPoints.toString()),
           ],
         ),
       ),
     );
   }
 
-  Widget buildStatItem(
-    String title,
-    String value,
-  ) {
+  Widget buildStatItem(String title, String value) {
     return Column(
       children: [
-
         Text(
           value,
           style: const TextStyle(
@@ -646,14 +484,7 @@ ${settings.inviteLink}
 
         const SizedBox(height: 6),
 
-        Text(
-          title,
-          style: const TextStyle(
-            color: Colors.grey,
-            fontSize: 13,
-          ),
-        ),
-
+        Text(title, style: const TextStyle(color: Colors.grey, fontSize: 13)),
       ],
     );
   }
@@ -664,25 +495,12 @@ ${settings.inviteLink}
     required VoidCallback onTap,
   }) {
     return Card(
-      margin: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 4,
-      ),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: ListTile(
-        leading: Icon(
-          icon,
-          color: Colors.blue,
-        ),
-        title: Text(
-          title,
-          style: const TextStyle(
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+        leading: Icon(icon, color: Colors.blue),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
         trailing: const Icon(
           Icons.arrow_forward_ios,
           color: Colors.blue,

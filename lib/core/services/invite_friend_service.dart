@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -16,9 +17,7 @@ class InviteFriendSettingsService {
       if (token == null) return null;
 
       final response = await http.get(
-        Uri.parse(
-          "$baseUrl/api/users/invite-settings",
-        ),
+        Uri.parse("$baseUrl/api/users/invite-settings"),
         headers: {
           "Authorization": "Bearer $token",
           "Content-Type": "application/json",
@@ -33,35 +32,29 @@ class InviteFriendSettingsService {
 
       return null;
     } catch (e) {
-      print("Invite Settings GET Error: $e");
+      developer.log("Invite Settings GET Error: $e");
       return null;
     }
   }
 
-  static Future<bool> updateSettings(
-    InviteFriendSettings settings,
-  ) async {
+  static Future<bool> updateSettings(InviteFriendSettings settings) async {
     try {
       final token = await StorageService.getToken();
 
       if (token == null) return false;
 
       final response = await http.put(
-        Uri.parse(
-          "$baseUrl/api/users/invite-settings",
-        ),
+        Uri.parse("$baseUrl/api/users/invite-settings"),
         headers: {
           "Authorization": "Bearer $token",
           "Content-Type": "application/json",
         },
-        body: jsonEncode(
-          settings.toJson(),
-        ),
+        body: jsonEncode(settings.toJson()),
       );
 
       return response.statusCode == 200;
     } catch (e) {
-      print("Invite Settings PUT Error: $e");
+      developer.log("Invite Settings PUT Error: $e");
       return false;
     }
   }
@@ -73,9 +66,7 @@ class InviteFriendSettingsService {
       if (token == null) return null;
 
       final response = await http.post(
-        Uri.parse(
-          "$baseUrl/api/users/generate-invite-link",
-        ),
+        Uri.parse("$baseUrl/api/users/generate-invite-link"),
         headers: {
           "Authorization": "Bearer $token",
           "Content-Type": "application/json",
@@ -90,7 +81,7 @@ class InviteFriendSettingsService {
 
       return null;
     } catch (e) {
-      print("Generate Invite Link Error: $e");
+      developer.log("Generate Invite Link Error: $e");
       return null;
     }
   }
@@ -102,19 +93,16 @@ class InviteFriendSettingsService {
       if (token == null) return false;
 
       final response = await http.post(
-        Uri.parse(
-          "$baseUrl/api/users/invite-sent",
-        ),
+        Uri.parse("$baseUrl/api/users/invite-sent"),
         headers: {
           "Authorization": "Bearer $token",
           "Content-Type": "application/json",
         },
       );
 
-      return response.statusCode == 200 ||
-          response.statusCode == 201;
+      return response.statusCode == 200 || response.statusCode == 201;
     } catch (e) {
-      print("Invite Sent Error: $e");
+      developer.log("Invite Sent Error: $e");
       return false;
     }
   }
@@ -126,12 +114,8 @@ class InviteFriendSettingsService {
       if (token == null) return false;
 
       final response = await http.get(
-        Uri.parse(
-          "$baseUrl/api/users/invite-settings",
-        ),
-        headers: {
-          "Authorization": "Bearer $token",
-        },
+        Uri.parse("$baseUrl/api/users/invite-settings"),
+        headers: {"Authorization": "Bearer $token"},
       );
 
       return response.statusCode == 200;

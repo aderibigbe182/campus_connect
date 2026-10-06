@@ -21,11 +21,19 @@ class ChatService {
   }
 
   Future<List<ChatModel>> getChats() async {
-    final rows = _list(await _api.get('/api/chats', python: true), 'chats')
-        .map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    final rows = _list(
+      await _api.get('/api/chats', python: true),
+      'chats',
+    ).map((e) => Map<String, dynamic>.from(e as Map)).toList();
     for (final direction in ['received', 'sent']) {
-      final requests = _list(await _api.get('/api/chats/requests', python: true,
-          query: {'direction': direction}), 'requests');
+      final requests = _list(
+        await _api.get(
+          '/api/chats/requests',
+          python: true,
+          query: {'direction': direction},
+        ),
+        'requests',
+      );
       for (final item in requests) {
         final request = Map<String, dynamic>.from(item as Map);
         if (request['status'] != 'pending') continue;
@@ -37,34 +45,53 @@ class ChatService {
           'full_name': request['full_name'],
           'profile_picture': request['profile_picture'],
           'last_message': request['first_message'],
-          'last_message_at': request['first_message_at'] ?? request['created_at'],
+          'last_message_at':
+              request['first_message_at'] ?? request['created_at'],
           'access_state': direction == 'sent' ? 'accepted' : 'pending',
           'request_sender_id': request['sender_id'],
         });
       }
     }
     final chats = rows.map(ChatModel.fromJson).toList();
-    chats.sort((a, b) => (b.lastMessageTime ?? DateTime.fromMillisecondsSinceEpoch(0))
-        .compareTo(a.lastMessageTime ?? DateTime.fromMillisecondsSinceEpoch(0)));
+    chats.sort(
+      (a, b) => (b.lastMessageTime ?? DateTime.fromMillisecondsSinceEpoch(0))
+          .compareTo(
+            a.lastMessageTime ?? DateTime.fromMillisecondsSinceEpoch(0),
+          ),
+    );
     return chats;
   }
 
   Future<ChatStatus> getChatStatus(int userId) async {
-    final data = _data(await _api.get('/api/chats/status/$userId', python: true));
+    final data = _data(
+      await _api.get('/api/chats/status/$userId', python: true),
+    );
     return ChatStatus.fromJson(data);
   }
 
   Future<ChatStatus> startConversation({required int userId}) async {
-    final data = _data(await _api.post('/api/chats/direct', {'user_id': userId}, python: true));
+    final data = _data(
+      await _api.post('/api/chats/direct', {'user_id': userId}, python: true),
+    );
     return ChatStatus.fromJson(data);
   }
 
-  Future<List<MessageModel>> getMessages({required int conversationId, int limit = 50, int offset = 0}) async {
+  Future<List<MessageModel>> getMessages({
+    required int conversationId,
+    int limit = 50,
+    int offset = 0,
+  }) async {
     // The API uses an exclusive message id cursor. Offset is retained for old callers.
-    final data = _data(await _api.get('/api/chats/$conversationId/messages', python: true,
-        query: {'limit': '$limit'}));
+    final data = _data(
+      await _api.get(
+        '/api/chats/$conversationId/messages',
+        python: true,
+        query: {'limit': '$limit'},
+      ),
+    );
     return (data['messages'] is List ? data['messages'] as List : const [])
-        .map((e) => MessageModel.fromJson(Map<String, dynamic>.from(e as Map))).toList();
+        .map((e) => MessageModel.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
   }
 
   Future<MessageModel> sendMessage({
@@ -73,26 +100,43 @@ class ChatService {
     required String content,
     int? replyToMessageId,
   }) async {
-    final data = _data(await _api.post('/api/chats/$conversationId/messages', {
-      'content': content,
-      'type': 'text',
-      if (replyToMessageId != null) 'reply_to_message_id': replyToMessageId,
-    }, python: true));
-    return MessageModel.fromJson(Map<String, dynamic>.from(data['message'] as Map));
+    final data = _data(
+      await _api.post('/api/chats/$conversationId/messages', {
+        'content': content,
+        'type': 'text',
+        'reply_to_message_id': ?replyToMessageId,
+      }, python: true),
+    );
+    return MessageModel.fromJson(
+      Map<String, dynamic>.from(data['message'] as Map),
+    );
   }
 
-  Future<void> resolveMessageRequest({required int conversationId, required bool accept}) async {
+  Future<void> resolveMessageRequest({
+    required int conversationId,
+    required bool accept,
+  }) async {
     final action = accept ? 'accepted' : 'declined';
     for (final direction in ['received', 'sent']) {
-      final data = _data(await _api.get('/api/chats/requests', python: true,
-          query: {'direction': direction}));
+      final data = _data(
+        await _api.get(
+          '/api/chats/requests',
+          python: true,
+          query: {'direction': direction},
+        ),
+      );
       final requests = data['requests'];
       if (requests is! List) continue;
       for (final item in requests) {
         final request = Map<String, dynamic>.from(item as Map);
-        if ((request['chat_id'] as num?)?.toInt() == conversationId && request['status'] == 'pending') {
-          await _api.patch('/api/chat-requests/${request['id']}', null, python: true,
-              query: {'action': action});
+        if ((request['chat_id'] as num?)?.toInt() == conversationId &&
+            request['status'] == 'pending') {
+          await _api.patch(
+            '/api/chat-requests/${request['id']}',
+            null,
+            python: true,
+            query: {'action': action},
+          );
           return;
         }
       }
@@ -100,19 +144,34 @@ class ChatService {
     throw Exception('Pending chat request not found.');
   }
 
-  Future<MessageModel> editMessage({required int messageId, required String content}) async {
-    final data = _data(await _api.patch('/api/chats/messages/$messageId', {'content': content}, python: true));
-    return MessageModel.fromJson(Map<String, dynamic>.from(data['message'] as Map));
+  Future<MessageModel> editMessage({
+    required int messageId,
+    required String content,
+  }) async {
+    final data = _data(
+      await _api.patch('/api/chats/messages/$messageId', {
+        'content': content,
+      }, python: true),
+    );
+    return MessageModel.fromJson(
+      Map<String, dynamic>.from(data['message'] as Map),
+    );
   }
 
   Future<void> deleteForMe({required int messageId}) async {
-    await _api.delete('/api/chats/messages/$messageId', python: true,
-        query: const {'for_everyone': 'false'});
+    await _api.delete(
+      '/api/chats/messages/$messageId',
+      python: true,
+      query: const {'for_everyone': 'false'},
+    );
   }
 
   Future<void> deleteForEveryone({required int messageId}) async {
-    await _api.delete('/api/chats/messages/$messageId', python: true,
-        query: const {'for_everyone': 'true'});
+    await _api.delete(
+      '/api/chats/messages/$messageId',
+      python: true,
+      query: const {'for_everyone': 'true'},
+    );
   }
 
   Future<void> markRead({required int conversationId}) async {
@@ -120,13 +179,20 @@ class ChatService {
   }
 
   Future<void> markDelivered({required int messageId}) async {
-    throw UnsupportedError('The Python backend does not expose a per-message delivered route.');
+    throw UnsupportedError(
+      'The Python backend does not expose a per-message delivered route.',
+    );
   }
 }
 
 class ChatStatus {
-  const ChatStatus({required this.status, required this.conversationId,
-    this.requestId, this.requestSenderId, this.recipientId});
+  const ChatStatus({
+    required this.status,
+    required this.conversationId,
+    this.requestId,
+    this.requestSenderId,
+    this.recipientId,
+  });
   final String status;
   final int conversationId;
   final int? requestId;
@@ -134,8 +200,14 @@ class ChatStatus {
   final int? recipientId;
 
   factory ChatStatus.fromJson(Map<String, dynamic> json) => ChatStatus(
-    status: json['request_state']?.toString() ?? json['status']?.toString() ?? 'none',
-    conversationId: (json['conversation_id'] as num?)?.toInt() ?? (json['chat_id'] as num?)?.toInt() ?? 0,
+    status:
+        json['request_state']?.toString() ??
+        json['status']?.toString() ??
+        'none',
+    conversationId:
+        (json['conversation_id'] as num?)?.toInt() ??
+        (json['chat_id'] as num?)?.toInt() ??
+        0,
     requestId: (json['request_id'] as num?)?.toInt(),
     requestSenderId: (json['request_sender_id'] as num?)?.toInt(),
     recipientId: (json['recipient_id'] as num?)?.toInt(),
